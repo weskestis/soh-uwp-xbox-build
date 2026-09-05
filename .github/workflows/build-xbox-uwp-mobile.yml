@@ -14,6 +14,9 @@ env:
   SOURCE_BUNDLE: SOH-Source-70b94235.bundle
   SOURCE_BUNDLE_SHA256: 80a151b3d816a1969696df64d134e973b73887e6fedefc7e787772e820116430
   SOURCE_COMMIT: 70b942358a1762928b36da6dc99057481f4091f5
+  ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
+  ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
+  ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   PACKAGE_NAME: SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX
@@ -47,8 +50,43 @@ jobs:
 
       - name: Check out public build submodules
         run: |
-          git submodule update --init --depth 1 Shipwright/ZAPDTR
           git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
+          git clone --depth 1 --branch zelda3d https://github.com/SomeoneIsWorking/ZAPDTR.git Shipwright/ZAPDTR
+          base64 --decode > "$RUNNER_TEMP/ZAPDTR-5f37af8.bundle" <<'ZAPDTR_BUNDLE'
+          IyB2MiBnaXQgYnVuZGxlCi03ZDFiZGJjNGU1ODJlZjQ4YzM0YjI4ZDVjZWE5NjAyMDQwZDA5NzFl
+          IFNvSC96ZWxkYTNkIHZlbmRvcmVkIFpBUERUUiAoYmFzZSAjMzYgIkFkZCBtbSBwYWwgMS4wIHJv
+          bSBzdXBwb3J0IiwgTEYtbm9ybWFsaXplZCwgYnVpbGQgZmlsZXMgc3RyaXBwZWQpCjVmMzdhZjgx
+          NGY0YzU1OGQyMGRlM2MyMWQ1ZTMzNmQ4ZDFjYzk5YmYgSEVBRAoKUEFDSwAAAAIAAAALng54nJWM
+          UYrCMBBA/3OKucDKNJ00CSwi+C0LixeYzkwxaJtSs6C31z2CXw8evNc2MyCcRIU9p2zRq3j0Uz/0
+          o+aosQ85ZU4dMbuVN1saRO1GHYUsJG8TJelp9EmDGOcBPRIq5tiZ4792qRscq9oDvuUfh7rawmUn
+          dd5DF1MKAxEF+MKI6N52Lq3ZJ4078dXg5/wL9mgbSyt1gZWft8oKau/ZXJZyb0XcC1BtSVb+AZ5A
+          VAnoDymtleLd4TKXzqBB0D0feJx7wvSEacJrEVEHyTjHh6V54Rsv6pi6HxDLfZsoPvF/KgDGjA1L
+          9AUnmM+nAUBI4m/kENyg+PzKOZLS+XicAVQAq/+LHosesOsCFCY12kfuBuOJvCKPcP4HiSOsTD1y
+          k/8CixTr4tb1fYcnXfqLtyoELIqsqDyjtrOeA8wGFEfpNsbtxr4w03BEnrr8cxuAYXVKs34KjQSd
+          GShN/AG51f/RSr+nRw4JmoClAL+O9zVLe3ica2JuYt6QxyjyzfrE1IP7Slev+VEoVrngZlbWtPkM
+          ALn1DZHxFAvDWiW5D3L6OMkWn1mmiaS3PSWteJz7J3xJZEMbU72CrYKBNRdnZl6JoVl8iUIxGr8E
+          wbcAcvPyi3IjMIUiMYWioEKlULHEnIKMRIhYrTUXV3JOYnGxQnD25pdMvoweaJZWoPEr0fhVaGYX
+          JyfmpILENmextDOygFiTP7K6QxgWbMYQRjZbAISxm80AzNj8mk2OSQnJLLDhOZm5Sb75KZlpzvml
+          eWDvT1bmdIDoTOZUgTDaOcsByF9YTP8B96Uv7HZYMe1JOUUtapD8hXVBq9N4nNvKspVlwksRdlPT
+          HTPMd3UpRbKqXSl0md2vfmz/xr8WjADICg0o+A7qeS2NoIaz+7yfgUCqOI6k3duijHicLY0xbgIx
+          EEULUoCl9CClmHJXCtCDlAPQIJFcwKyHZcSsbc2MCwrEFSLlCGnSpsvxYhDd+19f7/+Nv93n1Hnu
+          k5Adh7ff59nTaLmEr5/RyxWSBBQghQMx6lkNh7lm7OhA3QLeze8ZgWIu9pieELO6yaQaQslMnTcE
+          Tn0FBkFNRTq8AxejFMHHAHa8V4WNYg/bjx1kf+bkNwECGspAkdTqYxWrhdVKk1jDaos99hSb9hVu
+          AWNo2nZdR4JWJN7Kmi7usnb/uE5PIPsC3LRuCd2itfGHQOX/uFIw2jA7cPN4nHvK+JRR2cQACBSc
+          83NzE/NSihlkf4v5+99pbz4tEsgy+eLOC3tthL5PVD4EAFLzEYH2BD9Qy5V4faXZKGZxmjPnhBB8
+          4XRieJwBRgC5/74XvhewIQU51ArXEGukk1mJ21DbmPA6M4/FTTUxMDA2NDQgU2V0TWVzaC5oAKEY
+          lN3W4qLLoEEQ5Xard4G8OSyms1oFZAYdzh3z9A0qOXZk43ii36a2UqCTe6lPS5IsKHicNY0xbsJA
+          FERFCaeYE4AoU1CkSpMoEuECP96RdyV71/p/beM0nINDICHlRtQcIr9JNdIbzZvr/Djf76vLbodT
+          JD5PR2gpPXgeilYqjJqkSz801JgM30vlFu+UKeUWqWLMYpbazIBZSyUiZYDSUhiJlGvZrN3Oibrg
+          i/WDFmENM9GUvpccvHtjdn0Z2+hBX0uHSToXzGKQzkFYMIia3zhp+vCq7X67WQepgsM/+L2tni9/
+          jDRMvP4CwPFdqdOGi4gLQEr6jc1iey3DRt54nPsp3SizIYtHUcFWwcCai7M0M6/EIr5EITe1OMMj
+          NTEltSiksiAVJLm5maeMEQBdZQ7d2QksvQbSVpVbcNpTTea0dVQpB+o=
+          ZAPDTR_BUNDLE
+          echo "$ZAPDTR_BUNDLE_SHA256  $RUNNER_TEMP/ZAPDTR-5f37af8.bundle" | sha256sum --check --strict
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_BASE_COMMIT"
+          git -C Shipwright/ZAPDTR fetch "$RUNNER_TEMP/ZAPDTR-5f37af8.bundle" HEAD
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_COMMIT"
 
       - name: Install host build dependencies
         run: |
