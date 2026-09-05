@@ -1,1 +1,388 @@
 
+name: Build Xbox UWP package from mobile bundle
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xbox-uwp-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_BUNDLE: SOH-Source-a45b8ed3.bundle
+  SOURCE_BUNDLE_SHA256: 70f92e599a9db06be51af73b15f3dc9d5ad2d7c777cd399abea35825bf44c427
+  SOURCE_COMMIT: a45b8ed3348952d148ba19515eb3b52618b440df
+  ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
+  ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
+  ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
+  UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
+  VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+  PACKAGE_NAME: SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX
+  PACKAGE_PUBLISHER: CN=SOHCursorFPSV3OoT3DFull
+
+jobs:
+  host-assets:
+    name: Generate redistributable port archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: source
+    steps:
+      - name: Check out mobile builder files
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Reconstruct exact source
+        working-directory: .
+        run: |
+          test -f "$GITHUB_WORKSPACE/$SOURCE_BUNDLE"
+          echo "$SOURCE_BUNDLE_SHA256  $GITHUB_WORKSPACE/$SOURCE_BUNDLE" | sha256sum --check --strict
+          git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
+          git -C source fetch "$GITHUB_WORKSPACE/$SOURCE_BUNDLE" refs/heads/cursor-fps-v3-full-build
+          git -C source checkout --detach FETCH_HEAD
+          test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
+
+      - name: Check out public build submodules
+        run: |
+          git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
+          git clone --depth 1 --branch zelda3d https://github.com/SomeoneIsWorking/ZAPDTR.git Shipwright/ZAPDTR
+          base64 --decode > "$RUNNER_TEMP/ZAPDTR-5f37af8.bundle" <<'ZAPDTR_BUNDLE'
+          IyB2MiBnaXQgYnVuZGxlCi03ZDFiZGJjNGU1ODJlZjQ4YzM0YjI4ZDVjZWE5NjAyMDQwZDA5NzFl
+          IFNvSC96ZWxkYTNkIHZlbmRvcmVkIFpBUERUUiAoYmFzZSAjMzYgIkFkZCBtbSBwYWwgMS4wIHJv
+          bSBzdXBwb3J0IiwgTEYtbm9ybWFsaXplZCwgYnVpbGQgZmlsZXMgc3RyaXBwZWQpCjVmMzdhZjgx
+          NGY0YzU1OGQyMGRlM2MyMWQ1ZTMzNmQ4ZDFjYzk5YmYgSEVBRAoKUEFDSwAAAAIAAAALng54nJWM
+          UYrCMBBA/3OKucDKNJ00CSwi+C0LixeYzkwxaJtSs6C31z2CXw8evNc2MyCcRIU9p2zRq3j0Uz/0
+          o+aosQ85ZU4dMbuVN1saRO1GHYUsJG8TJelp9EmDGOcBPRIq5tiZ4792qRscq9oDvuUfh7rawmUn
+          dd5DF1MKAxEF+MKI6N52Lq3ZJ4078dXg5/wL9mgbSyt1gZWft8oKau/ZXJZyb0XcC1BtSVb+AZ5A
+          VAnoDymtleLd4TKXzqBB0D0feJx7wvSEacJrEVEHyTjHh6V54Rsv6pi6HxDLfZsoPvF/KgDGjA1L
+          9AUnmM+nAUBI4m/kENyg+PzKOZLS+XicAVQAq/+LHosesOsCFCY12kfuBuOJvCKPcP4HiSOsTD1y
+          k/8CixTr4tb1fYcnXfqLtyoELIqsqDyjtrOeA8wGFEfpNsbtxr4w03BEnrr8cxuAYXVKs34KjQSd
+          GShN/AG51f/RSr+nRw4JmoClAL+O9zVLe3ica2JuYt6QxyjyzfrE1IP7Slev+VEoVrngZlbWtPkM
+          ALn1DZHxFAvDWiW5D3L6OMkWn1mmiaS3PSWteJz7J3xJZEMbU72CrYKBNRdnZl6JoVl8iUIxGr8E
+          wbcAcvPyi3IjMIUiMYWioEKlULHEnIKMRIhYrTUXV3JOYnGxQnD25pdMvoweaJZWoPEr0fhVaGYX
+          JyfmpILENmextDOygFiTP7K6QxgWbMYQRjZbAISxm80AzNj8mk2OSQnJLLDhOZm5Sb75KZlpzvml
+          eWDvT1bmdIDoTOZUgTDaOcsByF9YTP8B96Uv7HZYMe1JOUUtapD8hXVBq9N4nNvKspVlwksRdlPT
+          HTPMd3UpRbKqXSl0md2vfmz/xr8WjADICg0o+A7qeS2NoIaz+7yfgUCqOI6k3duijHicLY0xbgIx
+          EEULUoCl9CClmHJXCtCDlAPQIJFcwKyHZcSsbc2MCwrEFSLlCGnSpsvxYhDd+19f7/+Nv93n1Hnu
+          k5Adh7ff59nTaLmEr5/RyxWSBBQghQMx6lkNh7lm7OhA3QLeze8ZgWIu9pieELO6yaQaQslMnTcE
+          Tn0FBkFNRTq8AxejFMHHAHa8V4WNYg/bjx1kf+bkNwECGspAkdTqYxWrhdVKk1jDaos99hSb9hVu
+          AWNo2nZdR4JWJN7Kmi7usnb/uE5PIPsC3LRuCd2itfGHQOX/uFIw2jA7cPN4nHvK+JRR2cQACBSc
+          83NzE/NSihlkf4v5+99pbz4tEsgy+eLOC3tthL5PVD4EAFLzEYH2BD9Qy5V4faXZKGZxmjPnhBB8
+          4XRieJwBRgC5/74XvhewIQU51ArXEGukk1mJ21DbmPA6M4/FTTUxMDA2NDQgU2V0TWVzaC5oAKEY
+          lN3W4qLLoEEQ5Xard4G8OSyms1oFZAYdzh3z9A0qOXZk43ii36a2UqCTe6lPS5IsKHicNY0xbsJA
+          FERFCaeYE4AoU1CkSpMoEuECP96RdyV71/p/beM0nINDICHlRtQcIr9JNdIbzZvr/Djf76vLbodT
+          JD5PR2gpPXgeilYqjJqkSz801JgM30vlFu+UKeUWqWLMYpbazIBZSyUiZYDSUhiJlGvZrN3Oibrg
+          i/WDFmENM9GUvpccvHtjdn0Z2+hBX0uHSToXzGKQzkFYMIia3zhp+vCq7X67WQepgsM/+L2tni9/
+          jDRMvP4CwPFdqdOGi4gLQEr6jc1iey3DRt54nPsp3SizIYtHUcFWwcCai7M0M6/EIr5EITe1OMMj
+          NTEltSiksiAVJLm5maeMEQBdZQ7d2QksvQbSVpVbcNpTTea0dVQpB+o=
+          ZAPDTR_BUNDLE
+          echo "$ZAPDTR_BUNDLE_SHA256  $RUNNER_TEMP/ZAPDTR-5f37af8.bundle" | sha256sum --check --strict
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_BASE_COMMIT"
+          git -C Shipwright/ZAPDTR fetch "$RUNNER_TEMP/ZAPDTR-5f37af8.bundle" HEAD
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_COMMIT"
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build lsb-release zipcmp zipmerge ziptool \
+            libsdl2-dev libsdl2-net-dev libpng-dev \
+            libzip-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev \
+            libopengl-dev libopusfile-dev libvorbis-dev libfreetype6-dev
+
+      - name: Configure host asset generator
+        run: |
+          cmake -S . -B scratch/build-host-assets -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZELDA3D_SDL2_OPENGL=ON \
+            -DZELDA3D_BUILD_MM=OFF \
+            -DZELDA3D_BUILD_LAUNCHER=OFF \
+            -DZELDA3D_ENABLE_ROM_EXTRACTION=ON \
+            -DLUS_BUILD_TESTS=OFF
+
+      - name: Generate and validate soh.o2r
+        run: |
+          cmake --build scratch/build-host-assets --target GenerateSohOtr --parallel 2
+          test -s Shipwright/soh/soh.o2r
+          unzip -t Shipwright/soh/soh.o2r
+
+      - name: Transfer port archive to Windows job
+        uses: actions/upload-artifact@v4
+        with:
+          name: INTERNAL-soh-port-archive
+          path: source/Shipwright/soh/soh.o2r
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-package:
+    name: Compile, package, and sign UWP x64
+    needs: host-assets
+    runs-on: windows-2022
+    timeout-minutes: 180
+    defaults:
+      run:
+        working-directory: source
+    steps:
+      - name: Check out mobile builder files
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Reconstruct exact source
+        shell: pwsh
+        working-directory: .
+        run: |
+          $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
+          if (!(Test-Path $bundle)) { throw "Missing source bundle: $bundle" }
+          $actualHash = (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $env:SOURCE_BUNDLE_SHA256) { throw "Source bundle SHA-256 mismatch" }
+          git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
+          if ($LASTEXITCODE -ne 0) { throw "Upstream clone failed" }
+          git -C source fetch $bundle refs/heads/cursor-fps-v3-full-build
+          if ($LASTEXITCODE -ne 0) { throw "Source bundle import failed" }
+          git -C source checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw "Source checkout failed" }
+          $actualCommit = (git -C source rev-parse HEAD).Trim()
+          if ($actualCommit -ne $env:SOURCE_COMMIT) { throw "Source commit mismatch: $actualCommit" }
+
+      - name: Check out pinned SDL2, libuwp, and Mesa depot
+        uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: ${{ env.UWP_DEP_COMMIT }}
+          path: source/scratch/uwp-dep
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_COMMIT }}
+          path: source/scratch/vcpkg
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Bootstrap vcpkg
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+
+      - name: Install x64 static core libraries
+        shell: pwsh
+        run: |
+          $vcpkg = "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\vcpkg.exe"
+          & $vcpkg install --triplet x64-windows-static `
+            libzip nlohmann-json tinyxml2 spdlog freetype `
+            libogg libvorbis opus opusfile zlib bzip2 glew
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg core dependency install failed" }
+
+      - name: Configure Windows core DLL
+        shell: pwsh
+        run: |
+          cmake -S . -B scratch/build-uwp-core -G "Visual Studio 17 2022" -A x64 `
+            "-DCMAKE_SYSTEM_VERSION=10.0.19041.0" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\source\scratch\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DZELDA3D_UWP_CORE=ON `
+            -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\source\scratch\uwp-dep" `
+            -DZELDA3D_SDL2_OPENGL=ON `
+            -DZELDA3D_BUILD_MM=OFF `
+            -DZELDA3D_BUILD_LAUNCHER=OFF `
+            -DZELDA3D_ENABLE_ROM_EXTRACTION=OFF `
+            -DNON_PORTABLE=ON `
+            -DLUS_BUILD_TESTS=OFF
+
+      - name: Compile Windows core DLL
+        shell: pwsh
+        run: |
+          $coreLog = Join-Path $env:RUNNER_TEMP "windows-core-build.log"
+          cmake --build scratch/build-uwp-core --config Release --target soh_core --parallel 2 2>&1 |
+            Tee-Object -FilePath $coreLog
+          $coreExit = $LASTEXITCODE
+          if ($coreExit -ne 0) { exit $coreExit }
+
+      - name: Download redistributable port archive
+        uses: actions/download-artifact@v4
+        with:
+          name: INTERNAL-soh-port-archive
+          path: source/scratch/host-assets
+
+      - name: Stage wrapper runtime
+        shell: pwsh
+        run: |
+          $build = "$env:GITHUB_WORKSPACE\source\scratch\build-uwp-core"
+          $stage = "$env:GITHUB_WORKSPACE\source\scratch\uwp-runtime"
+          New-Item -ItemType Directory -Force "$stage\deps" | Out-Null
+
+          function Copy-UniqueBuildFile([string] $name, [string] $destination) {
+            $matches = @(Get-ChildItem $build -Recurse -File -Filter $name |
+              Where-Object { $_.FullName -match '\\Release\\' } |
+              Sort-Object LastWriteTimeUtc -Descending)
+            if ($matches.Count -eq 0) { throw "Missing Windows core build output: $name" }
+            Copy-Item $matches[0].FullName $destination
+          }
+
+          Copy-UniqueBuildFile "soh_core.dll" "$stage\soh_core.dll"
+          Copy-UniqueBuildFile "soh_core.lib" "$stage\soh_core.lib"
+          Copy-Item "$env:GITHUB_WORKSPACE\source\scratch\host-assets\soh.o2r" "$stage\soh.o2r"
+          Copy-Item "$build\soh\assets" "$stage\assets" -Recurse
+
+      - name: Configure ROM-free UWP wrapper
+        shell: pwsh
+        run: |
+          cmake -S uwp -B scratch/build-uwp-wrapper -G "Visual Studio 17 2022" -A x64 `
+            -DZELDA3D_UWP_RUNTIME_DIR="$env:GITHUB_WORKSPACE\source\scratch\uwp-runtime" `
+            -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\source\scratch\uwp-dep" `
+            -DZELDA3D_UWP_ALLOW_INCOMPLETE_RENDERER=ON `
+            -DZELDA3D_UWP_REQUIRE_SIGNING=OFF `
+            -DZELDA3D_UWP_VERSION="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
+
+      - name: Build unsigned AppX
+        shell: pwsh
+        run: |
+          $wrapperLog = Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log"
+          cmake --build scratch/build-uwp-wrapper --config Release --target zelda3d-uwp --parallel 2 -- `
+            /p:AppxPackageSigningEnabled=false `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never 2>&1 | Tee-Object -FilePath $wrapperLog
+          $wrapperExit = $LASTEXITCODE
+          if ($wrapperExit -ne 0) { exit $wrapperExit }
+
+      - name: Sign and assemble Device Portal artifact
+        shell: pwsh
+        run: |
+          $wrapper = "$env:GITHUB_WORKSPACE\source\scratch\build-uwp-wrapper"
+          $dist = "$env:GITHUB_WORKSPACE\source\scratch\dist\$env:PACKAGE_NAME"
+          New-Item -ItemType Directory -Force "$dist\Dependencies" | Out-Null
+
+          $candidates = @(Get-ChildItem $wrapper -Recurse -File -Filter *.appx |
+            Where-Object { $_.FullName -notmatch '\\Dependencies\\' } |
+            Sort-Object LastWriteTimeUtc -Descending)
+          if ($candidates.Count -eq 0) { throw "Visual Studio produced no AppX" }
+          $appx = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL-x64.appx"
+          Copy-Item $candidates[0].FullName $appx
+
+          Get-ChildItem $wrapper -Recurse -File -Filter *.appx |
+            Where-Object { $_.FullName -match '\\Dependencies\\' } |
+            ForEach-Object { Copy-Item $_.FullName "$dist\Dependencies" -Force }
+
+          $sdkBin = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Directory |
+            Sort-Object Name -Descending | Select-Object -First 1
+          $signTool = Join-Path $sdkBin.FullName "x64\signtool.exe"
+          $makeAppx = Join-Path $sdkBin.FullName "x64\makeappx.exe"
+          if (!(Test-Path $signTool) -or !(Test-Path $makeAppx)) {
+            throw "Windows SDK AppX tools are missing"
+          }
+
+          $pfx = "$env:GITHUB_WORKSPACE\source\scratch\ephemeral-signing.pfx"
+          $cer = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL.cer"
+          $passwordText = [guid]::NewGuid().ToString("N")
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject $env:PACKAGE_PUBLISHER `
+            -KeyAlgorithm RSA `
+            -KeyLength 2048 `
+            -HashAlgorithm SHA256 `
+            -KeyUsage DigitalSignature `
+            -KeyExportPolicy Exportable `
+            -CertStoreLocation Cert:\CurrentUser\My `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+          Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+          Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+
+          try {
+            & $signTool sign /fd SHA256 /f $pfx /p $passwordText $appx
+            if ($LASTEXITCODE -ne 0) { throw "SignTool failed" }
+            Import-Certificate -FilePath $cer -CertStoreLocation Cert:\CurrentUser\TrustedPeople | Out-Null
+            & $signTool verify /pa /v $appx
+            if ($LASTEXITCODE -ne 0) { throw "Signed AppX verification failed" }
+
+            $unpacked = "$env:GITHUB_WORKSPACE\source\scratch\appx-audit"
+            & $makeAppx unpack /p $appx /d $unpacked /o
+            if ($LASTEXITCODE -ne 0) { throw "Could not audit packed AppX" }
+            $privateNames = @("oot.o2r", "oot-mq.o2r")
+            foreach ($privateName in $privateNames) {
+              if (Get-ChildItem $unpacked -Recurse -File -Filter $privateName) {
+                throw "Private archive entered AppX: $privateName"
+              }
+            }
+            $privateSuffixes = @("*.3ds", "*.cia", "*.z64", "*.n64", "*.v64", "*.otr", "*.pfx", "*.p12")
+            foreach ($suffix in $privateSuffixes) {
+              if (Get-ChildItem $unpacked -Recurse -File -Filter $suffix) {
+                throw "Private file entered AppX: $suffix"
+              }
+            }
+          }
+          finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+            Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+            Remove-Item "Cert:\CurrentUser\TrustedPeople\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+          }
+
+          Copy-Item uwp\ANDROID-INSTALL.txt $dist
+          Copy-Item uwp\PRIVATE-DATA-NOT-INCLUDED.txt $dist
+          if (Test-Path scratch\uwp-dep\lic) {
+            Copy-Item scratch\uwp-dep\lic "$dist\ThirdPartyNotices\uwp-dep" -Recurse
+          } elseif (Test-Path scratch\uwp-dep\License) {
+            Copy-Item scratch\uwp-dep\License "$dist\ThirdPartyNotices\uwp-dep" -Recurse
+          } elseif (Test-Path scratch\uwp-dep\LICENSE) {
+            New-Item -ItemType Directory -Force "$dist\ThirdPartyNotices" | Out-Null
+            Copy-Item scratch\uwp-dep\LICENSE "$dist\ThirdPartyNotices\uwp-dep-LICENSE.txt"
+          }
+
+          if (Get-ChildItem $dist -Recurse -File -Include *.pfx,*.p12) {
+            throw "A private signing key entered the Device Portal artifact"
+          }
+          Get-ChildItem $dist -File | Where-Object { $_.Extension -in ".appx", ".cer" } |
+            ForEach-Object {
+              $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              "$hash  $($_.Name)"
+            } | Set-Content "$dist\SHA256SUMS.txt"
+          "source_commit=$env:SOURCE_COMMIT" | Set-Content "$dist\BUILD.txt"
+          "workflow_run=${{ github.run_id }}" | Add-Content "$dist\BUILD.txt"
+
+      - name: Upload phone-ready Device Portal package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: source/scratch/dist/${{ env.PACKAGE_NAME }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish build diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $reported = 0
+          foreach ($log in @(
+            (Join-Path $env:RUNNER_TEMP "windows-core-build.log"),
+            (Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log")
+          )) {
+            if (!(Test-Path $log)) { continue }
+            $diagnostics = Get-Content $log |
+              Where-Object {
+                $_ -match '(?i)(fatal error|:\s*error\s+(C|LNK|MSB)\d+|\berror\s+LNK\d+|\bLNK\d{4}\b|CMake Error)'
+              } |
+              ForEach-Object { $_.Trim() } |
+              Select-Object -Unique -First 20
+            foreach ($diagnostic in $diagnostics) {
+              $safe = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+              Write-Output "::error title=Windows build diagnostic::$safe"
+              $reported++
+            }
+          }
+          if ($reported -eq 0) {
+            Write-Output "::warning title=Windows build diagnostic::No compiler or linker diagnostic was found in the captured build logs."
+          }
