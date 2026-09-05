@@ -194,8 +194,8 @@ jobs:
         shell: pwsh
         run: |
           cmake -S . -B scratch/build-uwp-core -G "Visual Studio 17 2022" -A x64 `
-            -DCMAKE_SYSTEM_NAME=WindowsStore `
-            -DCMAKE_SYSTEM_VERSION=10.0.19041.0 `
+            "-DCMAKE_SYSTEM_NAME=WindowsStore" `
+            "-DCMAKE_SYSTEM_VERSION=10.0.19041.0" `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\source\scratch\vcpkg\scripts\buildsystems\vcpkg.cmake" `
             -DVCPKG_TARGET_TRIPLET=x64-uwp `
             -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\source\scratch\uwp-dep" `
