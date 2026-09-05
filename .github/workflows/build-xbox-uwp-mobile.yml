@@ -185,7 +185,7 @@ jobs:
         shell: pwsh
         run: |
           $vcpkg = "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\vcpkg.exe"
-          & $vcpkg install --triplet x64-uwp `
+          & $vcpkg install --triplet x64-uwp --allow-unsupported `
             libzip nlohmann-json tinyxml2 spdlog freetype `
             libogg libvorbis opus opusfile zlib bzip2
           if ($LASTEXITCODE -ne 0) { throw "vcpkg UWP dependency install failed" }
