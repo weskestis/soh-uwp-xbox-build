@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-a3f6583e.bundle
-  SOURCE_BUNDLE_SHA256: 579dea292223174e2f27bb2dea327bf06377c3c5a178d96240fd7dafd1691aba
-  SOURCE_COMMIT: a3f6583e3b6ee1dfd1558b8977af1acd4ffb885f
+  SOURCE_BUNDLE: SOH-Source-b16b7551.bundle
+  SOURCE_BUNDLE_SHA256: b142b67040d6e15955d6d3a56ca42880b0ebfacde2c498e0e091db35cfa1c073
+  SOURCE_COMMIT: b16b7551714aefb6be4ec59b62fa28b7a2f933fe
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
   ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
   ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
@@ -205,11 +205,7 @@ jobs:
       - name: Compile Windows core DLL
         shell: pwsh
         run: |
-          $coreLog = Join-Path $env:RUNNER_TEMP "windows-core-build.log"
-          cmake --build scratch/build-uwp-core --config Release --target soh_core --parallel 2 2>&1 |
-            Tee-Object -FilePath $coreLog
-          $coreExit = $LASTEXITCODE
-          if ($coreExit -ne 0) { exit $coreExit }
+          cmake --build scratch/build-uwp-core --config Release --target soh_core --parallel 2
 
       - name: Download redistributable port archive
         uses: actions/download-artifact@v4
@@ -250,13 +246,10 @@ jobs:
       - name: Build unsigned AppX
         shell: pwsh
         run: |
-          $wrapperLog = Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log"
           cmake --build scratch/build-uwp-wrapper --config Release --target zelda3d-uwp --parallel 2 -- `
             /p:AppxPackageSigningEnabled=false `
             /p:UapAppxPackageBuildMode=SideloadOnly `
-            /p:AppxBundle=Never 2>&1 | Tee-Object -FilePath $wrapperLog
-          $wrapperExit = $LASTEXITCODE
-          if ($wrapperExit -ne 0) { exit $wrapperExit }
+            /p:AppxBundle=Never
 
       - name: Sign and assemble Device Portal artifact
         shell: pwsh
@@ -359,29 +352,3 @@ jobs:
           path: source/scratch/dist/${{ env.PACKAGE_NAME }}
           if-no-files-found: error
           retention-days: 30
-
-      - name: Publish build diagnostics
-        if: failure()
-        shell: pwsh
-        run: |
-          $reported = 0
-          foreach ($log in @(
-            (Join-Path $env:RUNNER_TEMP "windows-core-build.log"),
-            (Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log")
-          )) {
-            if (!(Test-Path $log)) { continue }
-            $diagnostics = Get-Content $log |
-              Where-Object {
-                $_ -match '(?i)(fatal error|:\s*error\s+(C|LNK|MSB)\d+|\berror\s+LNK\d+|\bLNK\d{4}\b|CMake Error)'
-              } |
-              ForEach-Object { $_.Trim() } |
-              Select-Object -Unique -First 20
-            foreach ($diagnostic in $diagnostics) {
-              $safe = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
-              Write-Output "::error title=Windows build diagnostic::$safe"
-              $reported++
-            }
-          }
-          if ($reported -eq 0) {
-            Write-Output "::warning title=Windows build diagnostic::No compiler or linker diagnostic was found in the captured build logs."
-          }
