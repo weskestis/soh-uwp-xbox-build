@@ -92,7 +92,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            ninja-build lsb-release libsdl2-dev libsdl2-net-dev libpng-dev \
+            ninja-build lsb-release zipcmp zipmerge ziptool \
+            libsdl2-dev libsdl2-net-dev libpng-dev \
             libzip-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev \
             libopengl-dev libopusfile-dev libvorbis-dev libfreetype6-dev
 
