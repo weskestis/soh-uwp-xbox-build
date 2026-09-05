@@ -11,9 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-70b94235.bundle
-  SOURCE_BUNDLE_SHA256: 80a151b3d816a1969696df64d134e973b73887e6fedefc7e787772e820116430
-  SOURCE_COMMIT: 70b942358a1762928b36da6dc99057481f4091f5
+  SOURCE_BUNDLE: SOH-Source-b16b7551.bundle
+  SOURCE_BUNDLE_SHA256: b142b67040d6e15955d6d3a56ca42880b0ebfacde2c498e0e091db35cfa1c073
+  SOURCE_COMMIT: b16b7551714aefb6be4ec59b62fa28b7a2f933fe
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
   ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
   ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
@@ -154,10 +154,6 @@ jobs:
           $actualCommit = (git -C source rev-parse HEAD).Trim()
           if ($actualCommit -ne $env:SOURCE_COMMIT) { throw "Source commit mismatch: $actualCommit" }
 
-      - name: Check out public runtime submodule
-        shell: pwsh
-        run: git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
-
       - name: Check out pinned SDL2, libuwp, and Mesa depot
         uses: actions/checkout@v4
         with:
@@ -181,33 +177,32 @@ jobs:
         run: |
           & "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
 
-      - name: Install x64 UWP libraries
+      - name: Install x64 static core libraries
         shell: pwsh
         run: |
           $vcpkg = "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\vcpkg.exe"
-          & $vcpkg install --triplet x64-uwp --allow-unsupported `
+          & $vcpkg install --triplet x64-windows-static `
             libzip nlohmann-json tinyxml2 spdlog freetype `
-            libogg libvorbis opus opusfile zlib bzip2
-          if ($LASTEXITCODE -ne 0) { throw "vcpkg UWP dependency install failed" }
+            libogg libvorbis opus opusfile zlib bzip2 glew
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg core dependency install failed" }
 
-      - name: Configure WindowsStore core
+      - name: Configure Windows core DLL
         shell: pwsh
         run: |
           cmake -S . -B scratch/build-uwp-core -G "Visual Studio 17 2022" -A x64 `
-            "-DCMAKE_SYSTEM_NAME=WindowsStore" `
             "-DCMAKE_SYSTEM_VERSION=10.0.19041.0" `
             -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\source\scratch\vcpkg\scripts\buildsystems\vcpkg.cmake" `
-            -DVCPKG_TARGET_TRIPLET=x64-uwp `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DZELDA3D_UWP_CORE=ON `
             -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\source\scratch\uwp-dep" `
             -DZELDA3D_SDL2_OPENGL=ON `
             -DZELDA3D_BUILD_MM=OFF `
             -DZELDA3D_BUILD_LAUNCHER=OFF `
             -DZELDA3D_ENABLE_ROM_EXTRACTION=OFF `
             -DNON_PORTABLE=ON `
-            -DLUS_BUILD_TESTS=OFF `
-            -DSTORM_USE_BUNDLED_LIBRARIES=ON
+            -DLUS_BUILD_TESTS=OFF
 
-      - name: Compile WindowsStore core
+      - name: Compile Windows core DLL
         shell: pwsh
         run: |
           cmake --build scratch/build-uwp-core --config Release --target soh_core --parallel 2
@@ -229,20 +224,14 @@ jobs:
             $matches = @(Get-ChildItem $build -Recurse -File -Filter $name |
               Where-Object { $_.FullName -match '\\Release\\' } |
               Sort-Object LastWriteTimeUtc -Descending)
-            if ($matches.Count -eq 0) { throw "Missing UWP build output: $name" }
+            if ($matches.Count -eq 0) { throw "Missing Windows core build output: $name" }
             Copy-Item $matches[0].FullName $destination
           }
 
           Copy-UniqueBuildFile "soh_core.dll" "$stage\soh_core.dll"
           Copy-UniqueBuildFile "soh_core.lib" "$stage\soh_core.lib"
-          Copy-UniqueBuildFile "libultraship.dll" "$stage\libultraship.dll"
           Copy-Item "$env:GITHUB_WORKSPACE\source\scratch\host-assets\soh.o2r" "$stage\soh.o2r"
           Copy-Item "$build\soh\assets" "$stage\assets" -Recurse
-
-          $vcpkgBin = "$env:GITHUB_WORKSPACE\source\scratch\vcpkg\installed\x64-uwp\bin"
-          if (Test-Path "$vcpkgBin\*.dll") {
-            Copy-Item "$vcpkgBin\*.dll" "$stage\deps"
-          }
 
       - name: Configure ROM-free UWP wrapper
         shell: pwsh
