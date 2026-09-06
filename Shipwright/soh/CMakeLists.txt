@@ -1,0 +1,1009 @@
+cmake_minimum_required(VERSION 3.26.0 FATAL_ERROR)
+
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "WindowsStore" AND NOT ZELDA3D_UWP_CORE)
+    set(CMAKE_SYSTEM_VERSION 10.0 CACHE STRING "" FORCE)
+endif()
+
+project(soh LANGUAGES C CXX)
+set(CMAKE_CXX_STANDARD 20 CACHE STRING "The C++ standard to use")
+set(CMAKE_C_STANDARD 23 CACHE STRING "The C standard to use")
+
+if(NOT DEFINED ZELDA3D_WINDOWS_FAMILY)
+    set(ZELDA3D_WINDOWS_FAMILY OFF)
+    if(CMAKE_SYSTEM_NAME MATCHES "^Windows(Store)?$")
+        set(ZELDA3D_WINDOWS_FAMILY ON)
+    endif()
+endif()
+if(NOT DEFINED ZELDA3D_UWP)
+    set(ZELDA3D_UWP OFF)
+    if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+        set(ZELDA3D_UWP ON)
+    endif()
+endif()
+if(NOT DEFINED ZELDA3D_ENABLE_ROM_EXTRACTION)
+    set(ZELDA3D_ENABLE_ROM_EXTRACTION ON)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    enable_language(OBJCXX)
+    set(CMAKE_OBJC_FLAGS "${CMAKE_OBJC_FLAGS} -fobjc-arc")
+    set(CMAKE_OBJCXX_FLAGS "${CMAKE_OBJCXX_FLAGS} -fobjc-arc")
+endif()
+
+set (BUILD_UTILS OFF CACHE STRING "no utilities")
+set (BUILD_SHARED_LIBS OFF CACHE STRING "install/link shared instead of static libs")
+
+################################################################################
+# Set target arch type if empty. Visual studio solution generator provides it.
+################################################################################
+if (ZELDA3D_WINDOWS_FAMILY)
+    if(NOT CMAKE_VS_PLATFORM_NAME)
+        if(VCPKG_TARGET_TRIPLET MATCHES "^arm64-")
+            set(CMAKE_VS_PLATFORM_NAME "arm64")
+        else()
+            set(CMAKE_VS_PLATFORM_NAME "x64")
+        endif()
+    endif()
+    if("${CMAKE_VS_PLATFORM_NAME}" MATCHES "^[Aa][Rr][Mm]64$")
+        set(SOH_WINDOWS_ARM64 TRUE)
+    else()
+        set(SOH_WINDOWS_ARM64 FALSE)
+    endif()
+    if("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64" OR SOH_WINDOWS_ARM64)
+        set(SOH_WINDOWS_64BIT TRUE)
+    else()
+        set(SOH_WINDOWS_64BIT FALSE)
+    endif()
+    message("${CMAKE_VS_PLATFORM_NAME} architecture in use")
+
+    if(NOT ("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "x64"
+        OR "${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32"
+        OR SOH_WINDOWS_ARM64))
+        message(FATAL_ERROR "${CMAKE_VS_PLATFORM_NAME} arch is not supported!")
+    endif()
+endif()
+
+################################################################################
+# Global configuration types
+################################################################################
+set(CMAKE_CONFIGURATION_TYPES
+    "Debug"
+    "Release"
+    CACHE STRING "" FORCE
+)
+
+################################################################################
+# Global compiler options
+################################################################################
+if(MSVC)
+    # remove default flags provided with CMake for MSVC
+    set(CMAKE_C_FLAGS "")
+    set(CMAKE_C_FLAGS_DEBUG "")
+    set(CMAKE_C_FLAGS_RELEASE "")
+    set(CMAKE_CXX_FLAGS "")
+    set(CMAKE_CXX_FLAGS_DEBUG "")
+    set(CMAKE_CXX_FLAGS_RELEASE "")
+endif()
+
+################################################################################
+# Global linker options
+################################################################################
+if(MSVC)
+    # remove default flags provided with CMake for MSVC
+    set(CMAKE_EXE_LINKER_FLAGS "")
+    set(CMAKE_MODULE_LINKER_FLAGS "")
+    set(CMAKE_SHARED_LINKER_FLAGS "")
+    set(CMAKE_STATIC_LINKER_FLAGS "")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS}")
+    set(CMAKE_MODULE_LINKER_FLAGS_DEBUG "${CMAKE_MODULE_LINKER_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS}")
+    set(CMAKE_STATIC_LINKER_FLAGS_DEBUG "${CMAKE_STATIC_LINKER_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS}")
+    set(CMAKE_MODULE_LINKER_FLAGS_RELEASE "${CMAKE_MODULE_LINKER_FLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS}")
+    set(CMAKE_STATIC_LINKER_FLAGS_RELEASE "${CMAKE_STATIC_LINKER_FLAGS}")
+endif()
+
+################################################################################
+# Common utils
+################################################################################
+include(CMake/Utils.cmake)
+
+################################################################################
+# Additional Global Settings(add specific info there)
+################################################################################
+include(CMake/GlobalSettingsInclude.cmake OPTIONAL)
+
+################################################################################
+# Use solution folders feature
+################################################################################
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+
+################################################################################
+# Where this game and the engine live.
+#
+# The root CMakeLists (../../CMakeLists.txt) sets these; the fallbacks are for configuring this
+# game standalone. Everything below refers to them rather than to ${CMAKE_SOURCE_DIR}, which used
+# to mean "Shipwright/" only because OoT's own directory was the configure root.
+################################################################################
+if (NOT DEFINED ZELDA3D_OOT_DIR)
+    set(ZELDA3D_OOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
+if (NOT DEFINED ZELDA3D_ENGINE_DIR)
+    set(ZELDA3D_ENGINE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../libultraship")
+endif()
+if (NOT DEFINED ZELDA3D_ENGINE_ASSETS_DIR)
+    set(ZELDA3D_ENGINE_ASSETS_DIR "${ZELDA3D_ENGINE_DIR}/assets")
+endif()
+if (NOT DEFINED ZELDA3D_SHARED_DIR)
+    set(ZELDA3D_SHARED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../zelda3d_shared")
+endif()
+
+# Port glue shared with the other game as SOURCE rather than as a library: identical in both games,
+# but it includes this game's headers (gu_pc.c includes "z64.h", which is a different file in each
+# tree), so it must be compiled once per game. See zelda3d_shared/port/README.md and claim C064.
+file(GLOB ZELDA3D_SHARED_PORT_SOURCES CONFIGURE_DEPENDS
+    "${ZELDA3D_SHARED_DIR}/port/*.c" "${ZELDA3D_SHARED_DIR}/port/*.cpp" "${ZELDA3D_SHARED_DIR}/port/*.h")
+
+# Shared GUI code. Compiled per game like port/ above -- see zelda3d_shared/gui/ui_theming.cpp for
+# the one per-game value that keeps it out of the static library.
+file(GLOB ZELDA3D_SHARED_GUI_SOURCES CONFIGURE_DEPENDS
+    "${ZELDA3D_SHARED_DIR}/gui/*.cpp" "${ZELDA3D_SHARED_DIR}/gui/*.h")
+
+################################################################################
+# Sub-projects
+################################################################################
+if (NOT TARGET libultraship)
+    add_subdirectory(${ZELDA3D_ENGINE_DIR} ${CMAKE_BINARY_DIR}/libultraship)
+endif()
+
+if (ZELDA3D_ENABLE_ROM_EXTRACTION AND NOT TARGET ZAPDLib)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
+endif()
+
+################################################################################
+# Sources
+################################################################################
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/src/boot/build.c.in ${CMAKE_CURRENT_SOURCE_DIR}/src/boot/build.c @ONLY)
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/properties.h.in ${CMAKE_CURRENT_SOURCE_DIR}/properties.h @ONLY)
+
+set(Header_Files "resource.h")
+source_group("headers" FILES ${Header_Files})
+
+# include {{{
+file(GLOB_RECURSE Header_Files__include CONFIGURE_DEPENDS "include/*.h" "include/*.inc")
+set(SOH_FUNCTION_OWNER_HEADERS ${Header_Files__include})
+list(FILTER SOH_FUNCTION_OWNER_HEADERS INCLUDE REGEX "/include/functions/[^/]+\\.h$")
+list(APPEND Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/libc/stdarg.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/bgm.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/math_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stdbool_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stddef_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/stdlib_n64.h)
+list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra64.h)
+source_group("include" FILES ${Header_Files__include})
+# }}}
+
+# soh (root)
+file(GLOB_RECURSE soh__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "soh/*.c" "soh/*.cpp" "soh/*.h" "soh/*.hpp")
+if(NOT ZELDA3D_ENABLE_ROM_EXTRACTION)
+    list(FILTER soh__ EXCLUDE REGEX "^soh/Extractor/")
+endif()
+
+# Add specific files that don't match the pattern
+list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/savestates_extern.inc)
+list(APPEND soh__ ${CMAKE_CURRENT_SOURCE_DIR}/soh/Enhancements/speechsynthesizer/DarwinSpeechSynthesizer.mm)
+
+# Create source groups that match the real file directory paths
+foreach(source IN LISTS soh__)
+    get_filename_component(source_path "${source}" PATH)
+    string(REPLACE "/" "\\" source_path_adjusted "${source_path}")
+    source_group("${source_path_adjusted}" FILES "${source}")
+endforeach()
+
+# Fix UTF-8 issues for MSVC
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+    set_source_files_properties(soh/OTRGlobals.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
+    set_source_files_properties(soh/Enhancements/tts/tts.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
+    set_source_files_properties(soh/Enhancements/custom-message/CustomMessageManager.cpp PROPERTIES COMPILE_FLAGS "/utf-8")
+    set_source_files_properties(soh/Enhancements/custom-message/CustomMessageManager.h PROPERTIES COMPILE_FLAGS "/utf-8")
+endif()
+
+# handle speechsynthesizer removals
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/Darwin")
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/SAPI")
+else()
+    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/(Darwin|SAPI)")
+endif()
+
+find_library(ESPEAK espeak-ng)
+if (NOT ESPEAK)
+    list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/ESpeak")
+endif()
+
+# soh/Extractor {{{
+list(FILTER ship__ EXCLUDE REGEX "soh/Extractor/*")
+
+# The extraction LOGIC is one source shared with MM (zelda3d_shared/extractor/), compiled per game
+# for the same reason port/ is: it names no game type, but it calls this game's ZAPD entry point and
+# reads its build version, so it cannot live in the zelda3d_shared static library. What stays here
+# is OoT's ROM version table, RomVersions.cpp. Consoles get headers only, as before — they have no
+# in-app extract flow.
+if(ZELDA3D_ENABLE_ROM_EXTRACTION AND NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+    file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
+        "soh/Extractor/*.c"
+        "soh/Extractor/*.cpp"
+        "soh/Extractor/*.h"
+        "soh/Extractor/*.hpp"
+    )
+    file(GLOB ZELDA3D_SHARED_EXTRACTOR_SOURCES CONFIGURE_DEPENDS
+        "${ZELDA3D_SHARED_DIR}/extractor/*.c"
+        "${ZELDA3D_SHARED_DIR}/extractor/*.cpp"
+        "${ZELDA3D_SHARED_DIR}/extractor/*.h"
+    )
+else()
+    file(GLOB_RECURSE soh__Extractor RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
+        "soh/Extractor/*.h"
+        "soh/Extractor/*.hpp"
+    )
+    set(ZELDA3D_SHARED_EXTRACTOR_SOURCES "")
+endif()
+# }}}
+
+# src (decomp) {{{
+file(GLOB_RECURSE src__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "src/*.c" "src/*.cpp" "src/*.h")
+set_source_files_properties(${src__} PROPERTIES COMPILE_OPTIONS "${WARNING_OVERRIDE}")
+set(SOH_LEGACY_DECOMP_SOURCES ${src__})
+list(FILTER SOH_LEGACY_DECOMP_SOURCES EXCLUDE REGEX "^src/zelda3d/")
+
+include(${ZELDA3D_SHARED_DIR}/cmake/LegacySourceContracts.cmake)
+
+# Upstream decomp sources intentionally retain their generated include boundary. The old global
+# function header supplied every engine declaration through global.h; responsibility-owned headers
+# now replace that declaration store without adding port-only include churn to 700+ decomp files.
+# Force the focused headers themselves at this build boundary: there is no aggregate compatibility
+# header, while authored soh/ and src/zelda3d/ code must name every owner it consumes directly.
+set(SOH_LEGACY_DECOMP_COMPILE_OPTIONS ${WARNING_OVERRIDE})
+zelda3d_c_forced_include_options(SOH_FUNCTION_OWNER_COMPILE_OPTIONS
+    HEADERS ${SOH_FUNCTION_OWNER_HEADERS})
+list(APPEND SOH_LEGACY_DECOMP_COMPILE_OPTIONS ${SOH_FUNCTION_OWNER_COMPILE_OPTIONS})
+set_source_files_properties(${SOH_LEGACY_DECOMP_SOURCES}
+    PROPERTIES COMPILE_OPTIONS "${SOH_LEGACY_DECOMP_COMPILE_OPTIONS}")
+
+include(CMake/Zelda3DLegacySourceContracts.cmake)
+soh_apply_zelda3d_legacy_source_contracts("${CMAKE_CURRENT_SOURCE_DIR}")
+
+list(APPEND src__ ${CMAKE_CURRENT_SOURCE_DIR}/Resource.rc)
+list(FILTER src__ EXCLUDE REGEX "src/dmadata/")
+list(FILTER src__ EXCLUDE REGEX "src/elf_message/")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/io/")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/libc/")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/os/")
+list(FILTER src__ EXCLUDE REGEX "src/libultra/rmon/")
+list(APPEND src__ "src/libultra/libc/sprintf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/cosf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/lookat.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/lookathil.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/perspective.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/position.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sinf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sinf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/sqrtf.c")
+list(REMOVE_ITEM src__ "src/libultra/gu/us2dex.c")
+
+source_group("src" REGULAR_EXPRESSION "src/*")
+source_group("src\\boot" REGULAR_EXPRESSION "src/boot/*")
+source_group("src\\buffers" REGULAR_EXPRESSION "src/buffers/*")
+source_group("src\\code" REGULAR_EXPRESSION "src/code/*")
+source_group("src\\libultra" REGULAR_EXPRESSION "src/libultra/*")
+source_group("src\\overlays\\actors" REGULAR_EXPRESSION "src/overlays/actors/*")
+source_group("src\\overlays\\effects" REGULAR_EXPRESSION "src/overlays/effects/*")
+source_group("src\\overlays\\gamestates" REGULAR_EXPRESSION  "src/overlays/gamestates/*")
+source_group("src\\overlays\\misc" REGULAR_EXPRESSION  "src/overlays/misc/*")
+# }}}
+
+set(ALL_FILES
+    ${Header_Files}
+    ${Header_Files__include}
+    ${soh__}
+    ${soh__Extractor}
+    ${src__}
+    ${ZELDA3D_SHARED_PORT_SOURCES}
+    ${ZELDA3D_SHARED_EXTRACTOR_SOURCES}
+    ${ZELDA3D_SHARED_GUI_SOURCES}
+)
+
+################################################################################
+# Target
+################################################################################
+
+# INTERFACE target that carries "how to compile SoH3D source" — includes,
+# defines, options, link flags, and library deps. Consumed by the game-engine
+# object/static target (soh_lib, below) and its shared core.
+add_library(soh_settings INTERFACE)
+
+# ZELDA3D_IDENTITY_MTX -- the N64 identity matrix, whose decomp SYMBOL NAME differs per game.
+#
+# Shared port code under zelda3d_shared/port/ needs it (framebuffer_effects.c loads it as the
+# modelview before drawing a full-screen quad), but OoT's decomp calls it gMtxClear and MM's calls it
+# gIdentityMtx. They are the SAME matrix -- gMtxClear's raw words {65536,0,1,0, 0,65536,0,1, 0,...}
+# unpack, in the N64 Mtx layout, to the identity with zero fractional part, which is what MM's
+# gdSPDefMtx(1,0,0,0, ...) builds. Verified as claim C067; the OoT name is simply misleading.
+#
+# Parameterised here rather than #ifdef'd in the shared source: the difference is a name, and the
+# build is where per-game names belong.
+target_compile_definitions(soh_settings INTERFACE ZELDA3D_IDENTITY_MTX=gMtxClear)
+
+# ZELDA3D_UI_INPUT_FRAME_PADDING_Y -- the ONE value that differs among the 26 shared ImGui theming
+# functions in zelda3d_shared/gui/ui_theming.cpp. OoT's input fields use 6.0f of vertical frame
+# padding and MM's use 8.0f. Both are preserved rather than one being picked, because it is a visible
+# difference and nothing establishes which is intended.
+target_compile_definitions(soh_settings INTERFACE ZELDA3D_UI_INPUT_FRAME_PADDING_Y=6.0f)
+
+# OoT's CVar namespace macros (CVAR_PREFIX_SETTING="gSettings", ...), from
+# Shipwright/CMake/soh-cvars.cmake. Scoped to THIS game because the namespaces are this game's: MM
+# has its own, and while these were global they collided with them. Standalone-configure fallback
+# for when the root CMakeLists has not run.
+if (NOT DEFINED SOH_CVAR_PREFIX_DEFINITIONS)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../CMake/soh-cvars.cmake)
+endif()
+target_compile_definitions(soh_settings INTERFACE ${SOH_CVAR_PREFIX_DEFINITIONS})
+
+
+# -fno-gnu-unique: the ONE symbol class RTLD_LOCAL does not privatise.
+#
+# The launcher dlopen's each game core RTLD_LOCAL so OoT's and MM's 6,616 colliding decomp symbols
+# stay private (claim C050). That works for every ordinary symbol -- and not at all for STB_GNU_UNIQUE
+# ones, whose defining property is that the dynamic linker binds them to a SINGLE instance
+# process-wide regardless of scope. GCC gives that binding to function-local statics inside inline
+# functions, which is exactly how both games write their header-defined registries.
+#
+# Measured on the built cores, not inferred: soh_core exports 1,575 unique symbols, mm_core 925, and
+# 322 collide. Two of them are game state and one of those crashed a real run -- global-namespace
+# `MenuInit::GetInitFuncs()` holds `static std::vector<std::function<void()>> menuInitFuncs` in BOTH
+# games, so with MM loaded first, OoT's SohMenu::AddMenuElements iterated MM's list and called
+# BenGui::RegisterResolutionWidgets in libmm_core.so. `ShipInit::GetAll` is the same shape.
+#
+# This is a LINKAGE-MODEL flag, not a warning suppression -- it does not hide a diagnostic or relax a
+# conformance rule, it makes the compiler emit the symbol binding this design requires. Renaming the
+# two registries into per-game namespaces would fix today's two; this fixes the class, including the
+# next registry someone adds. Residual worth knowing: the 322 also include std/nlohmann statics that
+# were harmlessly shared (read-only tables, RTTI tags) and are now per-core.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(soh_settings INTERFACE $<$<COMPILE_LANGUAGE:CXX>:-fno-gnu-unique>)
+endif()
+
+# Everything the SoH3D runtime needs — N64 subsystem, boot chain, hooks,
+# RunFrame, Main_Init/Main_Shutdown, and all the zelda3d/ port code. Desktop
+# builds preserve the historical static target. The Xbox/UWP core consumes the
+# object files directly, so creating an intermediate archive there is both
+# redundant and invalid at this scale: the post-HUD remote MSVC rerun measured
+# soh_lib.lib at 0x100B5D295 bytes and LNK1248 rejected it at the 0xFFFFFFFF
+# archive limit.
+# An OBJECT library skips that doomed librarian step without omitting a single
+# translation unit from the final soh_core DLL.
+if(ZELDA3D_UWP_CORE)
+    add_library(soh_lib OBJECT ${ALL_FILES})
+    get_target_property(soh_lib_type soh_lib TYPE)
+    if(NOT soh_lib_type STREQUAL "OBJECT_LIBRARY")
+        message(FATAL_ERROR
+            "The Xbox core must consume soh_lib objects directly; a static archive exceeds 4 GiB.")
+    endif()
+else()
+    add_library(soh_lib STATIC ${ALL_FILES})
+endif()
+target_link_libraries(soh_lib PUBLIC soh_settings)
+# core_entry.c is compiled into soh_lib before its objects are placed in the
+# shared core.  Define the export at that compilation boundary so Windows emits
+# the one import-library symbol consumed by the separate UWP wrapper.
+target_compile_definitions(soh_lib PRIVATE ZELDA3D_CORE_BUILD)
+
+# OoT as a loadable game core: the same soh_lib objects as a shared object the launcher dlopen's
+# with RTLD_LOCAL, so OoT's and MM's 6,616 colliding decomp symbols stay private (claim C050).
+# TARGET_OBJECTS, not a link against soh_lib: a static archive contributes only the objects the
+# linker finds REFERENCED, and almost nothing here is reachable from the one exported entry point —
+# the decomp reaches its actors and overlays through tables. Whole-archive semantics are mandatory,
+# not an optimisation.
+add_library(soh_core SHARED $<TARGET_OBJECTS:soh_lib>)
+target_link_libraries(soh_core PRIVATE soh_settings)
+
+# There is NO soh executable. OoT ships only as the core above, because the project builds exactly
+# one program: the zelda3d launcher, which dlopens whichever game the user picked. A second
+# executable that ran OoT directly would be a second way to start the game, with its own entry
+# point, its own asset lookup and its own answer to "what happens when you choose Majora's Mask"
+# (it had to exec a third binary) -- three programs to keep in agreement instead of one.
+#
+# ${PROJECT_NAME} below therefore names the CORE, not an executable: everything that used to attach
+# to soh.elf -- compiler properties, asset deployment, link dependencies -- belongs to the thing
+# that actually contains the game.
+set(PROJECT_NAME soh_core)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
+endif()
+
+set(ROOT_NAMESPACE soh)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        VS_GLOBAL_KEYWORD "Win32Proj"
+    )
+    if(SOH_WINDOWS_64BIT AND NOT ZELDA3D_UWP)
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+        )
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        set_target_properties(${PROJECT_NAME} PROPERTIES
+            INTERPROCEDURAL_OPTIMIZATION_RELEASE "TRUE"
+        )
+    endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_ARC YES
+    )
+endif()
+################################################################################
+# MSVC runtime library
+################################################################################
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
+    if(SOH_WINDOWS_64BIT)
+        string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
+            $<$<CONFIG:Debug>:
+                MultiThreadedDebug
+            >
+            $<$<CONFIG:Release>:
+                MultiThreaded
+            >
+            $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
+        )
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"
+            $<$<CONFIG:Debug>:
+                MultiThreadedDebug
+            >
+            $<$<CONFIG:Release>:
+                MultiThreaded
+            >
+            $<$<NOT:$<OR:$<CONFIG:Debug>,$<CONFIG:Release>>>:${MSVC_RUNTIME_LIBRARY_DEFAULT}>
+        )
+    endif()
+    set_target_properties(${PROJECT_NAME} PROPERTIES MSVC_RUNTIME_LIBRARY ${MSVC_RUNTIME_LIBRARY_STR})
+endif()
+include(FetchContent)
+
+if(ZELDA3D_SDL2_OPENGL)
+    if(NOT TARGET SDL2::SDL2)
+        find_package(SDL2 CONFIG REQUIRED)
+    endif()
+    set(ZELDA3D_GAME_SDL_TARGET SDL2::SDL2)
+    set(ZELDA3D_GAME_SDL_INCLUDE_DIRS ${SDL2_INCLUDE_DIRS})
+else()
+    find_package(SDL3 REQUIRED)
+    set(ZELDA3D_GAME_SDL_TARGET SDL3::SDL3)
+    set(ZELDA3D_GAME_SDL_INCLUDE_DIRS ${SDL3_INCLUDE_DIRS})
+endif()
+
+if (ESPEAK)
+    add_compile_definitions(ESPEAK=1)
+endif()
+
+################################################################################
+# Compile definitions
+################################################################################
+
+target_include_directories(soh_settings INTERFACE assets
+    ${ZELDA3D_SHARED_DIR}/port
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../libultraship/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../ZAPDTR/ZAPD/resource/type
+    ${ZELDA3D_GAME_SDL_INCLUDE_DIRS}
+    ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+    ${dr_libs_SOURCE_DIR}
+    .
+)
+
+if (ZELDA3D_UWP)
+    target_compile_definitions(soh_settings INTERFACE
+        "$<$<CONFIG:Debug>:_DEBUG>"
+        "$<$<NOT:$<CONFIG:Debug>>:NDEBUG>"
+        INCLUDE_GAME_PRINTF
+        F3DEX_GBI_2
+        ENABLE_OPENGL
+        WIN32
+        UNICODE
+        _UNICODE
+        _CRT_SECURE_NO_WARNINGS
+        NOMINMAX
+        STORMLIB_NO_AUTO_LINK
+        ZELDA3D_UWP=1
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF})
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    if(SOH_WINDOWS_64BIT AND NOT ZELDA3D_UWP)
+        target_compile_definitions(soh_settings INTERFACE
+            "$<$<CONFIG:Debug>:"
+                "_DEBUG;"
+                "_CRT_SECURE_NO_WARNINGS;"
+                "ENABLE_DX11;"
+            ">"
+            "$<$<CONFIG:Release>:"
+                "NDEBUG;"
+            ">"
+            "INCLUDE_GAME_PRINTF;"
+            "F3DEX_GBI_2"
+            "UNICODE;"
+            "_UNICODE"
+            SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+            LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
+            STORMLIB_NO_AUTO_LINK
+            "_CRT_SECURE_NO_WARNINGS;"
+            NOMINMAX
+        )
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        target_compile_definitions(soh_settings INTERFACE
+            "$<$<CONFIG:Debug>:"
+                "NOINCLUDE_GAME_PRINTF;"
+                "_DEBUG;"
+                "_CRT_SECURE_NO_WARNINGS;"
+                "ENABLE_OPENGL;"
+            ">"
+            "$<$<CONFIG:Release>:"
+                "NDEBUG;"
+            ">"
+            "INCLUDE_GAME_PRINTF;"
+            "F3DEX_GBI_2"
+            "WIN32;"
+            "UNICODE;"
+            "_UNICODE;"
+            SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+            LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
+            STORMLIB_NO_AUTO_LINK
+            NOMINMAX
+        )
+    endif()
+elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+    target_compile_definitions(soh_settings INTERFACE
+        "$<$<CONFIG:Debug>:"
+            "_DEBUG;"
+        ">"
+        "$<$<CONFIG:Release>:"
+            "NDEBUG;"
+        ">"
+        "F3DEX_GBI_2;"
+        "SPDLOG_NO_THREAD_ID;"
+        "SPDLOG_NO_TLS;"
+        "STBI_NO_THREAD_LOCALS;"
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
+    )
+elseif ("${CMAKE_CXX_COMPILER_ID}" MATCHES "GNU|Clang|AppleClang")
+    target_compile_definitions(soh_settings INTERFACE
+        "$<$<CONFIG:Debug>:"
+            "_DEBUG;"
+        ">"
+        "$<$<CONFIG:Release>:"
+            "NDEBUG;"
+        ">"
+        "F3DEX_GBI_2;"
+        "_CONSOLE;"
+        "_CRT_SECURE_NO_WARNINGS;"
+        "ENABLE_OPENGL;"
+        "UNICODE;"
+        "_UNICODE;"
+        SPDLOG_ACTIVE_LEVEL=${SPDLOG_MIN_CUTOFF}
+        LOG_LEVEL_GAME_PRINTS=${SPDLOG_LEVEL_OFF}
+    )
+endif()
+################################################################################
+# Compile and link options
+################################################################################
+if(MSVC)
+    # Release packages do not ship compiler PDBs. Omitting /Zi for that one
+    # profile avoids gigabytes of throwaway object/debug data and materially
+    # shortens the Android-triggered CI build; Debug and desktop builds retain
+    # their established information format.
+    if(ZELDA3D_UWP)
+        set(SOH_MSVC_DEBUG_INFORMATION_FORMAT
+            $<$<CONFIG:Debug>:${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT}>)
+        target_compile_options(soh_settings INTERFACE $<$<CONFIG:Release>:/O2;>)
+    else()
+        set(SOH_MSVC_DEBUG_INFORMATION_FORMAT ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT})
+    endif()
+    if(SOH_WINDOWS_64BIT)
+        target_compile_options(soh_settings INTERFACE
+            $<$<CONFIG:Debug>:
+                /Od
+            >
+            $<$<CONFIG:Release>:
+                /Oi;
+                /Gy;
+            >
+            /W3;
+            /bigobj;
+            /sdl-;
+            /permissive-;
+            /MP;
+            ${SOH_MSVC_DEBUG_INFORMATION_FORMAT};
+            ${DEFAULT_CXX_EXCEPTION_HANDLING}
+        )
+        target_compile_options(soh_settings INTERFACE  $<$<CONFIG:Debug>:/ZI;>)
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        target_compile_options(soh_settings INTERFACE
+            $<$<CONFIG:Debug>:
+                /RTCs
+            >
+            $<$<CONFIG:Release>:
+                /O2;
+                /Oi;
+                /Gy
+            >
+            /permissive-;
+            /MP;
+            /sdl-;
+            /W3;
+            ${DEFAULT_CXX_DEBUG_INFORMATION_FORMAT};
+            ${DEFAULT_CXX_EXCEPTION_HANDLING}
+        )
+    endif()
+    if(ZELDA3D_UWP)
+        target_link_options(soh_settings INTERFACE
+            $<$<CONFIG:Debug>:
+                /DEBUG
+            >
+            $<$<CONFIG:Release>:
+                /OPT:REF;
+                /OPT:ICF;
+                /INCREMENTAL:NO
+            >
+        )
+    elseif(SOH_WINDOWS_64BIT)
+        target_link_options(soh_settings INTERFACE
+            $<$<CONFIG:Debug>:
+                /INCREMENTAL
+            >
+            $<$<CONFIG:Release>:
+                /OPT:REF;
+                /OPT:ICF;
+                /INCREMENTAL:NO;
+                /FORCE:MULTIPLE
+            >
+            /MANIFEST:NO;
+            /DEBUG;
+            /SUBSYSTEM:WINDOWS
+        )
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        target_link_options(soh_settings INTERFACE
+            $<$<CONFIG:Debug>:
+                /STACK:8777216
+            >
+            $<$<CONFIG:Release>:
+                /OPT:REF;
+                /OPT:ICF;
+                /INCREMENTAL:NO;
+                /FORCE:MULTIPLE
+            >
+            /MANIFEST:NO;
+            /DEBUG;
+            /SUBSYSTEM:WINDOWS
+        )
+    endif()
+endif()
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+    if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        target_compile_options(soh_settings INTERFACE
+            -Wall -Wextra
+            -Wformat-security
+            -Wno-unused-parameter
+            -Wno-unused-function
+            -Wno-unused-variable
+            -Wno-missing-field-initializers
+            -Wno-parentheses
+            -Wno-missing-braces
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-incompatible-pointer-types
+                -Wno-int-conversion
+            >
+            $<$<COMPILE_LANGUAGE:CXX>:
+                -Wno-c++11-narrowing
+                -Wno-deprecated-enum-enum-conversion
+            >
+            -pthread
+        )
+
+        target_link_options(soh_settings INTERFACE
+            -pthread
+        )
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+        target_compile_options(soh_settings INTERFACE
+            -Wall -Wextra
+            -Wformat-security
+            -Wno-unused-parameter
+            -Wno-unused-function
+            -Wno-unused-variable
+            -Wno-missing-field-initializers
+            -Wno-parentheses
+            -Wno-missing-braces
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-incompatible-pointer-types
+            >
+            $<$<COMPILE_LANGUAGE:CXX>:
+                -Wno-c++11-narrowing
+                -Wno-deprecated-enum-enum-conversion
+            >
+            -pthread
+        )
+
+        target_link_options(soh_settings INTERFACE
+            -pthread
+        )
+    elseif (CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+        target_compile_options(soh_settings INTERFACE
+            -O2
+
+            # disable some warnings to not clutter output
+            -Wno-multichar
+            -Wno-switch-outside-range
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-incompatible-pointer-types
+                -Wno-discarded-array-qualifiers
+                -Wno-discarded-qualifiers
+                -Wno-int-conversion
+                -Wno-builtin-declaration-mismatch
+                -Wno-switch-unreachable
+                -Wno-stringop-overflow
+            >
+        )
+    else()
+        if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
+        set(CPU_OPTION -msse2 -mfpmath=sse)
+        endif()
+
+        target_compile_options(soh_settings INTERFACE
+            -Wall -Wextra
+            -Wformat-security
+            -Wno-unused-parameter
+            -Wno-unused-function
+            -Wno-unused-variable
+            -Wno-missing-field-initializers
+            -Wno-parentheses
+            -Wno-missing-braces
+            $<$<COMPILE_LANGUAGE:C>:
+                -Werror-implicit-function-declaration
+                -Wno-implicit-int
+                -Wno-incompatible-pointer-types
+                -Wno-int-conversion
+            >
+            $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-enum-enum-conversion>
+            -pthread
+        ${CPU_OPTION}
+        )
+
+        target_link_options(soh_settings INTERFACE
+            -pthread
+                #-fsanitize=address
+            -Wl,-export-dynamic
+        )
+    endif()
+endif()
+################################################################################
+# Pre build events
+################################################################################
+if (CMAKE_GENERATOR MATCHES "Visual Studio" AND NOT ZELDA3D_UWP)
+    add_custom_command(
+    TARGET ${PROJECT_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_OOT_DIR}/assets/extractor ${CMAKE_BINARY_DIR}/soh/assets
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_OOT_DIR}/assets/xml ${CMAKE_BINARY_DIR}/soh/assets/xml
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_ENGINE_ASSETS_DIR}/rml ${CMAKE_BINARY_DIR}/soh/assets/rml
+    )
+endif()
+if(NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS|WindowsStore")
+    add_custom_command(
+        TARGET ${PROJECT_NAME}
+        POST_BUILD
+        COMMENT "Copying asset xmls..."
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_OOT_DIR}/assets/extractor $<TARGET_FILE_DIR:soh_core>/assets
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_OOT_DIR}/assets/xml $<TARGET_FILE_DIR:soh_core>/assets/xml
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:soh_core>/assets/symbols
+        # RmlUi menu assets (.rml/.rcss/font) live alongside the executable, loaded at runtime
+        # via Context::GetPathRelativeToAppBundle("assets/rml/...").
+        COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different ${ZELDA3D_ENGINE_ASSETS_DIR}/rml $<TARGET_FILE_DIR:soh_core>/assets/rml
+    #    COMMAND ${VS_COPY_ASSETS_CMD}
+    )
+endif()
+
+# The RmlUi assets above are copied POST_BUILD on the soh target, which only runs when soh actually
+# relinks. Editing ONLY a .rml/.rcss therefore leaves ninja with nothing to do, the copy never fires,
+# and the game keeps running the OLD document -- the edit silently appears to do nothing. That cost a
+# debugging cycle on the launcher (a style change measured as byte-identical output) and would cost
+# one every time anybody touches the menu markup.
+#
+# So make the deployed copy a real build output that DEPENDS on the sources: touching any asset in
+# libultraship/assets/rml re-runs the copy on the next build, with no relink needed.
+file(GLOB_RECURSE ZELDA3D_RML_ASSETS CONFIGURE_DEPENDS ${ZELDA3D_ENGINE_ASSETS_DIR}/rml/*)
+add_custom_command(
+    OUTPUT ${CMAKE_BINARY_DIR}/soh/assets/rml/.stamp
+    COMMENT "Deploying RmlUi assets (menu + launcher)..."
+    COMMAND ${CMAKE_COMMAND} -E copy_directory_if_different
+            ${ZELDA3D_ENGINE_ASSETS_DIR}/rml ${CMAKE_BINARY_DIR}/soh/assets/rml
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/soh/assets/rml/.stamp
+    DEPENDS ${ZELDA3D_RML_ASSETS}
+    VERBATIM
+)
+add_custom_target(zelda3d_rml_assets ALL DEPENDS ${CMAKE_BINARY_DIR}/soh/assets/rml/.stamp)
+add_dependencies(${PROJECT_NAME} zelda3d_rml_assets)
+################################################################################
+# Dependencies
+################################################################################
+add_dependencies(${PROJECT_NAME}
+    libultraship
+)
+if(ZELDA3D_ENABLE_ROM_EXTRACTION AND NOT CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+add_dependencies(${PROJECT_NAME}
+    ZAPDLib
+)
+endif()
+
+if (ZELDA3D_UWP)
+    find_package(Ogg CONFIG REQUIRED)
+    find_package(Vorbis CONFIG REQUIRED)
+    find_package(Opus CONFIG REQUIRED)
+    find_package(OpusFile CONFIG REQUIRED)
+    set(ADDITIONAL_LIBRARY_DEPENDENCIES
+        "libultraship;"
+        "cmb3d;"
+        "zelda3d_shared;"
+        "stb;"
+        "${ZELDA3D_GAME_SDL_TARGET};"
+        "Ogg::ogg;"
+        "Vorbis::vorbis;"
+        "Vorbis::vorbisenc;"
+        "Vorbis::vorbisfile;"
+        "Opus::opus;"
+        "OpusFile::opusfile"
+    )
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    find_package(glfw3 REQUIRED)
+    find_package(Ogg CONFIG REQUIRED)
+    link_libraries(Ogg::ogg)
+
+    find_package(Vorbis CONFIG REQUIRED)
+    link_libraries(Vorbis::vorbisfile)
+    find_package(Opus CONFIG REQUIRED)
+    link_libraries(Opus::opus)
+    find_package(OpusFile CONFIG REQUIRED)
+    link_libraries(OpusFile::opusfile CONFIG REQUIRED)
+    if(SOH_WINDOWS_64BIT)
+        set(ADDITIONAL_LIBRARY_DEPENDENCIES
+            "libultraship;"
+            "ZAPDLib;"
+            "glu32;"
+                "${ZELDA3D_GAME_SDL_TARGET};"
+            "glfw;"
+            "winmm;"
+            "imm32;"
+            "version;"
+            "setupapi"
+            "Ogg::ogg"
+            "Opus::opus"
+            "Vorbis::vorbis"
+            "Vorbis::vorbisenc"
+            "Vorbis::vorbisfile"
+            "OpusFile::opusfile"
+        )
+    elseif("${CMAKE_VS_PLATFORM_NAME}" STREQUAL "Win32")
+        set(ADDITIONAL_LIBRARY_DEPENDENCIES
+            "libultraship;"
+            "ZAPDLib;"
+            "glu32;"
+            "${ZELDA3D_GAME_SDL_TARGET};"
+            "glfw;"
+            "winmm;"
+            "imm32;"
+            "version;"
+            "setupapi"
+        )
+    endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "NintendoSwitch")
+    find_package(SDL2)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    set(ADDITIONAL_LIBRARY_DEPENDENCIES
+        "libultraship;"
+        SDL2::SDL2
+        -lglad
+        Threads::Threads
+    )
+elseif(CMAKE_SYSTEM_NAME STREQUAL "CafeOS")
+    find_package(SDL2 REQUIRED)
+    set(ADDITIONAL_LIBRARY_DEPENDENCIES
+        "libultraship;"
+        SDL2::SDL2-static
+
+        "$<$<CONFIG:Debug>:-Wl,--wrap=abort>"
+    )
+    target_include_directories(soh_settings INTERFACE
+        ${DEVKITPRO}/portlibs/wiiu/include/
+    )
+else()
+    if(ZELDA3D_SDL2_OPENGL)
+        if(NOT TARGET SDL2::SDL2)
+            find_package(SDL2 CONFIG REQUIRED)
+        endif()
+    else()
+        find_package(SDL3 REQUIRED)
+    endif()
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    find_package(Ogg REQUIRED)
+    find_package(Vorbis REQUIRED)
+    find_package(Opus REQUIRED)
+    find_package(OpusFile REQUIRED)
+     set(ADDITIONAL_LIBRARY_DEPENDENCIES
+    "libultraship;"
+        "ZAPDLib;"
+        "cmb3d;"
+        "zelda3d_shared;"
+        "stb;"
+        ${ZELDA3D_GAME_SDL_TARGET}
+        "Ogg::ogg"
+        "Vorbis::vorbis"
+        "Vorbis::vorbisenc"
+        "Vorbis::vorbisfile"
+        "Opus::opus"
+        "Opusfile::Opusfile"
+        ${CMAKE_DL_LIBS}
+        Threads::Threads
+    )
+endif()
+
+if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin|NintendoSwitch|CafeOS")
+INSTALL(TARGETS soh_core DESTINATION . COMPONENT ship)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+INSTALL(FILES $<TARGET_PDB_FILE:soh_core> DESTINATION ./debug COMPONENT ship)
+INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.o2r DESTINATION . COMPONENT ship)
+endif()
+
+find_program(CURL NAMES curl DOC "Path to the curl program.  Used to download files.")
+execute_process(COMMAND ${CURL} -sSfL https://raw.githubusercontent.com/mdqinc/SDL_GameControllerDB/master/gamecontrollerdb.txt -o ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt OUTPUT_VARIABLE RESULT)
+
+if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin")
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/macosx/Info.plist.in ${CMAKE_BINARY_DIR}/macosx/Info.plist @ONLY)
+INSTALL(TARGETS soh_core DESTINATION ../MacOS COMPONENT ship)
+INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION ../MacOS COMPONENT ship)
+INSTALL(FILES ${CMAKE_BINARY_DIR}/soh/soh.o2r DESTINATION ../Resources COMPONENT ship)
+elseif(NOT "${CMAKE_SYSTEM_NAME}" MATCHES "NintendoSwitch|CafeOS")
+INSTALL(FILES ${CMAKE_BINARY_DIR}/gamecontrollerdb.txt DESTINATION . COMPONENT ship)
+endif()
+
+if(CMAKE_SYSTEM_NAME MATCHES "NintendoSwitch|CafeOS")
+    if (NOT TARGET pathconf)
+        add_library(pathconf OBJECT platform/pathconf.c)
+    endif()
+    target_link_libraries(soh_settings INTERFACE "${ADDITIONAL_LIBRARY_DEPENDENCIES}" $<TARGET_OBJECTS:pathconf> )
+else()
+    target_link_libraries(soh_settings INTERFACE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
+endif()
+
+if(LUS_BUILD_TESTS)
+    add_subdirectory(tests)
+endif()
+
+# The inherited Switch (.nro) and Wii U (.rpx/.wuhb) packaging blocks were DELETED here rather than
+# retargeted. Both wrap a game EXECUTABLE into a console bundle, and this tree no longer builds one:
+# the only executable is the zelda3d launcher, which selects a game by dlopen'ing a core. Pointing
+# nx_create_nro / wut_create_rpx at soh_core would package a shared library as if it were a program
+# and fail somewhere downstream instead of here.
+#
+# Reviving console support means giving the launcher a console entry path, not restoring these
+# lines; leaving them in place would have claimed a capability the build cannot deliver.

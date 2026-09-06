@@ -1,0 +1,29 @@
+SOH CURSOR FPS V3 + OoT3D Full — Android-to-Xbox install
+========================================================
+
+This package is ROM-free. You do not need a PC, Visual Studio, a command line,
+GitHub signing setup, or a certificate tool.
+
+1. On Android, download and unzip the GitHub Actions artifact named
+   SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX.
+2. Open Xbox Device Portal in your phone browser and go to Apps.
+3. Choose the included .msix (or .appx) as the app package, the included
+   public .cer as the certificate, and any .appx/.msix files under
+   Dependencies as dependencies.
+4. Install it. Its identity is separate from the original CURSOR FPS V3 app.
+5. In Device Portal, open File Explorer, then LocalAppData, then
+   WesKestis.SOHCursorFPSV3.OoT3DFull, then LocalState, then the soh folder.
+   Launch the app once first if the soh folder is not present yet.
+6. Upload your private files into LocalState\soh:
+      oot.o2r       Normal Quest (at least one quest archive is required)
+      oot-mq.o2r    Master Quest (optional)
+      oot3d.3ds     decrypted OoT3D source used by the graphics toggle
+7. Launch the app again from Device Portal or My games & apps.
+
+If install fails, keep the Device Portal error text. If the app closes during
+launch, refresh that same LocalState\soh folder and open uwp-boot.log. It is
+rewritten on every launch, so its final stage identifies the failed startup
+boundary even when Xbox Crash Data produces no dump.
+
+If launch succeeds, report whether Original and OoT3D modes render, whether
+L3+R3 toggles the V3 cursor, and whether View/F1 opens the full settings menu.

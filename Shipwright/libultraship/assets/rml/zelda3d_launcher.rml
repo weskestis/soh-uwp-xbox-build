@@ -1,0 +1,78 @@
+<rml>
+	<head>
+		<title>Launcher</title>
+		<link type="text/rcss" href="rml.rcss"/>
+		<link type="text/rcss" href="recomp.rcss"/>
+		<style>
+			body
+			{
+				width: 100%;
+				height: 100%;
+			}
+			/* Chiaro is FOT-Chiaro Std B, (c) Fontworks Japan, "All Rights Reserved" -- proprietary
+			   and not redistributable, so it is NOT shipped (ATTRIBUTION.md). Lato stands in. */
+			h1, h3, .subtitle-title__disclaimer, .menu-list-item__label, .bottom-left label
+			{
+				font-family: LatoLatin;
+			}
+			/* Titles show which game is selected but must not take focus -- only the rows do. */
+			.subtitle-title { tab-index: none; opacity: 1; }
+		</style>
+	</head>
+	<body>
+		<div id="window">
+			<div class="launcher">
+				<div class="launcher__vertical-split">
+					<div class="launcher__title-quadrant">
+						<button id="title-oot" class="subtitle-title">
+							<div><h3>Zelda3D</h3></div>
+							<div><h1>Ocarina of Time</h1></div>
+						</button>
+					</div>
+					<div class="launcher__content-quadrant">
+						<button action="start_oot" half="oot" class="menu-list-item" tabindex="auto" autofocus>
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Start game</div>
+						</button>
+					</div>
+				</div>
+				<div class="launcher__vertical-split launcher__vertical-split--right">
+					<div class="launcher__background-wrapper">
+						<svg src="mm-clipped.svg" class="launcher__background-mm" />
+					</div>
+					<div class="launcher__title-quadrant launcher__title-quadrant--right">
+						<button id="title-mm" class="subtitle-title subtitle-title--right">
+							<div><h3>Zelda3D</h3></div>
+							<div><h1>Majora's Mask</h1></div>
+						</button>
+					</div>
+					<div class="launcher__content-quadrant">
+						<button action="start_mm" half="mm" class="menu-list-item menu-list-item--right" tabindex="auto">
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Start game</div>
+						</button>
+						<button action="open_menu" half="mm" class="menu-list-item menu-list-item--right" tabindex="auto">
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Setup controls</div>
+						</button>
+						<button action="open_menu" half="mm" class="menu-list-item menu-list-item--right" tabindex="auto">
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Settings</div>
+						</button>
+						<button class="menu-list-item menu-list-item--right" disabled>
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Mods</div>
+						</button>
+						<button action="quit" half="mm" class="menu-list-item menu-list-item--right" tabindex="auto">
+							<div class="menu-list-item__bullet">•</div>
+							<div class="menu-list-item__label">Exit</div>
+						</button>
+					</div>
+				</div>
+				<div class="bottom-left">
+					<label>Up / Down to move &#183; Enter or A to select</label>
+				</div>
+			</div>
+		</div>
+	</body>
+</rml>

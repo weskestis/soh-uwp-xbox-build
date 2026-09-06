@@ -1,0 +1,171 @@
+# Kanban — local board
+
+Local task board for **zelda3d** (OoT3D / soh3d + MM3D / 2ship3d). **This markdown file IS the source
+of truth** — no GitHub Issues. Add a card only when the user reports/requests something (same
+USER-DRIVEN-ONLY rule as before: agent sweeps fix-in-session + journal, they do NOT create cards).
+Move a card between columns as work progresses; delete it (or move to `done`) when the user confirms.
+
+Screenshots for a card: attach in chat, or drop the file under `scratch/kanban/` (gitignored) and link
+it here — we don't commit PNGs to the repo.
+
+Columns: **todo · in-progress · in-review · needs-confirmation · blocked · done**
+
+Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple incrementing id you assign)
+
+## todo
+
+  - ROOT CAUSE (2026-07-29): the on-screen glyphs are NOT our SVG art at all. With a texture pack installed, `Zelda3D_XboxGlyphTex` crops them from the pack atlas (hash 439913BD09FA2671) at hardcoded 124px boxes. Those coordinates are CORRECT — but the pack's A/B/X/Y come from a MONOCHROME CONTROLLER DIAGRAM, so they render as grey stone discs with black letters. Editing the SVGs changes nothing while a pack is present. (Gotcha: that file is named tex1_512x256_... but the image is 4096x2048 — the filename records the ORIGINAL texture size, not the pack's.)
+  - Swept all 110 pack UI textures for a coloured 4-button set (shape-aware: >=4 similar round saturated blobs, >=3 distinct hues). NONE exists — the closest hits are the file-select UI atlas (quest medallions) and the heart/item atlas. So 'use a better set from the pack' is ruled out.
+  - Remaining options: (1) tint the pack crop per button, reusing the greyscale-as-intensity trick the button-disc path already uses (keeps pack resolution, letters stay black); (2) make our SVG art authoritative for this element (correct Xbox colours + white letters, loses pack resolution). AWAITING USER CHOICE — user stated the pack is fine 'if it is implemented correctly', so do NOT simply delete the pack path.
+  - RESOLVED 2026-07-29: pack discs are tinted per button (commit above). Root cause was the pack's monochrome controller-diagram source, not the crop. Awaiting user confirmation.
+
+- [#207] HUD has UNPORTED parts — **SCOPE CLOSED BY USER DIRECTIVE 2026-07-29: "current HUD is fine, skip remaining HUD".** The reported defect WAS fixed: the rupee counter icon and the digit font now come from the real OoT3D ROM art (or the HD texture pack when one is installed, per the user's follow-up that HD textures should still be preferred where available). The broader "audit every HUD element for synthetic-vs-real" sweep that the original "such as" implied is explicitly NOT wanted — do not reopen it. Original scope kept below for context only.
+  <sub>HUD has UNPORTED parts — the rupee counter icon is a custom AI-generated SVG that looks bad; user report 2026-07-29. "such as" implies OTHER elements are synthetic too, so the fix is not just the rupee: audit every HUD element for synthetic-vs-real-asset and port the real OoT3D artwork from the ROM for each. SCOPE EXCLUSION: the keyboard keycap/glyph atlas and the Xbox button glyphs are user-requested PC-native art with no 3DS original — they stay ours and are NOT part of this card (glyph quality is #208). Per the project rule, an asset gap is not an excuse to keep a hand-drawn stand-in.</sub>
+
+
+## in-progress
+
+- [#213] Xbox package exits immediately on its first physical boot and Device Portal captures no dump —
+  user report 2026-09-06 after successful run-21 install and upload of `oot.o2r`, `oot-mq.o2r`, and
+  decrypted `oot3d.3ds` to the correct `LocalState\soh` directory. The wrapper previously imported
+  `soh_core.dll`, so a missing/rejected core dependency could terminate the process before `WinMain`
+  and before any durable diagnostic. In progress: remove the loader-time core import, load the core
+  with `LoadPackagedLibrary`, resolve its one ABI symbol explicitly, and flush every startup stage plus
+  caught SEH details to `LocalState\soh\uwp-boot.log`. Hardware confirmation remains required.
+
+- [#214] Installed Xbox app uses the stock SoH sailboat instead of the supplied custom app image — user
+  report 2026-09-06. Root cause: all five files under `uwp/Assets` were still the stock SoH artwork and
+  the package audit checked none of them. In progress: derive every required UWP size from the approved
+  `Legend of Zelda: Master Quest Flames.png` and make the unpacked-package audit enforce exact sizes and
+  SHA-256 values. Hardware confirmation remains required.
+
+- [#212] Merge full OoT3D graphics into SOH CURSOR FPS V3 as one toggleable Xbox build — user request
+  2026-09-04. Preserve the V3 L3+R3 cursor mode and live FPS features; expose Original SoH / OoT3D
+  graphics in Settings with a safe scene reload; retain normal Alternate Assets independently; keep
+  gameplay/system settings functional in both modes, visibly disable any renderer-only incompatibility,
+  and fall back to original N64 assets when a 3DS replacement is unavailable. Deliver a fresh Device
+  Portal package and installation guide only after full-build, mode-switch, settings, and fallback gates.
+  **2026-09-04 integration state:** exact V3 cursor behavior is ported to SDL3; the complete SoH menu is
+  restored; the persistent graphics selector commits through a same-entrance `Play_Init`; the decrypted
+  `oot3d.3ds` source is identity-checked; model/texture/CSAB preflight keeps per-object N64 fallbacks;
+  known SDL3/network no-ops are visibly unavailable. The optional OoT3D HD-pack manager now reads
+  original Citra/Azahar ZIPs in place, has an independent saved toggle/rescan UI, and transactionally
+  invalidates model/HUD/atlas/GPU caches at a scene boundary. Optimized `zelda3d_app`, the 18-test
+  integration contract, the dedicated loader test, ROM/launcher regressions, live graphics switching,
+  and live ZIP `off → on → rescan` gates pass. Normal and Master Quest provisioning is now
+  independent: two isolated cold boots generated and loaded both archives with identical payloads,
+  then OoT3D mode generated a local 12-MQ-dungeon randomizer seed and shut down cleanly.
+  **Packaging boundary:** the current SDL3 GPU
+  backend has no UWP/WinRT target, and repacking the old signed V3 AppX invalidates it. A real Device
+  Portal artifact requires the separate SDL2/UWP renderer target, Windows SDK signing, and Xbox test.
+  **2026-09-05 UWP pipeline state:** the package graph is now ROM-free and reads owner-supplied
+  `oot.o2r`, `oot-mq.o2r`, and `oot3d.3ds` from `LocalState\soh`. A phone-oriented GitHub Actions
+  workflow generates `soh.o2r`, compiles the normal-Windows core plus separate WindowsStore wrapper
+  against pinned public dependencies, signs with an ephemeral key, and rejects private inputs/keys
+  from the artifact. Linux SDL2/SDL3 links, the real GL pixel smoke, and 29 host contracts pass. The
+  first full-core WindowsStore compile exposed roughly 80 diagnostics across desktop CRT/Win32
+  dependencies and Prism's unsupported UWP runtime; `CompileXaml` was only the final wrapper. The
+  corrected split follows the established SoH UWP architecture, folds libultraship into one core DLL,
+  uses supported `x64-windows-static` libraries plus GLEW, supplies portable CityHash, selects SDL
+  rather than desktop WASAPI, excludes legacy StormLib/WinINet in favor of the required `.o2r`
+  format, and uses the packaged-DLL API in both GL loaders. Remote run 7 validated the split configure
+  and compiled almost the entire core before exposing one remaining MSVC portability defect:
+  `frame_timing.cpp` used POSIX `clock_gettime(CLOCK_MONOTONIC)` for presented-FPS telemetry. That
+  ring now uses `std::chrono::steady_clock`, the actual translation unit compiles with strict host
+  warnings, and the 18 full-build plus 12 UWP contracts pass. The workflow now publishes future
+  compiler/linker diagnostics as public run annotations. The `5eb90001` remote rerun passed that
+  translation unit and continued through more than 2,200 compile-log lines before finding the same
+  portability class in the development REPL: `repl_fps.cpp` retained `clock_gettime`, while
+  `repl_transport.cpp` unconditionally imported POSIX FIFO APIs through `unistd.h`. REPL FPS now uses
+  `std::chrono::steady_clock`; Windows retains the shared hooks as no-ops because the packaged app
+  does not request the Linux validation FIFO. Linux FIFO behavior is unchanged, both translation
+  units pass strict host checks (including a simulated `_WIN32` path), and the UWP contracts are now
+  13/13. Remote run 9 passed both REPL fixes and reached the final authored source batch. Its five
+  annotated MSVC errors were one root cause in `zelda3d_hud_tex.cpp`: a file-wide `extern "C"` block
+  gave C linkage to private helpers returning `std::vector`. The broad block is removed; only the
+  actual public HUD functions retain explicit C linkage, and the real translation unit passes a
+  strict standalone compile. A regression contract protects that boundary. The following remote
+  run compiled every authored C/C++ source, then failed in the redundant `soh_lib.lib` librarian
+  step: the archive was `0x100B5D295` bytes, just over MSVC's `0xFFFFFFFF` limit (`LNK1248`). The
+  displayed line 2216 was a log line, not a bad source line. `ZELDA3D_UWP_CORE` now makes `soh_lib`
+  an OBJECT library so the same complete object set goes directly into `soh_core.dll` without a
+  4 GiB intermediate archive. Its Release profile also restores `/O2`, omits unshipped `/Zi` data,
+  and disables ineffective cross-module IPO; a configure-time type assertion plus 15/15 UWP
+  contracts protects the boundary. The next rerun proved that fix by completing the object-library
+  build and entering the real `soh_core.dll` link. Its nine unresolved symbols were three ownership
+  defects rather than missing game code: five Cucco globals and the selected Z-target were referenced
+  with C++ linkage despite C definitions/contracts, the diagnostic logger called POSIX-only
+  `strcasecmp`/`strncasecmp`, and MSVC could not preserve the ELF weak-undefined harness input hook.
+  Consumers now include the owning C-ABI headers, the logger has a locale-independent ASCII
+  comparator, and the optional development hook is excluded only from MSVC/PE builds. Remote run 14
+  proved the complete correction: the 75-minute Windows job compiled and linked `soh_core.dll`
+  successfully. Its one-second staging failure was a workflow-layout defect, not another source or
+  linker failure: Shipwright's Visual Studio property sheet writes Release products to
+  `<source>/x64/Release`, while the workflow searched only the CMake binary tree. Staging now consumes
+  that exact output and a host-tested tool validates the DLL, import library, runtime assets, pinned
+  SDL2/libuwp/Mesa inputs, and unpacked AppX contents. CI is now three jobs: host assets and the costly
+  Windows core run independently, the core is preserved as an internal ROM-free artifact, and the
+  small wrapper/package/sign job consumes both. A package retry therefore does not recompile the
+  proven core. SDK tool discovery, native SDL WinRT `/WINMD:NO` linkage, certificate cleanup, notices,
+  package publisher, required runtime files, and private/build-only file rejection are explicit.
+  The next run passed exact staging, artifact transfer, wrapper runtime assembly, WindowsStore
+  configuration, and wrapper compilation. MakeAppx then failed in 12 seconds with `0x8007007B`:
+  root payloads used literal deployment directory `.`, which Visual Studio emitted into the package
+  map as an invalid dot component. Root DLLs and `soh.o2r` now omit deployment location instead;
+  nested asset destinations are normalized. To prevent another packaging correction from paying the
+  75-minute cost, new runs first restore a stable cache or automatically import and validate the
+  latest successful core artifact. Only a missing/invalid core triggers vcpkg and compilation; a
+  valid core is republished under a versioned name for 30 days. Run 21 then completed package creation,
+  signing, audit, artifact upload, and installation on the physical Xbox. The user placed all three
+  private files in the correct `LocalState\soh` directory, but the app exited immediately on two boots
+  and Xbox Crash Data captured no dump. The loader-time core import is now delayed behind the durable
+  diagnostic in #213, and the package icon defect is tracked by #214. The host-testable UWP contract
+  remains 18/18; rendering, input, audio, mode-switch, and save confirmation remain open. Keep this card
+  in progress.
+
+
+
+  - CLOSED 2026-07-29 by user: rupee icon + counter digit font ported (real OoT3D art, preferring the HD pack at 8x). User confirmed the rest of the HUD is fine -- hearts, button disc and clock stay as they are. NOTE for anyone reopening: the ROM's A/B button RINGS have the 3DS's own yellow A/B letters baked in, so they must NOT be used for kButtonBgPng or a 3DS glyph appears under the PC keyboard/gamepad badge.
+
+- [#205] N64 HUD off the Fast3D INTERPRETER — **effectively complete**, awaiting user confirmation. Every HUD element is now drawn by our own quad renderer: item buttons, do-action/A button, heart row, magic meter, rupee + small-key counters, event timer, HBA score, C-Up/Navi, minimap image. The reported black-bar corruption is gone (it recurred on three separate elements — item discs, A button, C-Up — all the same shared-resident-tile + `bgScale` coupling, all removed by the conversion). Pass 6 added `G_ZELDA3D_HUDFLUSH` + `gSPZelda3DHudFlush`, which composites an element's quads at ITS point of interpreter execution and lifts the "convert as a group" rule. **Deliberately still interpreter-drawn: the minimap's compass/position arrows and map-mark icons** — `gCompassArrowDL` is untextured 3D geometry under scale+RotateX+RotateY, so a quad cannot represent it and a rotated sprite would be a clone standing in for the real mechanism; they layer correctly over the native map, so this is a scope boundary, not visual debt. Tooling added along the way: REPL `nativehud 0|1` (same-frame A/B), `navicall 0|1`, `keycap`. Writeup `debug_journal/2026-07-28-hud-off-the-interpreter.md`; findings `docs/issues/0003-0005`.
+
+
+## in-review
+
+_(empty)_
+
+## needs-confirmation
+
+- [#209] Launcher: Ocarina "Start game" not clickable — user report 2026-08-07 (`./run.sh`; keyboard nav onto it + Enter worked, mouse click did nothing). ROOT CAUSE: `.launcher__background-wrapper` (the MM background art, deliberately oversized at `left: -70vw` so its slide-in reads) overlaps the LEFT half, and RmlUi hit-tests irrespective of background and opacity — so 10%-opacity decoration sat on top of the OoT row and ate the click. MM's rows were unaffected because they come after the wrapper in DOM order. FIX: `pointer-events: none` on the wrapper (SCSS + generated rcss). New instrument: REPL `menuhit` reports every actionable launcher row's box and which element is really at its centre — before 4/5 reachable, 1 OCCLUDED by `svg.launcher__background-mm`; after 5/5 reachable, and `menuclick 200 414` starts OoT (title sequence runs in the log).
+
+- [#210] Launcher: starting MM closed the game and ran a separate process — user report 2026-08-07, plus the follow-up "I just want one binary for launcher + both games". Both done. `soh.elf` and `mm.elf` are DELETED (targets, `exe_entry.c`, packaging); `zelda3d_app` is the only executable and the games ship only as the cores it dlopens — which is what turns the MM row into a HANDOVER instead of an exec: `Context::RequestGameSwitch(id)` records the wanted game in libultraship, the core ends its own game, and the launcher loads the next core. OoT's `DeinitOTR` `_exit(0)` and `graph.c`'s `DeinitOTR(); exit(0)` tail both removed (the latter was the one exit that skipped `Main_Shutdown()`). Nothing torn down between games. EVIDENCE: `tools/zelda3d_sequence.sh oot,mm` (previously impossible) — both cores return 0, MM attaches with all five per-game subsystems FRESH, `(none)` inherited; and the chooser path driven end to end with the **pid unchanged** across the switch. `run.sh` runs `zelda3d`. Tooling now identifies instances by exe AND `argv[1]`, so an OoT `stop` no longer reaps a concurrent MM (verified live). **2026-08-11 — the round trip is done too.** A core can now be run more than once (six instances of run-scoped state in process-lifetime globals/statics: `gPlayState`, `runFrameContext`, a cached CollisionHeader, `gAudioContext` + the audio-init latch, the message tables, the skybox latch, the REPL's FIFO descriptor, and `RequestExit`'s flag — docs/issues/0016), so the ESC menu now has a **"Return to Launcher"** row that works from BOTH games. Gate `tools/zelda3d_switch_test.sh` drives the whole thing end to end and passes: chooser → MM in scene 111 → back to the chooser → start OoT → its ESC row → back at the chooser, four core runs, ONE pid. **2026-08-12 — quitting is clean too.** Until now the process still ABORTED after the last core returned (exit 134, "corrupted size vs. prev_size"), which meant the one-binary path ended every session on a crash even when the games themselves were fine. Cause: `~GfxRenderingAPISdl3Gpu` released `mDummySampler`, a borrowed pointer into the sampler cache it had already released — one handle out of ~300, and SDL3 queues released GPU resources, so the abort surfaced far away and named three different innocent frees in turn (docs/issues/0009). `tools/zelda3d_sequence.sh` now exits 0 for `mm`, `mm,oot` and `oot,oot`, the switch test still passes 4/4, and the gate asserts the handle-ownership invariant so this cannot come back silently. **2026-08-12, later — running a game core more than once now works for MM too, and the round trip is clean in every order.** MM had no run lifecycle at all (no run-begin, no run-end, no once-per-run latches) and had never destroyed a gamestate on any quit; it has one now. The last crash on `mm → oot → mm` was a process-lifetime latch guarding a captured skeleton POINTER (`PlayAsKafei.cpp`): run 1's pointer was memcpy'd over run 3's freshly loaded skeleton, so the player drew through memory OoT had since filled with message text. Every sequence now exits 0 — `oot`, `mm`, `mm,mm`, `mm,oot`, `oot,mm`, `oot,oot`, `mm,oot,mm` — and the switch test passes with 1,800 GPU handles released and 0 duplicates. Two ordinary-gameplay bugs were found on the way and fixed: three of Link's animations were reading garbage frame data every run (an unchecked resource cast), and the title demo's horse ride read past the end of an animation buffer every time it played.
+- [#208] Xbox/gamepad button glyphs — **DONE, awaiting user confirmation.** User picked the "subtle" candidate and asked for it slightly 3D; shipped that. Depth via a radial dome lit from upper-left, a darker rim + inner bevel ring, ambient occlusion along the bottom inside edge, and a TIGHT high specular, all kept clear of the letter — plus a letter emboss and an outer drop shadow. Done in the SVG SOURCES and regenerated via tools/zelda3d_gen_xbox_glyphs.sh (the header says do not edit). Verified live in Kokiri Forest with `inputdev 0` + `xboxui 1`. Evidence `scratch/glyphs/{shipped,shipped_sizes,live_hud}.png`. Note: at 20 px they read slightly darker than the old flat discs (rim + occlusion shrink the bright face) — the dome's light stop is the knob if that reads too heavy in play.
+  <sub>Xbox/gamepad button glyphs — user does not like the current ones (2026-07-29). These are PC-native AI-generated art BY DESIGN (the user asked for them; there is no 3DS original and none should be ported) — this is purely an art-QUALITY task: make better glyphs. Scope is the four kXboxGlyph{A,B,X,Y}Png assets. Send the user before/after renders; it is his call, not a measurement.</sub>
+
+- [#201 e] Link: **sword on his back before he has picked it up** — **FIXED** `df06e4a4`, awaiting user confirmation. Root cause was a MISSING STATE, not a wrong mesh id: `sheathType` comes from the model group (derived from what Link is holding) and knows nothing about whether he owns a sword, so both N64 and OoT3D apply a second draw-time override suppressing the back-worn sword when the child has no Kokiri sword on B. We had the first half and not the override. RE'd end to end from OoT3D `0x004c70c4` — its fallback table at `0x0053c4b8` is byte-for-byte N64's two `(child, no sword)` rows in `sSheathWithSwordDLs` (`z_player_lib.c:212-223`), with `-1` as the draw-nothing sentinel and its Deku row's mesh id 13 matching our `LINK_MID(13)`. Two rules: SHEATH_18/19 swap to the fallback row only when `currentShield < PLAYER_SHIELD_HYLIAN` (so a child with Hylian/Mirror keeps normal back geometry); SHEATH_16/17 draw nothing. **Evidence** (frozen logic+camera): control 21 px, test 696 px of which 524 is the B-button HUD icon and 160 is Link's body at x[353..393] y[117..194]; the gold sword hilt vanishes while the Deku shield stays (`scratch/screenshots/fz_sword.png` vs `fz_nosword.png`). New REPL primitive `bitem` (`ed84020a`) drives the state. Writeup `oot3d-decomp/docs/player_draw_impl_located.md`; frontier `player.mesh-id-selection`. NOTE: verified by forcing the B item; the stronger check is a real save from before the sword is collected.
+
+- [#206] Link has NO SHADOW — **FIXED** (`z_player.c` Player_Draw). Root cause: the replaced OoT3D draw skips the N64 limb walk, and that walk (`Player_PostLimbDrawGameplay` → `Actor_SetFeetPos`) is the ONLY writer of `shape.feetPos`, which `ActorShadow_DrawFeet` places the per-foot shadows from. Fix = the proven collider remedy (#107/#108): re-run `Player_DrawImpl` under `gZelda3dColliderPass` for its side effects, then rewind `polyOpa.p`/`polyXlu.p` so no N64 geometry renders. **Evidence** (like-for-like: same Link pos (-68,-79,941), same `acam 120 z` eye, settled frame): ground patch below the boots 370,288-440,302 went (85.0,102.9,29.9) → (74.2,87.5,24.9) — green −15%; visible contact shadow in `scratch/screenshots/shadow206_{before,after}_zoom.png`. Findings `docs/issues/0007`.
+
+- [#203] PC-native keyboard UI/UX — item bar on 1/2/3 + HUD badges that read the LIVE binding — DONE 2026-07-28, awaiting user confirmation. Two real defects behind "none of it is wired": (1) the three C-button ITEM SLOTS were bound to the arrow keys (emulator-with-a-keyboard, not a PC game) — **input scheme v3** moves them to `1`/`2`/`3`, puts C-Up (first-person look / Navi, not an item slot) on `C`, and leaves the arrow keys unbound for the mouse-look pass; existing configs re-migrate via the scheme-version bump. (2) the keyboard HUD badges were four PNGs with the key letters drawn INTO the SVG artwork, so the B badge read **"C"** while `BTN_B` had been **F** for months and rebinding changed nothing on screen — the badge is now composited at runtime from the live ControlDeck (`input/zelda3d_keymap.cpp` + `Zelda3D_KeyCapTex`), widening the keycap by 9-slice for multi-character labels. Evidence: HUD shows `1`/`2`/`3` + `F` (`scratch/screenshots/kbdbadge_after_zoom.png`); REPL `keycap` reads back `B='F' C-Left='1' C-Down='2' C-Right='3' | C-Up='C'` from the live binding; injecting scancode 2 logs `appliedToPad=1` and takes Link to `upper=nml_carryB_wait`/`st1=0x800` (item actually raised, `scratch/screenshots/bomb_after_zoom.png`); widened caps `scratch/screenshots/keycap_sheet.png`; gamepad badges unaffected. Writeup `debug_journal/2026-07-28-pc-native-keyboard-item-bar.md`, finding `docs/issues/0002-*`. **Left open on purpose:** a keyboard-first bindings PAGE in the RmlUi menu — rebinding already works through the existing input editor and the HUD now follows it live, so that belongs with RmlUi Phase 2 input/nav rather than bolted on here.
+
+- [#201 d] Link's face does not react during the yawn/stretch fidget — FIXED `54d81f7e`, awaiting user confirmation. Root cause: the facial channel was never ported for the PLAYER (every NPC had it). THE FACE IS PART OF THE ANIMATION: each of Link's 582 `boy/anim/<clip>.csab` has a sibling `<clip>.faceb` — an undocumented Grezzo step-keyframe track of (frame, eyeIdx, mouthIdx), RE'd from the retail ROM (`"fkb"` + u8 ver + u16 keyCount + keys; 0xFF = hold). It is Grezzo's re-encoding of the data N64 hides in the animation's fake limb 22. Indices select a TexturePalette CMAB frame on one eye + one mouth material (child mat 14/15, adult 16/17 — 8 eye / 4 mouth, exactly N64's `sEyeTextures`/`sMouthTextures`). The yawn is `wait_typeD_20f`: eye 7 (squeezed shut) f19–38, mouth 3 (wide open) f36–78. Verified: REPL `linkface` reproduces the ROM track exactly, and the FULL user path — stretch firing naturally at Link's House with no forcing, face animating through it. Also found: STRETCH only fires when `curRoom.behaviorType2 >= 4` (only 45 of 724 rooms qualify; Kokiri Forest is 0, which is why earlier capture attempts never saw it). Left open deliberately: the `shape.face` scripted-face fallback (damage/cutscene faces).
+
+- [#204] Ladder climb: Link floats up on mount and warps down each anim cycle — FIXED `ff3d24df`, awaiting user confirmation. Root motion was applied twice (engine consumed the root delta into world.pos AND the CSAB draw sampled the same track). Now pinned per `movementFlags`, mirroring N64 `SkelAnime_UpdateTranslation`. Measured: clip-boundary jumps +21.7/+24.2/+22.8 world units -> ZERO, ascent monotonic. Clip: `scratch/screenshots/climb_after_fix.mp4`.
+
+- [#201 a/b/c] Link walk vibration + door-exit slide + climb warp-up — FIXED 2026-07-23 (uncommitted working tree), awaiting user confirmation. Root causes: (a)+(c) the per-frame min-vertex feet-grounding draw anchor (replaced by the RE'd age root-translation scale 0.64 + the missing `shape.yOffset*scale.y` draw term); (b) scripted auto-walk (door exit / entrance walk-in) drives the legs via unk_868 while the named anim stays idle — selection now follows the leg driver. Evidence: `scratch/screenshots/{walk_jitter_before,walk_jitter_after,door_exit_after}.mp4`; numbers in `debug_journal/2026-07-23-link-movement-three-bugs.md` (walk vertical noise 0.9→0.000 units, climb-clip teleport 16.7→0 units, door walk-out now plays nml_walk_free). Known residual: real ladder-grab climb not yet reproducible headless (frontier `player.draw-anchor` gaps).
+
+- [#201 c2] LADDER/wall climbing plays the IDLE pose — FIXED 2026-07-23 (uncommitted working tree), awaiting user confirmation. Root cause: the ENTIRE `gPlayerAnim_clink_*` (CHILD-only) anim namespace was invisible to `tools/gen_player_animmap.py`, which scanned only `gPlayerAnim_link_*` — so every child climb clip resolved to NULL and fell back to `ZELDA3D_LINK_IDLE_CSAB`. A vine/wall climb (`actionVar1 = (wallFlags & 8) ? 2 : 0` = 0) is 100% `clink_` clips; a real ladder (=2) animates its rungs from the shared `Fclimb_*` but takes its top/bottom DISMOUNTS from `clink_climb_endA*/endB*` — both idle before. Not an anchor bug (that was (c)) and not a playhead bug. Fix: generator now scans both namespaces (`cl_` prefix for the child twins) + its stale output path repointed at `tables/`; +36 rows, no existing row altered. Live AFTER: `cl_nml_climb_startA -> cl_nml_climb_upL -> cl_nml_climb_upR -> cl_nml_climb_endBR`, all `(unmapped)` before. Evidence: `scratch/screenshots/{climb_before,climb_after}.mp4` (+ `*_zoom.png` filmstrips, same camera/approach); writeup `debug_journal/2026-07-23-ladder-climb-child-anim-namespace.md`. New reusable repro: `tools/ladder_repro.py` (closes the recorded "climb never engaged headless" tooling gap).
+
+- [#202] Remove the custom UI/HUD, restore the native HUD — DONE `c6daa4d4`, awaiting user confirmation. Custom PC/Vulkan HUD + the 6-slot hotbar deleted (the hotbar was suppressing the native C-button/D-pad cluster and clobbering `buttonItems[0]` every frame). Native HUD verified live: `scratch/screenshots/hud_verify2.png`. Keyboard/gamepad glyphs kept and still rendering.
+
+_(empty)_
+
+## blocked
+
+_(empty)_
+
+## done
+
+- [#211] Embedded harness reads the repo `.env` — user request 2026-08-14. The executable now loads the repo-root shell environment even when invoked directly from another working directory, imports plain assignments, and preserves explicit process overrides. Shell/Python launchers hand off a loaded marker and ROM provisioning accepts an already-loaded flag, so the executable does not evaluate executable `.env` syntax a second time. Evidence: direct-binary discriminator loaded 4 absent keys from the real repo `.env`; a synthetic `.env` selected its ROM path, while an explicit caller ROM won the A/B; the launcher/provisioning discriminator reported exactly `env_evaluations=1`; harness build, `bash -n`, Python compile, and codemap gate pass.
+
+_(empty)_

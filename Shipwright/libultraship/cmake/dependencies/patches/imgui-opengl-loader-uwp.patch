@@ -1,0 +1,14 @@
+diff --git a/backends/imgui_impl_opengl3_loader.h b/backends/imgui_impl_opengl3_loader.h
+--- a/backends/imgui_impl_opengl3_loader.h
++++ b/backends/imgui_impl_opengl3_loader.h
+@@ -633,6 +633,10 @@ static int open_libgl(void)
+ static int open_libgl(void)
+ {
++#if defined(_UWP)
++    libgl = LoadPackagedLibrary(L"opengl32.dll", 0);
++#else
+     libgl = LoadLibraryA("opengl32.dll");
++#endif
+     if (!libgl)
+         return GL3W_ERROR_LIBRARY_OPEN;
+     wgl_get_proc_address = (GL3WglGetProcAddr)GetProcAddress(libgl, "wglGetProcAddress");

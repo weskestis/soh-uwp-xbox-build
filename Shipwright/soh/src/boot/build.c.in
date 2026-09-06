@@ -1,0 +1,14 @@
+#include <libultraship/libultra.h>
+
+const char gBuildVersion[] = "@PROJECT_BUILD_NAME@ (@Ship_VERSION_MAJOR@.@Ship_VERSION_MINOR@.@Ship_VERSION_PATCH@)";
+const u16 gBuildVersionMajor = @Ship_VERSION_MAJOR@;
+const u16 gBuildVersionMinor = @Ship_VERSION_MINOR@;
+const u16 gBuildVersionPatch = @Ship_VERSION_PATCH@;
+
+const char gGitBranch[] = "@CMAKE_PROJECT_GIT_BRANCH@";
+const char gGitCommitHash[] = "@CMAKE_PROJECT_GIT_COMMIT_HASH@";
+const char gGitCommitTag[] = "@CMAKE_PROJECT_GIT_COMMIT_TAG@";
+
+const char gBuildTeam[] = "@PROJECT_TEAM@";
+const char gBuildDate[] = __DATE__ " " __TIME__;
+const char gBuildMakeOption[] = "";

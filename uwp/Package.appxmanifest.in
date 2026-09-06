@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="mp uap rescap">
+
+  <!-- Deliberately distinct from the original V3 package, so both apps and
+       their LocalState/save trees remain installed side by side. -->
+  <Identity
+    Name="@ZELDA3D_UWP_PACKAGE_NAME@"
+    Publisher="@ZELDA3D_UWP_PUBLISHER@"
+    Version="@ZELDA3D_UWP_VERSION@" />
+
+  <mp:PhoneIdentity
+    PhoneProductId="5dd45ca6-708d-4ad6-a467-58d6817d5982"
+    PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+
+  <Properties>
+    <DisplayName>@ZELDA3D_UWP_DISPLAY_NAME@</DisplayName>
+    <PublisherDisplayName>@ZELDA3D_UWP_PUBLISHER_DISPLAY_NAME@</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily
+      Name="Windows.Universal"
+      MinVersion="10.0.19041.0"
+      MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="x-generate" />
+  </Resources>
+
+  <Applications>
+    <Application Id="OoT3DFull" Executable="$targetnametoken$.exe" EntryPoint="uwp.App">
+      <uap:VisualElements
+        DisplayName="@ZELDA3D_UWP_DISPLAY_NAME@"
+        Description="SOH CURSOR FPS V3 with toggleable Ocarina of Time 3D graphics"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile />
+      </uap:VisualElements>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <rescap:Capability Name="broadFileSystemAccess" />
+    <rescap:Capability Name="expandedResources" />
+    <uap:Capability Name="removableStorage" />
+  </Capabilities>
+</Package>

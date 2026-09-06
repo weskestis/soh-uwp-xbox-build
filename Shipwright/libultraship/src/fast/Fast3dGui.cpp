@@ -1,0 +1,863 @@
+#include "fast/Fast3dGui.h"
+
+#include "fast/Fast3dWindow.h"
+#include "ship/Context.h"
+#include "ship/config/ConsoleVariable.h"
+#include "ship/controller/controldeck/ControlDeck.h"
+#include "fast/interpreter.h"
+#include "fast/backends/gfx_rendering_api.h"
+#include "fast/resource/type/Texture.h"
+#include "ship/window/gui/resource/GuiTextureFactory.h"
+#include "ship/resource/File.h"
+#include "ship/window/gui/rml/SohRmlUi.h"
+
+#if defined(__ANDROID__) || defined(__IOS__)
+#include "ship/port/mobile/MobileImpl.h"
+#endif
+
+#ifdef ZELDA3D_USE_SDL2
+#include <imgui_impl_opengl3.h>
+#include <imgui_impl_sdl2.h>
+#include "fast/backends/gfx_opengl.h"
+#else
+#include <imgui_impl_sdl3.h>
+#include <imgui_impl_sdlgpu3.h>
+#include "fast/backends/gfx_sdl3gpu.h"
+#endif
+#include "fast/backends/cursor_fps_v3.h"
+
+namespace Fast {
+
+static SDL_Keycode EventKeycode(const SDL_Event& event) {
+#ifdef ZELDA3D_USE_SDL2
+    return event.key.keysym.sym;
+#else
+    return event.key.key;
+#endif
+}
+
+constexpr int32_t ZELDA3D_FULL_SETTINGS_BLOCK_ID = 95237932;
+
+Fast3dGui::Fast3dGui() : Ship::Gui() {
+}
+
+Fast3dGui::Fast3dGui(std::vector<std::shared_ptr<Ship::GuiWindow>> guiWindows) : Ship::Gui(guiWindows) {
+}
+
+Fast3dGui::~Fast3dGui() = default;
+
+void Fast3dGui::Init(GuiWindowInitData windowImpl) {
+    mImpl = windowImpl;
+    Gui::Init();
+}
+
+bool Fast3dGui::SupportsViewports() {
+#ifdef __linux__
+    const char* currentDesktop = std::getenv("XDG_CURRENT_DESKTOP");
+    if (currentDesktop && std::string(currentDesktop) == "gamescope") {
+        return false;
+    }
+#endif
+
+#if defined(__ANDROID__) || defined(__IOS__)
+    return false;
+#endif
+
+    return true;
+}
+
+bool Fast3dGui::IsInteractiveMenuOpen() {
+    return (mRml && (mRml->IsVisible() || mRml->IsLauncherVisible())) ||
+           (GetMenu() && GetMenu()->IsVisible());
+}
+
+void Fast3dGui::DrawMenu() {
+    SyncFullSettingsInputState();
+    if (IsInteractiveMenuOpen()) {
+        // Menu ownership wins over FPS-camera or cursor restoration. Reassert every frame because
+        // all three systems can change capture independently during a toggle transition.
+        auto window = Ship::Context::GetRawInstance()->GetWindow();
+        window->SetMouseCapture(false);
+        window->SetCursorVisibility(true);
+    }
+    Ship::Gui::DrawMenu();
+    // V3 draws its toast/crosshair last. ImGui itself is composited after the RmlUi menu, so this
+    // remains visible over both the game and either settings surface.
+    CursorFpsV3DrawOverlay();
+}
+
+void Fast3dGui::SyncFullSettingsInputState() {
+    const bool visible = GetMenu() != nullptr && GetMenu()->IsVisible();
+    // ImGui's SDL backend polls the physical pad independently of our gameplay wrappers. Disable
+    // its gamepad navigation while V3 cursor mode synthesises A as a mouse click, or one press can
+    // activate the focused widget and click the hovered widget in the same frame.
+    if (visible && CursorFpsV3IsCursorMode()) {
+        BlockGamepadNavigation();
+    } else if (visible) {
+        UnblockGamepadNavigation();
+    }
+    if (visible == mFullSettingsInputBlocked) {
+        return;
+    }
+
+    auto* context = Ship::Context::GetRawInstance();
+    if (context == nullptr || context->GetControlDeck() == nullptr || context->GetWindow() == nullptr) {
+        return;
+    }
+
+    auto window = context->GetWindow();
+    if (visible) {
+        context->GetControlDeck()->BlockGameInput(ZELDA3D_FULL_SETTINGS_BLOCK_ID);
+        window->SetMouseCapture(false);
+        window->SetCursorVisibility(true);
+    } else {
+        context->GetControlDeck()->UnblockGameInput(ZELDA3D_FULL_SETTINGS_BLOCK_ID);
+        BlockGamepadNavigation();
+        if (!CursorFpsV3IsCursorMode() && !(mRml && mRml->IsVisible())) {
+            window->SetMouseCapture(window->ShouldAutoCaptureMouse());
+        }
+    }
+    mFullSettingsInputBlocked = visible;
+}
+
+bool Fast3dGui::HandleFullSettingsToggle(const SDL_Event& event) {
+    const bool keyboardToggle =
+        event.type == SDL_EVENT_KEY_DOWN && EventKeycode(event) == SDLK_F1 && !event.key.repeat;
+    const bool controllerToggle = event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN &&
+                                  event.gbutton.button == SDL_GAMEPAD_BUTTON_BACK;
+    if (keyboardToggle || controllerToggle) {
+        if (mRml && mRml->IsLauncherVisible()) {
+            return false;
+        }
+        if (mRml) {
+            mRml->SetVisible(false);
+        }
+        if (GetMenu()) {
+            GetMenu()->ToggleVisibility();
+            SyncFullSettingsInputState();
+        }
+        return true;
+    }
+
+    // Start/Escape belongs to the compact RmlUi menu. Close the full menu first so the two input
+    // blockers and two visual surfaces can never be active at once.
+    const bool quickMenuToggle =
+        (event.type == SDL_EVENT_KEY_DOWN && EventKeycode(event) == SDLK_ESCAPE && !event.key.repeat) ||
+        (event.type == SDL_EVENT_GAMEPAD_BUTTON_DOWN && event.gbutton.button == SDL_GAMEPAD_BUTTON_START);
+    if (quickMenuToggle && GetMenu() && GetMenu()->IsVisible()) {
+        GetMenu()->Hide();
+        SyncFullSettingsInputState();
+    }
+    return false;
+}
+
+void Fast3dGui::HandleWindowEvents(Fast::WindowEvent event) {
+    const auto* sdlEvent = static_cast<const SDL_Event*>(event.Sdl.Event);
+    if (sdlEvent != nullptr && HandleFullSettingsToggle(*sdlEvent)) {
+        return;
+    }
+    // Offer the event to the RmlUi menu first. It always handles its toggle binding, and consumes
+    // input while open so the ImGui menu / game do not also react.
+    if (mRml && mRml->ProcessSdlEvent(const_cast<SDL_Event*>(static_cast<const SDL_Event*>(event.Sdl.Event)))) {
+        return;
+    }
+    // Then the ImGui dev overlays. Second, not first: RmlUi is the shipped menu and owns input
+    // while it is open, and it returns true only for what it actually consumed.
+#ifdef ZELDA3D_USE_SDL2
+    ImGui_ImplSDL2_ProcessEvent(static_cast<const SDL_Event*>(event.Sdl.Event));
+#else
+    ImGui_ImplSDL3_ProcessEvent(static_cast<const SDL_Event*>(event.Sdl.Event));
+#endif
+#if defined(__ANDROID__) || defined(__IOS__)
+    // Mobile soft-keyboard: raise it when an ImGui text widget wants input.
+    Ship::Mobile::ImGuiProcessEvent(ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput);
+#endif
+}
+
+void Fast3dGui::ImGuiWMInit() {
+    SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "1");
+    if (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(CVAR_ALLOW_BACKGROUND_INPUTS, 1)) {
+        SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    }
+#ifdef ZELDA3D_USE_SDL2
+    if (mImpl.Opengl.Window != nullptr) {
+        ImGui_ImplSDL2_InitForOpenGL(static_cast<SDL_Window*>(mImpl.Opengl.Window), mImpl.Opengl.Context);
+    }
+#else
+    // SDL3 platform backend: keyboard/mouse/gamepad state and timing for the dev overlays.
+    // InitForOther, not InitForSDLRenderer/InitForVulkan -- rendering goes through our own SDL3-GPU
+    // op stream (see ImGuiRenderDrawData), so the platform backend must not assume a renderer.
+    if (mImpl.Vulkan.Window != nullptr) {
+        ImGui_ImplSDL3_InitForOther(static_cast<SDL_Window*>(mImpl.Vulkan.Window));
+    }
+#endif
+}
+
+void Fast3dGui::ImGuiWMShutdown() {
+#ifdef ZELDA3D_USE_SDL2
+    ImGui_ImplSDL2_Shutdown();
+#else
+    ImGui_ImplSDL3_Shutdown();
+#endif
+}
+
+void Fast3dGui::ImGuiBackendInit() {
+    auto window = Ship::Context::GetRawInstance()->GetWindow();
+    mInterpreter = std::dynamic_pointer_cast<Fast3dWindow>(window)->GetInterpreterWeak();
+
+#ifdef ZELDA3D_USE_SDL2
+#if defined(__APPLE__)
+    ImGui_ImplOpenGL3_Init("#version 410 core");
+#elif defined(USE_OPENGLES)
+    ImGui_ImplOpenGL3_Init("#version 300 es");
+#else
+    ImGui_ImplOpenGL3_Init("#version 120");
+#endif
+    mImGuiRendererReady = true;
+    auto wnd = Ship::Context::GetRawInstance()->GetWindow();
+    mRml = std::make_unique<Ship::SohRmlUi>();
+    if (!mRml->Init(mImpl.Opengl.Window, mImpl.Opengl.Context, static_cast<int>(wnd->GetWidth()),
+                    static_cast<int>(wnd->GetHeight()), false, false)) {
+        SPDLOG_ERROR("Fast3dGui: RmlUi (SDL2/OpenGL) init failed; menu disabled");
+        mRml.reset();
+    }
+#else
+    // ImGui's SDL3-GPU renderer backend is NOT initialised here, deliberately: Gui::Init runs before
+    // the Fast3D rendering API is created, so g_activeSdl3GpuApi is still null at this point and
+    // ImGui_ImplSDLGPU3_Init has no device to bind. Calling it anyway left the backend's data null
+    // and the first ImGui_ImplSDLGPU3_NewFrame() dereferenced it -- OoT crashed on frame one.
+    // EnsureImGuiRenderer() does it on the first frame where the API exists.
+
+    // The RmlUi menu has its own SDL3 GPU render interface (appends ops into the Fast3D SDL3 GPU
+    // unified op-list), so stand it up here too. Separate stack, separate interface, on purpose.
+    auto wnd = Ship::Context::GetRawInstance()->GetWindow();
+    mRml = std::make_unique<Ship::SohRmlUi>();
+    if (!mRml->Init(mImpl.Vulkan.Window, nullptr, (int)wnd->GetWidth(), (int)wnd->GetHeight(),
+                    /*vulkan=*/false, /*sdl3gpu=*/true)) {
+        SPDLOG_ERROR("Fast3dGui: RmlUi (SDL3 GPU) init failed; menu disabled");
+        mRml.reset();
+    }
+#endif
+}
+
+bool Fast3dGui::EnsureImGuiRenderer() {
+#ifdef ZELDA3D_USE_SDL2
+    return mImGuiRendererReady;
+#else
+    if (mImGuiRendererReady) {
+        return true;
+    }
+    Fast::GfxRenderingAPISdl3Gpu* api = Fast::g_activeSdl3GpuApi;
+    if (api == nullptr || api->GpuDevice() == nullptr) {
+        return false; // renderer not up yet; try again next frame
+    }
+    ImGui_ImplSDLGPU3_InitInfo info{};
+    info.Device = api->GpuDevice();
+    info.ColorTargetFormat = api->GpuColorFormat();
+    info.MSAASamples = SDL_GPU_SAMPLECOUNT_1;
+    if (!ImGui_ImplSDLGPU3_Init(&info)) {
+        // Logged once, not per frame: mark ready so the failed backend is not retried forever, and
+        // say plainly that overlays are dead rather than leaving silence to be read as "fine".
+        SPDLOG_ERROR("Fast3dGui: ImGui SDL3-GPU backend init failed; dev overlays will not render");
+        mImGuiRendererReady = true;
+        return false;
+    }
+    SPDLOG_INFO("Fast3dGui: ImGui SDL3-GPU renderer backend up on the Fast3D device");
+    mImGuiRendererReady = true;
+    return true;
+#endif
+}
+
+void Fast3dGui::ImGuiBackendShutdown() {
+#ifdef ZELDA3D_USE_SDL2
+    mRml.reset();
+    if (mImGuiRendererReady) {
+        ImGui_ImplOpenGL3_Shutdown();
+        mImGuiRendererReady = false;
+    }
+#else
+    // Both renderer-side stacks, while the GPU device is still alive -- Fast3dWindow calls
+    // ShutDownImGui before `delete mRenderingApi` precisely so this ordering holds.
+    if (mImGuiRendererReady) {
+        ImGui_ImplSDLGPU3_Shutdown();
+        mImGuiRendererReady = false;
+    }
+    mRml.reset();
+#endif
+}
+
+void Fast3dGui::ImGuiBackendNewFrame() {
+#ifdef ZELDA3D_USE_SDL2
+    if (mImGuiRendererReady) {
+        ImGui_ImplOpenGL3_NewFrame();
+    }
+#else
+    if (!EnsureImGuiRenderer()) {
+        return;
+    }
+
+    // Rebuild the font atlas when a game has added fonts to it since it was last built.
+    //
+    // The atlas is ENGINE lifetime but every game registers its own fonts into it (OoT's
+    // OTRGlobals::CreateFontWithSize, MM's equivalent in BenPort), and adding a font marks the atlas
+    // not-built. The SDL3-GPU backend, though, only builds the font texture when it has none
+    // (imgui_impl_sdlgpu3.cpp: `if (!bd->FontTexture) CreateFontsTexture()`), so once the FIRST game
+    // has built it, a later game's fonts are never rasterised.
+    //
+    // ImGui::NewFrame does assert on this -- `IO.Fonts->IsBuilt() && "Font Atlas not built!"` -- but
+    // asserts are compiled out under NDEBUG, so instead of a clear message it walked unbuilt fonts
+    // and died dereferencing one in SetCurrentFont. That is how OoT-after-MM crashed on its first
+    // drawn frame (docs/issues/0010).
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.Fonts != nullptr && !io.Fonts->IsBuilt()) {
+        SPDLOG_INFO("Fast3dGui: font atlas has unbuilt fonts (a game registered its own); "
+                    "dropping the font texture so the backend rebuilds it.");
+        ImGui_ImplSDLGPU3_DestroyFontsTexture();
+    }
+
+    ImGui_ImplSDLGPU3_NewFrame();
+#endif
+}
+
+void Fast3dGui::ImGuiWMNewFrame() {
+    UpdateSdlTextInput();
+    // Apply this before the SDL backend polls gamepad state. Doing it later in DrawMenu leaves one
+    // transition frame where cursor-mode A can be seen both as ImGui navigation and a mouse click.
+    if (CursorFpsV3IsCursorMode()) {
+        BlockGamepadNavigation();
+    } else if (GetMenu() && GetMenu()->IsVisible()) {
+        UnblockGamepadNavigation();
+    } else {
+        BlockGamepadNavigation();
+    }
+#ifdef ZELDA3D_USE_SDL2
+    ImGui_ImplSDL2_NewFrame();
+#else
+    ImGui_ImplSDL3_NewFrame();
+#endif
+}
+
+void Fast3dGui::UpdateSdlTextInput() {
+    // SohRmlUi::Init clears SDL's startup default-on text input so the IME doesn't eat gameplay
+    // keys (held S -> ś š ş ß §, swallowed before the game reads it). But ImGui 1.91.9b's SDL2
+    // backend never (re)enables SDL text input on its own (it dropped that in 2023, see the backend
+    // changelog), so an ImGui InputText would get no SDL_TEXTINPUT characters once it's off. Mirror
+    // ImGui's intent here: text input ON iff an ImGui text widget wants it. While the RmlUi menu is
+    // up it owns text input itself (RmlUi_Platform_SDL Start/Stop on field focus), so defer to it.
+    if (mRml && mRml->IsVisible()) {
+        return;
+    }
+    // Back to asking ImGui, now that ImGui is real. While it was a no-op shim this read as a
+    // constant false, and that was defensible only because no ImGui text widget could exist; the
+    // dev-tool console's InputText exists again, so a hardcoded false would silently swallow every
+    // character typed into it.
+    const bool want = ImGui::GetCurrentContext() != nullptr && ImGui::GetIO().WantTextInput;
+    if (want == mTextInputActive) {
+        return;
+    }
+    // SDL3-MIGRATION: SDL_StartTextInput/SDL_StopTextInput are now per-window. This runs only
+    // on the SDL backends (called from ImGuiWMNewFrame), and all SDL union members share the
+    // same first `void* Window` member, so Opengl.Window is the active SDL_Window for any of them.
+#ifndef ZELDA3D_USE_SDL2
+    auto* sdlWindow = static_cast<SDL_Window*>(mImpl.Opengl.Window);
+#endif
+    if (want) {
+#ifdef ZELDA3D_USE_SDL2
+        SDL_StartTextInput();
+#else
+        SDL_StartTextInput(sdlWindow);
+#endif
+    } else {
+#ifdef ZELDA3D_USE_SDL2
+        SDL_StopTextInput();
+#else
+        SDL_StopTextInput(sdlWindow);
+#endif
+    }
+    mTextInputActive = want;
+}
+
+void Fast3dGui::ImGuiRenderDrawData(ImDrawData* data) {
+#ifdef ZELDA3D_USE_SDL2
+    if (mImGuiRendererReady && data != nullptr) {
+        ImGui_ImplOpenGL3_RenderDrawData(data);
+    }
+#else
+    // The renderer is a single unified op stream, so ImGui does not open a pass against the
+    // swapchain itself -- it appends one, exactly as the RmlUi interface does. AppendZelda3DOwnPass
+    // runs the lambda during op replay, inside this same frame's command buffer.
+    if (!mImGuiRendererReady || data == nullptr || data->CmdListsCount == 0) {
+        return;
+    }
+    Fast::GfxRenderingAPISdl3Gpu* api = Fast::g_activeSdl3GpuApi;
+    if (api == nullptr || !api->FrameRecording()) {
+        return;
+    }
+    SDL_GPUTexture* fbColor = api->MainFbColorTexture();
+    if (fbColor == nullptr) {
+        return;
+    }
+
+    api->AppendZelda3DOwnPass([data, fbColor](SDL_GPUCommandBuffer* cmd) {
+        // Uploads ImGui's vertex/index data. Must run on the command buffer BEFORE the render pass
+        // is begun -- it records a copy pass, which cannot be nested inside a render pass.
+        // Spelled with a lowercase 'g': upstream v1.91.9b-docking declares it as
+        // Imgui_ImplSDLGPU3_PrepareDrawData. That is an upstream typo, fixed in a later release --
+        // so this is the line to change when ImGui is next bumped.
+        Imgui_ImplSDLGPU3_PrepareDrawData(data, cmd);
+
+        SDL_GPUColorTargetInfo ct{};
+        ct.texture = fbColor;
+        ct.load_op = SDL_GPU_LOADOP_LOAD; // composite over the game + HUD + menu
+        ct.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass* pass = SDL_BeginGPURenderPass(cmd, &ct, 1, nullptr);
+        if (pass != nullptr) {
+            ImGui_ImplSDLGPU3_RenderDrawData(data, cmd, pass);
+            SDL_EndGPURenderPass(pass);
+        }
+    });
+#endif
+}
+
+void Fast3dGui::RenderRmlMenu() {
+    if (!mRml) {
+        return;
+    }
+    mRml->UpdateAndRender();
+}
+
+void Fast3dGui::RmlMenuInjectKey(int sdlKeycode) {
+    if (!mRml) {
+        return;
+    }
+    // Drive the menu through the same path as a real keypress: a KEYDOWN, then a KEYUP. The scancode
+    // is left zero (the menu's handler keys off the keysym/sym only), and modifiers are empty.
+    // SDL3-MIGRATION: SDL_KEYDOWN/UP -> SDL_EVENT_KEY_DOWN/UP; the keysym struct is gone — sym/mod
+    // are now flattened onto event.key directly (event.key.key / event.key.mod); .down replaces
+    // the .state==SDL_PRESSED flag; KMOD_NONE -> SDL_KMOD_NONE.
+    SDL_Event ev{};
+    ev.type = SDL_EVENT_KEY_DOWN;
+#ifdef ZELDA3D_USE_SDL2
+    ev.key.state = SDL_PRESSED;
+    ev.key.repeat = 0;
+    ev.key.keysym.sym = static_cast<SDL_Keycode>(sdlKeycode);
+    ev.key.keysym.mod = KMOD_NONE;
+#else
+    ev.key.down = true;
+    ev.key.repeat = false;
+    ev.key.key = (SDL_Keycode)sdlKeycode;
+    ev.key.mod = SDL_KMOD_NONE;
+#endif
+    mRml->ProcessSdlEvent(&ev);
+    ev.type = SDL_EVENT_KEY_UP;
+#ifdef ZELDA3D_USE_SDL2
+    ev.key.state = SDL_RELEASED;
+#else
+    ev.key.down = false;
+#endif
+    mRml->ProcessSdlEvent(&ev);
+}
+
+void Fast3dGui::RmlMenuInjectClick(int x, int y) {
+    if (!mRml) {
+        return;
+    }
+    // Position the cursor first (RmlUi resolves the hovered element from the last mouse move), then
+    // a left button down + up so the click dispatches to whatever element is under (x, y).
+    // SDL3-MIGRATION: event type enums renamed (SDL_MOUSEMOTION -> SDL_EVENT_MOUSE_MOTION, etc.);
+    // mouse x/y are now floats; .down replaces .state==SDL_PRESSED on the button event.
+    SDL_Event ev{};
+    ev.type = SDL_EVENT_MOUSE_MOTION;
+    ev.motion.x = (float)x;
+    ev.motion.y = (float)y;
+    mRml->ProcessSdlEvent(&ev);
+    ev = SDL_Event{};
+    ev.type = SDL_EVENT_MOUSE_BUTTON_DOWN;
+    ev.button.button = SDL_BUTTON_LEFT;
+#ifdef ZELDA3D_USE_SDL2
+    ev.button.state = SDL_PRESSED;
+#else
+    ev.button.down = true;
+#endif
+    ev.button.clicks = 1;
+    ev.button.x = (float)x;
+    ev.button.y = (float)y;
+    mRml->ProcessSdlEvent(&ev);
+    ev.type = SDL_EVENT_MOUSE_BUTTON_UP;
+#ifdef ZELDA3D_USE_SDL2
+    ev.button.state = SDL_RELEASED;
+#else
+    ev.button.down = false;
+#endif
+    mRml->ProcessSdlEvent(&ev);
+}
+
+void Fast3dGui::DrawFloatingWindows() {
+    // ImGui multi-viewport support. The body was gated on
+    // `ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable`, which is zero against the
+    // shim, so it early-returned on every frame and the UpdatePlatformWindows/RenderPlatformWindows
+    // calls below it never executed. Nothing replaces it: RmlUi renders into the one window.
+}
+
+void Fast3dGui::CalculateGameViewport() {
+    // ImGui removed: the game dock filled the whole window, so the viewport is simply the full window.
+    // (Previously this read ImGui::Begin("Main Game") + GetContentRegionAvail()/GetWindowPos().)
+    auto window = Ship::Context::GetRawInstance()->GetWindow();
+    ImVec2 mainPos = ImVec2(0.0f, 0.0f);
+    ImVec2 size = ImVec2((float)window->GetWidth(), (float)window->GetHeight());
+    const auto interpreter = mInterpreter.lock().get();
+    interpreter->mCurDimensions.width = (uint32_t)(size.x * mInterpreter.lock()->mCurDimensions.internal_mul);
+    interpreter->mCurDimensions.height = (uint32_t)(size.y * mInterpreter.lock()->mCurDimensions.internal_mul);
+    interpreter->mGameWindowViewport.x = (int16_t)mainPos.x;
+    interpreter->mGameWindowViewport.y = (int16_t)mainPos.y;
+    interpreter->mGameWindowViewport.width = (int16_t)size.x;
+    interpreter->mGameWindowViewport.height = (int16_t)size.y;
+
+    if (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(CVAR_PREFIX_ADVANCED_RESOLUTION ".Enabled",
+                                                                           0)) {
+        ApplyResolutionChanges();
+    }
+
+    switch (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(CVAR_LOW_RES_MODE, 0)) {
+        case 1: { // N64 Mode
+            interpreter->mCurDimensions.width = 320;
+            interpreter->mCurDimensions.height = 240;
+            /*
+            const int sw = size.y * 320 / 240;
+            mInterpreter.lock()->mGameWindowViewport.x += ((int)size.x - sw) / 2;
+            mInterpreter.lock()->mGameWindowViewport.width = sw;*/
+            break;
+        }
+        case 2: { // 240p Widescreen
+            constexpr int vertRes = 240;
+            interpreter->mCurDimensions.width = vertRes * size.x / size.y;
+            interpreter->mCurDimensions.height = vertRes;
+            break;
+        }
+        case 3: { // 480p Widescreen
+            constexpr int vertRes = 480;
+            interpreter->mCurDimensions.width = vertRes * size.x / size.y;
+            interpreter->mCurDimensions.height = vertRes;
+            break;
+        }
+    }
+}
+
+void Fast3dGui::DrawGame() {
+    // ImGui removed: no "Main Game" ImGui host window. The game frame is composited natively onto
+    // fb 0 by the interpreter; the overlay (notifications/etc.) is the kept GameOverlay scaffold.
+    GetGameOverlay()->Draw();
+
+    // ONE render path: the game frame is composited onto fb 0 natively by the interpreter
+    // (Interpreter::Run/RunGuiOnly -> CopyFramebuffer(0, mGameFb, ...)) and fb 0 is presented
+    // directly, for EVERY backend. The old ImGui::Image(GetGfxFrameBuffer()) composite (with its
+    // letterbox/aspect math) that drew the game through ImGui on GL/Metal/DX11 has been removed --
+    // the game no longer depends on ImGui to reach the screen.
+}
+
+void Fast3dGui::ApplyResolutionChanges() {
+    // ImGui removed: viewport is the full window (see CalculateGameViewport).
+    auto window = Ship::Context::GetRawInstance()->GetWindow();
+    ImVec2 size = ImVec2((float)window->GetWidth(), (float)window->GetHeight());
+
+    const float aspectRatioX = Ship::Context::GetRawInstance()->GetConsoleVariables()->GetFloat(
+        CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioX", 16.0f);
+    const float aspectRatioY = Ship::Context::GetRawInstance()->GetConsoleVariables()->GetFloat(
+        CVAR_PREFIX_ADVANCED_RESOLUTION ".AspectRatioY", 9.0f);
+    const uint32_t verticalPixelCount = Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+        CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalPixelCount", 480);
+    const bool verticalResolutionToggle = Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+        CVAR_PREFIX_ADVANCED_RESOLUTION ".VerticalResolutionToggle", 0);
+
+    const bool aspectRatioIsEnabled = (aspectRatioX > 0.0f) && (aspectRatioY > 0.0f);
+
+    constexpr uint32_t minResolutionWidth = 320;
+    constexpr uint32_t minResolutionHeight = 240;
+    constexpr uint32_t maxResolutionWidth = 8096;  // the renderer's actual limit is 16384
+    constexpr uint32_t maxResolutionHeight = 4320; // on either axis. if you have the VRAM for it.
+    uint32_t newWidth;
+    uint32_t newHeight;
+    const auto interpreter = mInterpreter.lock().get();
+    interpreter->GetCurDimensions(&newWidth, &newHeight);
+
+    if (verticalResolutionToggle) { // Use fixed vertical resolution
+        if (aspectRatioIsEnabled) {
+            newWidth = uint32_t(float(verticalPixelCount / aspectRatioY) * aspectRatioX);
+        } else {
+            newWidth = uint32_t(float(verticalPixelCount * size.x / size.y));
+        }
+        newHeight = verticalPixelCount;
+    } else { // Use the window's resolution
+        if (aspectRatioIsEnabled) {
+            if (((float)interpreter->mGameWindowViewport.height / interpreter->mGameWindowViewport.width) <
+                (aspectRatioY / aspectRatioX)) {
+                // when pillarboxed
+                newWidth = uint32_t(float(interpreter->mCurDimensions.height / aspectRatioY) * aspectRatioX);
+            } else { // when letterboxed
+                newHeight = uint32_t(float(interpreter->mCurDimensions.width / aspectRatioX) * aspectRatioY);
+            }
+        } // else, having both options turned off does nothing.
+    }
+    // clamp values to prevent renderer crash
+    if (newWidth < minResolutionWidth) {
+        newWidth = minResolutionWidth;
+    }
+    if (newHeight < minResolutionHeight) {
+        newHeight = minResolutionHeight;
+    }
+    if (newWidth > maxResolutionWidth) {
+        newWidth = maxResolutionWidth;
+    }
+    if (newHeight > maxResolutionHeight) {
+        newHeight = maxResolutionHeight;
+    }
+    // apply new dimensions
+    interpreter->mCurDimensions.width = newWidth;
+    interpreter->mCurDimensions.height = newHeight;
+    // The game frame is now composited full-window onto fb 0 by the interpreter (one render path);
+    // there is no longer an ImGui::Image letterbox step in DrawGame to centre it.
+}
+
+int16_t Fast3dGui::GetIntegerScaleFactor() {
+    const auto interpreter = mInterpreter.lock().get();
+    if (!Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+            CVAR_PREFIX_ADVANCED_RESOLUTION ".IntegerScale.FitAutomatically", 0)) {
+        int16_t factor = Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+            CVAR_PREFIX_ADVANCED_RESOLUTION ".IntegerScale.Factor", 1);
+
+        if (Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+                CVAR_PREFIX_ADVANCED_RESOLUTION ".IntegerScale.NeverExceedBounds", 1)) {
+            if (((float)interpreter->mGameWindowViewport.height / interpreter->mGameWindowViewport.width) <
+                ((float)interpreter->mCurDimensions.height / interpreter->mCurDimensions.width)) {
+                if ((uint32_t)factor > interpreter->mGameWindowViewport.height / interpreter->mCurDimensions.height) {
+                    factor = interpreter->mGameWindowViewport.height / interpreter->mCurDimensions.height;
+                }
+            } else {
+                if ((uint32_t)factor > interpreter->mGameWindowViewport.width / interpreter->mCurDimensions.width) {
+                    factor = interpreter->mGameWindowViewport.width / interpreter->mCurDimensions.width;
+                }
+            }
+        }
+
+        if (factor < 1) {
+            factor = 1;
+        }
+        return factor;
+    } else {
+        int16_t factor = 1;
+
+        if (((float)interpreter->mGameWindowViewport.height / interpreter->mGameWindowViewport.width) <
+            ((float)interpreter->mCurDimensions.height / interpreter->mCurDimensions.width)) {
+            factor = interpreter->mGameWindowViewport.height / interpreter->mCurDimensions.height;
+        } else {
+            factor = interpreter->mGameWindowViewport.width / interpreter->mCurDimensions.width;
+        }
+
+        factor += Ship::Context::GetRawInstance()->GetConsoleVariables()->GetInteger(
+            CVAR_PREFIX_ADVANCED_RESOLUTION ".IntegerScale.ExceedBoundsBy", 0);
+
+        if (factor < 1) {
+            factor = 1;
+        }
+        return factor;
+    }
+}
+
+void* Fast3dGui::GetTextureById(int32_t id) {
+    GfxRenderingAPI* api = mInterpreter.lock()->GetCurrentRenderingAPI();
+    return api->GetTextureById(id);
+}
+
+bool Fast3dGui::HasTextureByName(const std::string& name) {
+    return mGuiTextures.contains(name);
+}
+
+void* Fast3dGui::GetTextureByName(const std::string& name) {
+    if (!HasTextureByName(name)) {
+        return nullptr;
+    }
+    return GetTextureById(mGuiTextures[name].RendererTextureId);
+}
+
+Ship::Size2f Fast3dGui::GetTextureSize(const std::string& name) {
+    if (!HasTextureByName(name)) {
+        return Ship::Size2f(0, 0);
+    }
+    return Ship::Size2f((float)mGuiTextures[name].Width, (float)mGuiTextures[name].Height);
+}
+
+void Fast3dGui::LoadTextureFromRawImage(const std::string& name, const std::string& path) {
+    auto initData = std::make_shared<Ship::ResourceInitData>();
+    initData->Format = RESOURCE_FORMAT_BINARY;
+    initData->Type = static_cast<uint32_t>(RESOURCE_TYPE_GUI_TEXTURE);
+    initData->ResourceVersion = 0;
+    initData->Path = path;
+    auto guiTexture = std::static_pointer_cast<Ship::GuiTexture>(
+        Ship::Context::GetRawInstance()->GetResourceManager()->LoadResource(path, false, initData));
+
+    LoadTextureFromResource(name, guiTexture);
+}
+
+void Fast3dGui::LoadTextureFromResource(const std::string& name, std::shared_ptr<Ship::GuiTexture> texture) {
+    GfxRenderingAPI* api = mInterpreter.lock()->GetCurrentRenderingAPI();
+
+    // TODO: Nothing ever unloads the texture from Fast3D here.
+    texture->Metadata.RendererTextureId = api->NewTexture();
+    api->SelectTexture(0, texture->Metadata.RendererTextureId);
+    api->SetSamplerParameters(0, false, 0, 0);
+    api->UploadTexture(texture->Data, texture->Metadata.Width, texture->Metadata.Height);
+
+    mGuiTextures[name] = texture->Metadata;
+}
+
+void Fast3dGui::LoadGuiTexture(const std::string& name, const Fast::Texture& res, const Ship::Color4f& tint) {
+    GfxRenderingAPI* api = mInterpreter.lock()->GetCurrentRenderingAPI();
+    std::vector<uint8_t> texBuffer;
+    texBuffer.reserve(res.Width * res.Height * 4);
+
+    // For HD textures we need to load the buffer raw (similar to inside gfx_pp)
+    if ((res.Flags & TEX_FLAG_LOAD_AS_RAW) != 0) {
+        // Raw loading doesn't support TLUT textures
+        if (res.Type == Fast::TextureType::Palette4bpp || res.Type == Fast::TextureType::Palette8bpp) {
+            // TODO convert other image types
+            SPDLOG_WARN("ImGui::ResourceLoad: Attempting to load unsupported image type");
+            return;
+        }
+
+        texBuffer.assign(res.ImageData, res.ImageData + (res.Width * res.Height * 4));
+    } else {
+        switch (res.Type) {
+            case Fast::TextureType::RGBA32bpp:
+                texBuffer.assign(res.ImageData, res.ImageData + (res.Width * res.Height * 4));
+                break;
+            case Fast::TextureType::RGBA16bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i++) {
+                    uint8_t b1 = res.ImageData[i * 2 + 0];
+                    uint8_t b2 = res.ImageData[i * 2 + 1];
+                    uint8_t r = (b1 >> 3) * 0xFF / 0x1F;
+                    uint8_t g = (((b1 & 7) << 2) | (b2 >> 6)) * 0xFF / 0x1F;
+                    uint8_t b = ((b2 >> 1) & 0x1F) * 0xFF / 0x1F;
+                    uint8_t a = 0xFF * (b2 & 1);
+                    texBuffer.push_back(r);
+                    texBuffer.push_back(g);
+                    texBuffer.push_back(b);
+                    texBuffer.push_back(a);
+                }
+                break;
+            }
+            case Fast::TextureType::GrayscaleAlpha16bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i++) {
+                    uint8_t color = res.ImageData[i * 2 + 0];
+                    uint8_t alpha = res.ImageData[i * 2 + 1];
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(alpha);
+                }
+                break;
+            }
+            case Fast::TextureType::GrayscaleAlpha8bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i++) {
+                    uint8_t ia = res.ImageData[i];
+                    uint8_t color = ((ia >> 4) & 0xF) * 255 / 15;
+                    uint8_t alpha = (ia & 0xF) * 255 / 15;
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(alpha);
+                }
+                break;
+            }
+            case Fast::TextureType::GrayscaleAlpha4bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i += 2) {
+                    uint8_t b = res.ImageData[i / 2];
+
+                    uint8_t ia4 = b >> 4;
+                    uint8_t color = ((ia4 >> 1) & 0xF) * 255 / 0b111;
+                    uint8_t alpha = (ia4 & 1) * 255;
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(alpha);
+
+                    ia4 = b & 0xF;
+                    color = ((ia4 >> 1) & 0xF) * 255 / 0b111;
+                    alpha = (ia4 & 1) * 255;
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(color);
+                    texBuffer.push_back(alpha);
+                }
+                break;
+            }
+            case Fast::TextureType::Grayscale8bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i++) {
+                    uint8_t ia = res.ImageData[i];
+                    texBuffer.push_back(ia);
+                    texBuffer.push_back(ia);
+                    texBuffer.push_back(ia);
+                    texBuffer.push_back(ia);
+                }
+                break;
+            }
+            case Fast::TextureType::Grayscale4bpp: {
+                for (int32_t i = 0; i < res.Width * res.Height; i += 2) {
+                    uint8_t b = res.ImageData[i / 2];
+
+                    uint8_t ia4 = ((b >> 4) * 0xFF) / 0b1111;
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+
+                    ia4 = ((b & 0xF) * 0xFF) / 0b1111;
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+                    texBuffer.push_back(ia4);
+                }
+                break;
+            }
+            default:
+                // TODO convert other image types
+                SPDLOG_WARN("ImGui::ResourceLoad: Attempting to load unsupported image type");
+                return;
+        }
+    }
+
+    for (size_t pixel = 0; pixel < texBuffer.size() / 4; pixel++) {
+        texBuffer[pixel * 4 + 0] *= tint.r;
+        texBuffer[pixel * 4 + 1] *= tint.g;
+        texBuffer[pixel * 4 + 2] *= tint.b;
+        texBuffer[pixel * 4 + 3] *= tint.a;
+    }
+
+    Ship::GuiTextureMetadata asset;
+    asset.RendererTextureId = api->NewTexture();
+    asset.Width = res.Width;
+    asset.Height = res.Height;
+
+    api->SelectTexture(0, asset.RendererTextureId);
+    api->SetSamplerParameters(0, false, 0, 0);
+    api->UploadTexture(texBuffer.data(), res.Width, res.Height);
+
+    mGuiTextures[name] = asset;
+}
+
+void Fast3dGui::LoadGuiTexture(const std::string& name, const std::string& path, const Ship::Color4f& tint) {
+    const auto res = static_cast<Fast::Texture*>(
+        Ship::Context::GetRawInstance()->GetResourceManager()->LoadResource(path, true).get());
+
+    LoadGuiTexture(name, *res, tint);
+}
+
+void Fast3dGui::UnloadTexture(const std::string& name) {
+    if (mGuiTextures.contains(name)) {
+        Ship::GuiTextureMetadata tex = mGuiTextures[name];
+        GfxRenderingAPI* api = mInterpreter.lock()->GetCurrentRenderingAPI();
+        api->DeleteTexture(tex.RendererTextureId);
+        mGuiTextures.erase(name);
+    }
+}
+
+} // namespace Fast

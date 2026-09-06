@@ -1,0 +1,552 @@
+name: Build Xbox UWP package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/build-xbox-uwp.yml"
+      - "CMakeLists.txt"
+      - "cmake/**"
+      - "Shipwright/**"
+      - "uwp/**"
+      - "tools/test_uwp_package_contract.py"
+      - "tools/uwp_runtime_stage.py"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: xbox-uwp-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
+  VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+  ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
+  ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
+  ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
+  # Bump only when core sources, compiler inputs, or pinned core dependencies change.
+  CORE_BUILD_KEY: soh-core-a00a4d86-f5dbd58e-9e593bb1-v1
+  CORE_RUNTIME_ARTIFACT: INTERNAL-windows-core-runtime-a00a4d86-v1
+  LEGACY_CORE_RUNTIME_ARTIFACT: INTERNAL-windows-core-runtime
+  PACKAGE_NAME: SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX
+  PACKAGE_PUBLISHER: CN=SOHCursorFPSV3OoT3DFull
+
+jobs:
+  host-assets:
+    name: Generate redistributable port archive
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Check out public build submodules
+        run: |
+          git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
+          git clone --depth 1 --branch zelda3d https://github.com/SomeoneIsWorking/ZAPDTR.git Shipwright/ZAPDTR
+          mkdir -p scratch
+          base64 --decode cmake/Zelda3DZAPDTR-5f37af8.bundle.b64 > scratch/ZAPDTR-5f37af8.bundle
+          echo "$ZAPDTR_BUNDLE_SHA256  scratch/ZAPDTR-5f37af8.bundle" | sha256sum --check --strict
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_BASE_COMMIT"
+          git -C Shipwright/ZAPDTR fetch "$GITHUB_WORKSPACE/scratch/ZAPDTR-5f37af8.bundle" HEAD
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_COMMIT"
+
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build lsb-release zipcmp zipmerge ziptool \
+            libsdl2-dev libsdl2-net-dev libpng-dev \
+            libzip-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev \
+            libopengl-dev libopusfile-dev libvorbis-dev libfreetype6-dev
+
+      - name: Configure host asset generator
+        run: |
+          cmake -S . -B scratch/build-host-assets -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DZELDA3D_SDL2_OPENGL=ON \
+            -DZELDA3D_BUILD_MM=OFF \
+            -DZELDA3D_BUILD_LAUNCHER=OFF \
+            -DZELDA3D_ENABLE_ROM_EXTRACTION=ON \
+            -DLUS_BUILD_TESTS=OFF
+
+      - name: Generate and validate soh.o2r
+        run: |
+          cmake --build scratch/build-host-assets --target GenerateSohOtr --parallel 2
+          test -s Shipwright/soh/soh.o2r
+          unzip -t Shipwright/soh/soh.o2r
+
+      - name: Transfer port archive to package job
+        uses: actions/upload-artifact@v4
+        with:
+          name: INTERNAL-soh-port-archive
+          path: Shipwright/soh/soh.o2r
+          if-no-files-found: error
+          overwrite: true
+          compression-level: 0
+          retention-days: 3
+
+  windows-core:
+    name: Compile and preserve Windows core DLL
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Restore Windows core cache
+        id: core-cache
+        uses: actions/cache@v4
+        with:
+          path: scratch/windows-core-runtime.zip
+          key: windows-${{ env.CORE_BUILD_KEY }}
+
+      - name: Find latest preserved Windows core
+        id: prior-core
+        if: steps.core-cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $headers = @{
+            Accept = "application/vnd.github+json"
+            Authorization = "Bearer $env:GH_TOKEN"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+          $uri = "https://api.github.com/repos/$env:GITHUB_REPOSITORY/actions/artifacts?per_page=100"
+          try {
+            $response = Invoke-RestMethod -Uri $uri -Headers $headers
+            $candidate = @($response.artifacts |
+              Where-Object {
+                !$_.expired -and
+                $_.name -eq $env:CORE_RUNTIME_ARTIFACT
+              } |
+              Sort-Object { [DateTimeOffset]$_.created_at } -Descending |
+              Select-Object -First 1)
+            if ($candidate.Count -eq 0) {
+              # One-time bridge from the already-proven a00a4d86 build. New
+              # runs publish the versioned name above and stop using this.
+              $candidate = @($response.artifacts |
+                Where-Object {
+                  !$_.expired -and
+                  $_.name -eq $env:LEGACY_CORE_RUNTIME_ARTIFACT
+                } |
+                Sort-Object { [DateTimeOffset]$_.created_at } -Descending |
+                Select-Object -First 1)
+            }
+          } catch {
+            Write-Output "::warning title=Core reuse lookup failed::$($_.Exception.Message)"
+            $candidate = @()
+          }
+          if ($candidate.Count -eq 0) {
+            "found=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          "found=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "artifact_name=$($candidate[0].name)" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "run_id=$($candidate[0].workflow_run.id)" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Output "Reusing core artifact from run $($candidate[0].workflow_run.id)."
+
+      - name: Download latest preserved Windows core
+        if: steps.core-cache.outputs.cache-hit != 'true' && steps.prior-core.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.prior-core.outputs.artifact_name }}
+          path: scratch/reused-core
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.prior-core.outputs.run_id }}
+
+      - name: Validate reusable Windows core
+        id: reusable-core
+        if: steps.core-cache.outputs.cache-hit == 'true' || steps.prior-core.outputs.found == 'true'
+        shell: pwsh
+        run: |
+          $archive = "$env:GITHUB_WORKSPACE\scratch\windows-core-runtime.zip"
+          if ("${{ steps.core-cache.outputs.cache-hit }}" -ne "true") {
+            $downloads = @(Get-ChildItem scratch/reused-core -Recurse -File -Filter windows-core-runtime.zip)
+            if ($downloads.Count -ne 1) {
+              Write-Output "::warning title=Core reuse rejected::Expected one preserved core archive, found $($downloads.Count)."
+              "ready=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+              exit 0
+            }
+            New-Item -ItemType Directory -Force (Split-Path $archive) | Out-Null
+            Copy-Item $downloads[0].FullName $archive -Force
+          }
+          python tools/uwp_runtime_stage.py verify-core --archive $archive
+          if ($LASTEXITCODE -ne 0) {
+            Remove-Item $archive -Force -ErrorAction SilentlyContinue
+            Write-Output "::warning title=Core reuse rejected::The preserved archive failed its runtime contract; rebuilding it."
+            "ready=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+            exit 0
+          }
+          "ready=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Check out pinned SDL2, libuwp, and Mesa depot
+        if: steps.reusable-core.outputs.ready != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: ${{ env.UWP_DEP_COMMIT }}
+          path: scratch/uwp-dep
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out pinned vcpkg
+        if: steps.reusable-core.outputs.ready != 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_COMMIT }}
+          path: scratch/vcpkg
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Bootstrap vcpkg
+        if: steps.reusable-core.outputs.ready != 'true'
+        shell: pwsh
+        run: |
+          & "$env:GITHUB_WORKSPACE\scratch\vcpkg\bootstrap-vcpkg.bat" -disableMetrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
+
+      - name: Install x64 static core libraries
+        if: steps.reusable-core.outputs.ready != 'true'
+        shell: pwsh
+        run: |
+          $vcpkg = "$env:GITHUB_WORKSPACE\scratch\vcpkg\vcpkg.exe"
+          & $vcpkg install --triplet x64-windows-static `
+            libzip nlohmann-json tinyxml2 spdlog freetype `
+            libogg libvorbis opus opusfile zlib bzip2 glew
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg core dependency install failed" }
+
+      - name: Configure Windows core DLL
+        if: steps.reusable-core.outputs.ready != 'true'
+        shell: pwsh
+        run: |
+          cmake -S . -B scratch/build-uwp-core -G "Visual Studio 17 2022" -A x64 `
+            "-DCMAKE_SYSTEM_VERSION=10.0.19041.0" `
+            -DCMAKE_TOOLCHAIN_FILE="$env:GITHUB_WORKSPACE\scratch\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-windows-static `
+            -DZELDA3D_UWP_CORE=ON `
+            -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\scratch\uwp-dep" `
+            -DZELDA3D_SDL2_OPENGL=ON `
+            -DZELDA3D_BUILD_MM=OFF `
+            -DZELDA3D_BUILD_LAUNCHER=OFF `
+            -DZELDA3D_ENABLE_ROM_EXTRACTION=OFF `
+            -DNON_PORTABLE=ON `
+            -DLUS_BUILD_TESTS=OFF
+          if ($LASTEXITCODE -ne 0) { throw "Windows core configure failed" }
+
+      - name: Compile Windows core DLL
+        if: steps.reusable-core.outputs.ready != 'true'
+        shell: pwsh
+        run: |
+          $coreLog = Join-Path $env:RUNNER_TEMP "windows-core-build.log"
+          cmake --build scratch/build-uwp-core --config Release --target soh_core --parallel 2 2>&1 |
+            Tee-Object -FilePath $coreLog
+          $coreExit = $LASTEXITCODE
+          if ($coreExit -ne 0) { exit $coreExit }
+
+      - name: Stage exact Windows core output
+        if: steps.reusable-core.outputs.ready != 'true'
+        shell: pwsh
+        run: |
+          python tools/uwp_runtime_stage.py stage-core `
+            --source-root . `
+            --stage-dir scratch/windows-core-runtime `
+            --archive scratch/windows-core-runtime.zip
+          if ($LASTEXITCODE -ne 0) { throw "Windows core runtime staging failed" }
+
+      - name: Validate final Windows core archive
+        shell: pwsh
+        run: |
+          python tools/uwp_runtime_stage.py verify-core `
+            --archive scratch/windows-core-runtime.zip
+          if ($LASTEXITCODE -ne 0) { throw "Windows core archive validation failed" }
+
+      - name: Preserve Windows core for package retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.CORE_RUNTIME_ARTIFACT }}
+          path: scratch/windows-core-runtime.zip
+          if-no-files-found: error
+          overwrite: true
+          compression-level: 0
+          retention-days: 30
+
+      - name: Publish core build diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "windows-core-build.log"
+          if (!(Test-Path $log)) {
+            Write-Output "::warning title=Windows core diagnostic::The failure happened outside the captured compiler/linker log."
+            exit 0
+          }
+          $diagnostics = Get-Content $log |
+            Where-Object {
+              $_ -match '(?i)(fatal error|:\s*error\s+(C|LNK|MSB)\d+|\berror\s+LNK\d+|\bLNK\d{4}\b|CMake Error)'
+            } |
+            ForEach-Object { $_.Trim() } |
+            Select-Object -Unique -First 20
+          if (@($diagnostics).Count -eq 0) {
+            Write-Output "::warning title=Windows core diagnostic::No compiler or linker diagnostic was found in the captured build log."
+          }
+          foreach ($diagnostic in $diagnostics) {
+            $safe = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=Windows core diagnostic::$safe"
+          }
+
+  windows-package:
+    name: Build, audit, and sign UWP x64 package
+    needs: [host-assets, windows-core]
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+
+      - name: Check out pinned SDL2, libuwp, and Mesa depot
+        uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: ${{ env.UWP_DEP_COMMIT }}
+          path: scratch/uwp-dep
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download preserved Windows core
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.CORE_RUNTIME_ARTIFACT }}
+          path: scratch/core-artifact
+
+      - name: Download redistributable port archive
+        uses: actions/download-artifact@v4
+        with:
+          name: INTERNAL-soh-port-archive
+          path: scratch/host-assets
+
+      - name: Assemble and validate wrapper runtime
+        shell: pwsh
+        run: |
+          python tools/uwp_runtime_stage.py assemble `
+            --archive scratch/core-artifact/windows-core-runtime.zip `
+            --port-archive scratch/host-assets/soh.o2r `
+            --deps-root scratch/uwp-dep `
+            --runtime-dir scratch/uwp-runtime
+          if ($LASTEXITCODE -ne 0) { throw "UWP wrapper runtime assembly failed" }
+
+      - name: Configure ROM-free UWP wrapper
+        shell: pwsh
+        run: |
+          cmake -S uwp -B scratch/build-uwp-wrapper -G "Visual Studio 17 2022" -A x64 `
+            -DZELDA3D_UWP_RUNTIME_DIR="$env:GITHUB_WORKSPACE\scratch\uwp-runtime" `
+            -DZELDA3D_UWP_DEPS_ROOT="$env:GITHUB_WORKSPACE\scratch\uwp-dep" `
+            -DZELDA3D_UWP_ALLOW_INCOMPLETE_RENDERER=ON `
+            -DZELDA3D_UWP_REQUIRE_SIGNING=OFF `
+            -DZELDA3D_UWP_VERSION="1.0.${{ github.run_number }}.${{ github.run_attempt }}"
+          if ($LASTEXITCODE -ne 0) { throw "UWP wrapper configure failed" }
+
+      - name: Build unsigned AppX/MSIX
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          $wrapperLog = Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log"
+          cmake --build scratch/build-uwp-wrapper --config Release --target zelda3d-uwp --parallel 2 -- `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxPackageSigningEnabled=false `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never 2>&1 | Tee-Object -FilePath $wrapperLog
+          $wrapperExit = $LASTEXITCODE
+          if ($wrapperExit -ne 0) { exit $wrapperExit }
+
+      - name: Sign, audit, and assemble Device Portal artifact
+        shell: pwsh
+        run: |
+          $wrapper = "$env:GITHUB_WORKSPACE\scratch\build-uwp-wrapper"
+          $dist = "$env:GITHUB_WORKSPACE\scratch\dist\$env:PACKAGE_NAME"
+          New-Item -ItemType Directory -Force "$dist\Dependencies" | Out-Null
+
+          $allCandidates = @(Get-ChildItem $wrapper -Recurse -File |
+            Where-Object {
+              $_.Extension -in ".appx", ".msix" -and
+              $_.FullName -notmatch '\\Dependencies\\'
+            })
+          $candidates = @($allCandidates | Where-Object { $_.FullName -match '\\AppPackages\\' } |
+            Sort-Object Length -Descending)
+          if ($candidates.Count -eq 0) {
+            $candidates = @($allCandidates | Sort-Object Length -Descending)
+          }
+          if ($candidates.Count -eq 0) { throw "Visual Studio produced no AppX/MSIX" }
+          $packageExtension = $candidates[0].Extension.ToLowerInvariant()
+          $appPackage = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL-x64$packageExtension"
+          Copy-Item $candidates[0].FullName $appPackage
+
+          Get-ChildItem $wrapper -Recurse -File |
+            Where-Object {
+              $_.Extension -in ".appx", ".msix" -and
+              $_.FullName -match '\\Dependencies\\'
+            } |
+            ForEach-Object { Copy-Item $_.FullName "$dist\Dependencies" -Force }
+
+          $sdkRoots = @(Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin" -Directory |
+            Where-Object { $_.Name -match '^\d+\.\d+\.\d+\.\d+$' } |
+            Sort-Object { [version]$_.Name } -Descending)
+          $sdkBin = $sdkRoots | Where-Object {
+            (Test-Path (Join-Path $_.FullName "x64\signtool.exe")) -and
+            (Test-Path (Join-Path $_.FullName "x64\makeappx.exe"))
+          } | Select-Object -First 1
+          if ($null -eq $sdkBin) { throw "Windows SDK AppX tools are missing" }
+          $signTool = Join-Path $sdkBin.FullName "x64\signtool.exe"
+          $makeAppx = Join-Path $sdkBin.FullName "x64\makeappx.exe"
+
+          $pfx = "$env:GITHUB_WORKSPACE\scratch\ephemeral-signing.pfx"
+          $cer = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL.cer"
+          $passwordText = [guid]::NewGuid().ToString("N")
+          $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
+          $cert = $null
+          try {
+            $cert = New-SelfSignedCertificate `
+              -Type Custom `
+              -Subject $env:PACKAGE_PUBLISHER `
+              -KeyAlgorithm RSA `
+              -KeyLength 2048 `
+              -HashAlgorithm SHA256 `
+              -KeyUsage DigitalSignature `
+              -KeyExportPolicy Exportable `
+              -CertStoreLocation Cert:\CurrentUser\My `
+              -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3")
+            Export-PfxCertificate -Cert $cert -FilePath $pfx -Password $password | Out-Null
+            Export-Certificate -Cert $cert -FilePath $cer -Type CERT | Out-Null
+
+            & $signTool sign /fd SHA256 /f $pfx /p $passwordText $appPackage
+            if ($LASTEXITCODE -ne 0) { throw "SignTool failed" }
+            $signature = Get-AuthenticodeSignature -FilePath $appPackage
+            if ($null -eq $signature.SignerCertificate) {
+              throw "Signed package has no readable signer certificate"
+            }
+            if ($signature.SignerCertificate.Thumbprint -ne $cert.Thumbprint) {
+              throw "Signed package certificate does not match the ephemeral signing certificate"
+            }
+            $signatureStatus = $signature.Status.ToString()
+            if ($signatureStatus -notin @("Valid", "NotTrusted", "UnknownError")) {
+              throw "Signed package failed Authenticode integrity audit: $signatureStatus - $($signature.StatusMessage)"
+            }
+            $verification = @(& $signTool verify /pa /v $appPackage 2>&1)
+            $verifyExitCode = $LASTEXITCODE
+            $verification | ForEach-Object { Write-Output $_ }
+            if ($verifyExitCode -ne 0) {
+              $verifyText = $verification -join "`n"
+              $verifyErrors = [regex]::Matches($verifyText, '(?i)SignTool Error:')
+              $verifyComparable = $verifyText -replace '\s+', ' '
+              if ($verifyErrors.Count -ne 1 -or
+                  $verifyComparable -notmatch '(?i)root certificate.+not trusted') {
+                throw "Signed AppX verification failed"
+              }
+              Write-Output "Signature hash and signer audited; the one-run certificate is intentionally not trusted by the runner."
+            }
+            foreach ($dependencyAppx in Get-ChildItem "$dist\Dependencies" -File |
+              Where-Object { $_.Extension -in ".appx", ".msix" }) {
+              & $signTool verify /pa /v $dependencyAppx.FullName
+              if ($LASTEXITCODE -ne 0) {
+                throw "Dependency AppX signature verification failed: $($dependencyAppx.Name)"
+              }
+            }
+
+            $unpacked = "$env:GITHUB_WORKSPACE\scratch\appx-audit"
+            Remove-Item $unpacked -Recurse -Force -ErrorAction SilentlyContinue
+            & $makeAppx unpack /p $appPackage /d $unpacked /o
+            if ($LASTEXITCODE -ne 0) { throw "Could not audit packed AppX" }
+
+            python tools/uwp_runtime_stage.py audit-appx `
+              --unpacked-dir $unpacked `
+              --publisher $env:PACKAGE_PUBLISHER
+            if ($LASTEXITCODE -ne 0) { throw "Packed AppX runtime audit failed" }
+          }
+          finally {
+            Remove-Item $pfx -Force -ErrorAction SilentlyContinue
+            if ($null -ne $cert) {
+              Remove-Item "Cert:\CurrentUser\My\$($cert.Thumbprint)" -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          Copy-Item uwp\ANDROID-INSTALL.txt $dist
+          Copy-Item uwp\PRIVATE-DATA-NOT-INCLUDED.txt $dist
+          New-Item -ItemType Directory -Force "$dist\ThirdPartyNotices" | Out-Null
+          if (Test-Path scratch\uwp-dep\lic) {
+            Copy-Item scratch\uwp-dep\lic "$dist\ThirdPartyNotices\uwp-dep" -Recurse
+          } elseif (Test-Path scratch\uwp-dep\License) {
+            Copy-Item scratch\uwp-dep\License "$dist\ThirdPartyNotices\uwp-dep" -Recurse
+          } elseif (Test-Path scratch\uwp-dep\LICENSE) {
+            Copy-Item scratch\uwp-dep\LICENSE "$dist\ThirdPartyNotices\uwp-dep-LICENSE.txt"
+          } else {
+            throw "Pinned UWP dependency notices are missing"
+          }
+
+          if (Get-ChildItem $dist -Recurse -File -Include *.pfx,*.p12) {
+            throw "A private signing key entered the Device Portal artifact"
+          }
+          Get-ChildItem $dist -Recurse -File | Where-Object { $_.Extension -in ".appx", ".msix", ".cer" } |
+            Sort-Object FullName |
+            ForEach-Object {
+              $hash = (Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $relative = [IO.Path]::GetRelativePath($dist, $_.FullName).Replace('\', '/')
+              "$hash  $relative"
+            } | Set-Content "$dist\SHA256SUMS.txt"
+          $sourceCommit = (git rev-parse HEAD).Trim()
+          "source_commit=$sourceCommit" | Set-Content "$dist\BUILD.txt"
+          "workflow_commit=$env:GITHUB_SHA" | Add-Content "$dist\BUILD.txt"
+          "workflow_run=${{ github.run_id }}" | Add-Content "$dist\BUILD.txt"
+          "workflow_attempt=${{ github.run_attempt }}" | Add-Content "$dist\BUILD.txt"
+
+      - name: Upload phone-ready Device Portal package
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PACKAGE_NAME }}
+          path: scratch/dist/${{ env.PACKAGE_NAME }}
+          if-no-files-found: error
+          overwrite: true
+          compression-level: 0
+          retention-days: 30
+
+      - name: Publish wrapper build diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP "uwp-wrapper-build.log"
+          if (!(Test-Path $log)) {
+            Write-Output "::warning title=UWP package diagnostic::The failure happened before or after the captured wrapper build log."
+            exit 0
+          }
+          $diagnostics = Get-Content $log |
+            Where-Object {
+              $_ -match '(?i)(fatal error|:\s*error\s+(C|LNK|MSB|APPX)\d+|\berror\s+LNK\d+|\bLNK\d{4}\b|CMake Error)'
+            } |
+            ForEach-Object { $_.Trim() } |
+            Select-Object -Unique -First 20
+          if (@($diagnostics).Count -eq 0) {
+            Write-Output "::warning title=UWP package diagnostic::No compiler, linker, or AppX diagnostic was found in the captured wrapper log."
+          }
+          foreach ($diagnostic in $diagnostics) {
+            $safe = $diagnostic.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Output "::error title=UWP package diagnostic::$safe"
+          }

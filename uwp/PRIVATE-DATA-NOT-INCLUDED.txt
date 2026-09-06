@@ -1,0 +1,12 @@
+PRIVATE GAME DATA IS NOT INCLUDED
+=================================
+
+The AppX and this artifact contain no ROM-derived game archives or 3DS image.
+After installation, use Xbox Device Portal File Explorer to upload your own:
+
+  LocalState\soh\oot.o2r
+  LocalState\soh\oot-mq.o2r       (optional)
+  LocalState\soh\oot3d.3ds
+
+An extracted LocalState\soh\oot3d-romfs directory may replace oot3d.3ds.
+Never upload these private files to GitHub Actions or commit them to the repo.

@@ -1,0 +1,68 @@
+# SHARED hand-verified N64-anim -> 3DS-CSAB corrections, read by the charcompare tool
+# (which also WRITES this file via "Save overrides") AND the Python generators
+# (tools/gen_animmap_inc.py for the game table, tools/gen_charcompare_index.py for the
+# tool index). These OVERRIDE animmap.json's auto-picked best for a (zar, n64anim) pair.
+# Columns are tab-separated: zar <TAB> n64anim <TAB> csab. '#' lines and blanks are ignored.
+#
+# The original 4 hand-verified disagreements migrated from the formerly hand-maintained
+# zelda3d_animmap.inc (verified in-game; the auto-picker chose differently):
+/actor/zelda_du.zar	gDaruniaSageFormationAnim	dalnia_base_to_dai
+/actor/zelda_wm2.zar	gWallmasterMissAnim	wm_miss
+/actor/zelda_xc.zar	gSheikArmsCrossedIdleAnim	xc_matsu
+/actor/zelda_xc.zar	gSheikHittingGroundAnim	mizunoserenaade
+#
+# En_Ko Kokiri kids (BACKLOG #8): the km1/kw1 skeletons animate from the SHARED object_os_anime
+# bank (gKokiri*Anim), now wired in via zelda3d_anim_export SHARED_ANIM_BANKS. The anims are mostly
+# 2-frame static-pose holds, so frame-delta auto-matching is meaningless -> map each by SEMANTICS
+# to the km1_* CSAB (romaji: suwari=sit, agura=cross-legged, hiji=elbow, nokezori=lean-back,
+# usirote=hands-behind, utsumuki=look-down, shinpai=worried, udekumi=arms-folded, kusakari=cut-
+# grass, ishi=stone/lift, kususu=giggle, asekaki=sweat, ukiuki=cheerful-stand). km1 carries the
+# full CSAB set and kw1 shares it, so one /actor/zelda_km1.zar key resolves for both bodies.
+/actor/zelda_km1.zar	gKokiriIdleAnim	km1_ukiuki_wait
+/actor/zelda_km1.zar	gKokiriStandingAnim	km1_ukiuki_wait
+/actor/zelda_km1.zar	gKokiriStandUpAnim	km1_ukiuki_wait
+/actor/zelda_km1.zar	gKokiriStandingApprehensiveAnim	km1_shinpai_pose
+/actor/zelda_km1.zar	gKokiriStandingArmsBehindBackAnim	km1_usirote_pose
+/actor/zelda_km1.zar	gKokiriStandingHandsOnHipsAnim	km1_doushite_pose
+/actor/zelda_km1.zar	gKokiriStandingHandOnChestAnim	km1_udekumi_pose
+/actor/zelda_km1.zar	gKokiriStandingRightArmUpAnim	km1_setsumei_pose
+/actor/zelda_km1.zar	gKokiriLeaningForwardAnim	km1_utsumuki_pose
+/actor/zelda_km1.zar	gKokiriBlockingAnim	km1_udekumi_pose
+/actor/zelda_km1.zar	gKokiriSittingAnim	km1_suwari_pose
+/actor/zelda_km1.zar	gKokiriSittingCrossedLegsAnim	km1_agura_pose
+/actor/zelda_km1.zar	gKokiriSittingCrossedArmsLegsAnim	km1_agura_pose
+/actor/zelda_km1.zar	gKokiriSittingHeadOnHandAnim	km1_hiji_suwari_pose
+/actor/zelda_km1.zar	gKokiriSittingArmsUpAnim	km1_suwari_pose
+/actor/zelda_km1.zar	gKokiriSittingDiggingAnim	km1_suwari_pose
+/actor/zelda_km1.zar	gKokiriRecliningSittingUpAnim	km1_hiji_suwari_pose
+/actor/zelda_km1.zar	gKokiriRecliningStandingAnim	km1_nokezori_pose
+/actor/zelda_km1.zar	gKokiriRecliningLeaningBackAnim	km1_nokezori_pose
+/actor/zelda_km1.zar	gKokiriLeaningOnArmsAnim	km1_hiji_suwari_pose
+/actor/zelda_km1.zar	gKokiriCuttingGrassAnim	km1_kusakari
+/actor/zelda_km1.zar	gKokiriLiftingRockAnim	km1_ishi_wait
+/actor/zelda_km1.zar	gKokiriPunchingAnim	km1_ukiuki_wait
+/actor/zelda_km1.zar	gKokiriBackflipAnim	km1_ukiuki_wait
+/actor/zelda_km1.zar	gKokiriLaughingAnim	km1_kususu_pose
+/actor/zelda_km1.zar	gKokiriWipingForeheadAnim	km1_asekaki_wait
+/actor/zelda_horse.zar	gEponaWalkingAnim	hl_anim_walk2_30
+/actor/zelda_horse.zar	gEponaTrottingAnim	hl_anim_slowrun2_30
+/actor/zelda_horse.zar	gEponaGallopingAnim	hl_anim_fastrun2_30
+/actor/zelda_horse.zar	gEponaJumpingHighAnim	hl_anim_jump2002
+#
+# Cucco Lady (En_Niw_Lady, BACKLOG #38): gCuccoLadySkel (object_ane) animates from the shared
+# object_os_anime bank via 4 anims, wired in through zelda3d_anim_export SHARED_ANIM_BANKS (allowlist).
+# 9F94/0718/A630 auto-match their zelda_ane CSAB exactly by frame count (onegai_c/Ane_hanasu/oro_oro);
+# only 07D0 needs a semantic pin: it is the neutral idle/wait but a 2-frame stub, so frame-delta picks
+# the wrong CSAB -> map it to Ane_matsu (matsu = wait/idle). The runtime resolver disambiguates these
+# os_anime OTR paths (also seeded under km1) by the model's ZAR.
+/actor/zelda_ane.zar	gObjOsAnim_07D0	Ane_matsu
+# #119: child Nabooru at Spirit Temple crawlspace was mapped to nabor_agura_wait (agura=cross-legged
+# sitting) -> baggy pants folded into a blob. Correct = nabor_hiza_wait (hiza=knee, kneeling, 24f,
+# matches the 24f N64 KneeingAtCrawlspace anim). Verified live: kneels at the crawlspace, legs intact.
+/actor/zelda_nb.zar	gNabooruKneeingAtCrawlspaceAnim	nabor_hiza_wait
+
+# En_Tg dancing couple: shares zelda_mu.zar with En_Mu haggling townspeople, but the two
+# actors use DIFFERENT N64 anims (En_Tg = gDancingCoupleAnim, En_Mu = object_mu_Anim_0003F4).
+# gDancingCoupleAnim was auto-picked to mu_matsu (the townsperson wait clip) -> couple stood
+# in the shopkeeper's idle pose instead of dancing. Correct = tg_matsu (dance clip, same ZAR).
+/actor/zelda_mu.zar	gDancingCoupleAnim	tg_matsu

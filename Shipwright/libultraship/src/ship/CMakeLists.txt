@@ -1,0 +1,143 @@
+#=================== Top-Level ===================
+
+file(GLOB Source_Files__TopLevel RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "*.cpp")
+
+source_group("" FILES ${Source_Files__TopLevel})
+target_sources(libultraship PRIVATE ${Source_Files__TopLevel})
+
+#=================== Audio ===================
+
+file(GLOB Source_Files__Audio RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "audio/*.cpp")
+
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Windows" OR ZELDA3D_UWP)
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/WasapiAudioPlayer.*")
+endif()
+
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(FILTER Source_Files__Audio EXCLUDE REGEX "audio/CoreAudioAudioPlayer.*")
+endif()
+
+source_group("audio" FILES ${Source_Files__Audio})
+target_sources(libultraship PRIVATE ${Source_Files__Audio})
+
+#=================== Controller ===================
+
+file(GLOB_RECURSE Source_Files__Controller RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "controller/*.cpp")
+
+source_group("controller" FILES ${Source_Files__Controller})
+target_sources(libultraship PRIVATE ${Source_Files__Controller})
+
+#=================== Config ===================
+
+file(GLOB Source_Files__Config RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "config/*.cpp")
+
+source_group("config" FILES ${Source_Files__Config})
+target_sources(libultraship PRIVATE ${Source_Files__Config})
+
+#=================== Debug ===================
+
+file(GLOB Source_Files__Debug RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "debug/*.cpp")
+
+source_group("debug" FILES ${Source_Files__Debug})
+target_sources(libultraship PRIVATE ${Source_Files__Debug})
+
+#=================== Window ===================
+
+file(GLOB Source_Files__Window RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "window/*.cpp")
+
+source_group("window" FILES ${Source_Files__Window})
+target_sources(libultraship PRIVATE ${Source_Files__Window})
+
+#=================== Gui ===================
+
+file(GLOB_RECURSE Source_Files__Window__Gui RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "window/gui/*.cpp")
+# The RmlUi integration backend (window/gui/rml/) is compiled separately below so it can carry
+# the RmlUi-specific compile definitions; keep it out of the generic gui glob.
+list(FILTER Source_Files__Window__Gui EXCLUDE REGEX "window/gui/rml/")
+
+source_group("window/gui" FILES ${Source_Files__Window__Gui})
+target_sources(libultraship PRIVATE ${Source_Files__Window__Gui})
+
+#=================== Gui / RmlUi ===================
+
+# Only the OpenGL (Fast3D SDL) backend has an RmlUi render interface so far. The bundled glad
+# loader and the SDL platform shim need RMLUI_SDL_VERSION_MAJOR set to the linked SDL major.
+file(GLOB Source_Files__Window__Gui__Rml RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "window/gui/rml/*.cpp")
+if(ZELDA3D_SDL2_OPENGL)
+    list(FILTER Source_Files__Window__Gui__Rml EXCLUDE REGEX "RmlRenderInterfaceSdl3Gpu.*\\.cpp$")
+else()
+    list(FILTER Source_Files__Window__Gui__Rml EXCLUDE REGEX "RmlUi_Renderer_GL3.*\\.cpp$")
+endif()
+source_group("window/gui/rml" FILES ${Source_Files__Window__Gui__Rml})
+target_sources(libultraship PRIVATE ${Source_Files__Window__Gui__Rml})
+# Applied target-wide: the macro is only referenced by the RmlUi SDL backend files.
+# Select the matching code path in RmlUi_Platform_SDL.{h,cpp}.
+if(ZELDA3D_SDL2_OPENGL)
+    target_compile_definitions(libultraship PRIVATE RMLUI_SDL_VERSION_MAJOR=2)
+else()
+    target_compile_definitions(libultraship PRIVATE RMLUI_SDL_VERSION_MAJOR=3)
+endif()
+
+#=================== Utils ===================
+
+file(GLOB_RECURSE Source_Files__Utils RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "utils/*.cpp" "utils/*.c")
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    list(APPEND Source_Files__Utils ${CMAKE_CURRENT_SOURCE_DIR}/utils/AppleFolderManager.mm)
+endif()
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    list(APPEND Source_Files__Utils ${CMAKE_CURRENT_SOURCE_DIR}/utils/macUtils.mm)
+endif()
+
+source_group("utils" FILES ${Source_Files__Utils})
+target_sources(libultraship PRIVATE ${Source_Files__Utils})
+
+#=================== Events ===================
+
+file(GLOB_RECURSE Source_Files__Events RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "events/*.cpp")
+source_group("events" FILES ${Source_Files__Events})
+target_sources(libultraship PRIVATE ${Source_Files__Events})
+
+#=================== Scripting ===================
+
+if(ENABLE_SCRIPTING)
+    file(GLOB_RECURSE Source_Files__Scripting RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "scripting/*.cpp")
+    source_group("scripting" FILES ${Source_Files__Scripting})
+    target_sources(libultraship PRIVATE ${Source_Files__Scripting})
+endif()
+
+#=================== Security ===================
+
+if(ENABLE_SCRIPTING)
+    file(GLOB_RECURSE Source_Files__Security RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "security/*.cpp")
+    source_group("security" FILES ${Source_Files__Security})
+    target_sources(libultraship PRIVATE ${Source_Files__Security})
+endif()
+
+#=================== Port ===================
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Android" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    set(Source_Files__Port
+        ${CMAKE_CURRENT_SOURCE_DIR}/port/mobile/MobileImpl.cpp
+    )
+endif()
+
+source_group("port" FILES ${Source_Files__Port})
+target_sources(libultraship PRIVATE ${Source_Files__Port})
+
+#=================== Resource ===================
+
+file(GLOB Source_Files__Resource RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "resource/*.cpp")
+source_group("resource" FILES ${Source_Files__Resource})
+
+file(GLOB Source_Files__Resource__Types RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "resource/type/*.cpp")
+source_group("resource/type" FILES ${Source_Files__Resource__Types})
+
+file(GLOB Source_Files__Resource__Factories RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "resource/factory/*.cpp")
+source_group("resource/factory" FILES ${Source_Files__Resource__Factories})
+
+file(GLOB Source_Files__Resource__Archive RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS "resource/archive/*.cpp")
+source_group("resource/archive" FILES ${Source_Files__Resource__Archive})
+
+target_sources(libultraship PRIVATE ${Source_Files__Resource} ${Source_Files__Resource__Types} ${Source_Files__Resource__Factories} ${Source_Files__Resource__Archive})
