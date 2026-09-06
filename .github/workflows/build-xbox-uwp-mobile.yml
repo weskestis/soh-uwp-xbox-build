@@ -6,9 +6,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-c06d046d.bundle
-  SOURCE_BUNDLE_SHA256: 7dece602071f9b94ecd87eecb1f6c445f31bf157e4c3931da4622d53f0b46b6b
-  SOURCE_COMMIT: c06d046dfc13ba90a65e0714a1790b2d67d5f7db
+  SOURCE_BUNDLE: SOH-Source-f4e14480.bundle
+  SOURCE_BUNDLE_SHA256: f621cbbb32d0384362143887d2016641267202a3ab85921729258c07870a8e0e
+  SOURCE_COMMIT: f4e14480972687675f12bde0031a4518aa58badf
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
@@ -123,6 +123,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: {name: INTERNAL-soh-port-archive, path: source/scratch/host-assets}
       - name: Build, sign, and audit AppX/MSIX
+        timeout-minutes: 5
         shell: pwsh
         env: {UWP_VERSION: "1.0.${{ github.run_number }}.${{ github.run_attempt }}"}
         run: ./tools/ci/uwp_windows.ps1 Package
