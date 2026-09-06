@@ -1,20 +1,14 @@
 name: Build Xbox UWP package from mobile bundle
-
-on:
-  workflow_dispatch:
-
-permissions:
-  actions: read
-  contents: read
-
+on: {workflow_dispatch: {}}
+permissions: {actions: read, contents: read}
 concurrency:
   group: xbox-uwp-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-03f339f7.bundle
-  SOURCE_BUNDLE_SHA256: 6ffc58dcf27578bbce1350efb3f3631cb482a8115b37d923dfebaf549c9bcc97
-  SOURCE_COMMIT: 03f339f741d9b10f779aa0c187137d46a0a684b9
+  SOURCE_BUNDLE: SOH-Source-c06d046d.bundle
+  SOURCE_BUNDLE_SHA256: 7dece602071f9b94ecd87eecb1f6c445f31bf157e4c3931da4622d53f0b46b6b
+  SOURCE_COMMIT: c06d046dfc13ba90a65e0714a1790b2d67d5f7db
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
@@ -31,16 +25,9 @@ jobs:
     name: Generate redistributable port archive
     runs-on: ubuntu-24.04
     timeout-minutes: 90
-    defaults:
-      run:
-        working-directory: source
+    defaults: {run: {working-directory: source}}
     steps:
-      - name: Check out mobile builder files
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
+      - uses: actions/checkout@v4
       - name: Reconstruct exact source
         working-directory: .
         run: |
@@ -50,118 +37,64 @@ jobs:
           git -C source fetch "$GITHUB_WORKSPACE/$SOURCE_BUNDLE" refs/heads/cursor-fps-v3-full-build
           git -C source checkout --detach FETCH_HEAD
           test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
-
       - name: Generate and validate soh.o2r
         run: bash tools/ci/uwp_host_assets.sh
-
-      - name: Transfer port archive
-        uses: actions/upload-artifact@v4
-        with:
-          name: INTERNAL-soh-port-archive
-          path: source/Shipwright/soh/soh.o2r
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 3
+      - uses: actions/upload-artifact@v4
+        with: {name: INTERNAL-soh-port-archive, path: source/Shipwright/soh/soh.o2r, if-no-files-found: error, compression-level: 0, retention-days: 3}
 
   windows-core:
     name: Reuse or compile Windows core DLL
     runs-on: windows-2022
     timeout-minutes: 180
-    defaults:
-      run:
-        working-directory: source
+    defaults: {run: {working-directory: source}}
     steps:
-      - name: Check out mobile builder files
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
+      - uses: actions/checkout@v4
       - name: Reconstruct exact source
         shell: pwsh
         working-directory: .
         run: |
           $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
-          if (!(Test-Path $bundle)) { throw "Missing source bundle" }
-          if ((Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle hash mismatch" }
+          if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
           git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          if ($LASTEXITCODE) { throw "Upstream clone failed" }
           git -C source fetch $bundle refs/heads/cursor-fps-v3-full-build
-          if ($LASTEXITCODE) { throw "Bundle import failed" }
           git -C source checkout --detach FETCH_HEAD
-          if ($LASTEXITCODE) { throw "Source checkout failed" }
-          if ((git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source commit mismatch" }
-
-      - name: Restore Windows core cache
-        id: core-cache
+          if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
+      - id: core-cache
         uses: actions/cache@v4
-        with:
-          path: source/scratch/windows-core-runtime.zip
-          key: windows-${{ env.CORE_BUILD_KEY }}
-
-      - name: Find latest preserved Windows core
+        with: {path: source/scratch/windows-core-runtime.zip, key: "windows-${{ env.CORE_BUILD_KEY }}"}
+      - name: Find preserved core
         id: prior-core
         if: steps.core-cache.outputs.cache-hit != 'true'
         shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
+        env: {GH_TOKEN: "${{ github.token }}"}
         run: ./tools/ci/uwp_windows.ps1 FindCore
-
-      - name: Download latest preserved Windows core
+      - name: Download preserved core
         if: steps.core-cache.outputs.cache-hit != 'true' && steps.prior-core.outputs.found == 'true'
         uses: actions/download-artifact@v4
-        with:
-          name: ${{ steps.prior-core.outputs.artifact_name }}
-          path: source/scratch/reused-core
-          github-token: ${{ github.token }}
-          repository: ${{ github.repository }}
-          run-id: ${{ steps.prior-core.outputs.run_id }}
-
-      - name: Validate reusable Windows core
+        with: {name: "${{ steps.prior-core.outputs.artifact_name }}", path: source/scratch/reused-core, github-token: "${{ github.token }}", repository: "${{ github.repository }}", run-id: "${{ steps.prior-core.outputs.run_id }}"}
+      - name: Validate reusable core
         id: reusable-core
         if: steps.core-cache.outputs.cache-hit == 'true' || steps.prior-core.outputs.found == 'true'
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 ValidateCore -CacheHit '${{ steps.core-cache.outputs.cache-hit }}'
-
-      - name: Check out pinned UWP dependencies
+      - name: Check out UWP dependencies
         if: steps.reusable-core.outputs.ready != 'true'
         uses: actions/checkout@v4
-        with:
-          repository: SternXD/uwp-dep
-          ref: ${{ env.UWP_DEP_COMMIT }}
-          path: source/scratch/uwp-dep
-          persist-credentials: false
-
-      - name: Check out pinned vcpkg
+        with: {repository: SternXD/uwp-dep, ref: "${{ env.UWP_DEP_COMMIT }}", path: source/scratch/uwp-dep}
+      - name: Check out vcpkg
         if: steps.reusable-core.outputs.ready != 'true'
         uses: actions/checkout@v4
-        with:
-          repository: microsoft/vcpkg
-          ref: ${{ env.VCPKG_COMMIT }}
-          path: source/scratch/vcpkg
-          persist-credentials: false
-
-      - name: Compile Windows core only when unavailable
+        with: {repository: microsoft/vcpkg, ref: "${{ env.VCPKG_COMMIT }}", path: source/scratch/vcpkg}
+      - name: Compile core only when unavailable
         if: steps.reusable-core.outputs.ready != 'true'
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 BuildCore
-
-      - name: Validate final Windows core
+      - name: Validate final core
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 VerifyCore
-
-      - name: Preserve Windows core for retries
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.CORE_RUNTIME_ARTIFACT }}
-          path: source/scratch/windows-core-runtime.zip
-          if-no-files-found: error
-          overwrite: true
-          compression-level: 0
-          retention-days: 30
-
-      - name: Publish core diagnostics
-        if: failure()
+      - uses: actions/upload-artifact@v4
+        with: {name: "${{ env.CORE_RUNTIME_ARTIFACT }}", path: source/scratch/windows-core-runtime.zip, if-no-files-found: error, overwrite: true, compression-level: 0, retention-days: 30}
+      - if: failure()
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 CoreDiagnostics
 
@@ -170,67 +103,31 @@ jobs:
     needs: [host-assets, windows-core]
     runs-on: windows-2022
     timeout-minutes: 60
-    defaults:
-      run:
-        working-directory: source
+    defaults: {run: {working-directory: source}}
     steps:
-      - name: Check out mobile builder files
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          persist-credentials: false
-
+      - uses: actions/checkout@v4
       - name: Reconstruct exact source
         shell: pwsh
         working-directory: .
         run: |
           $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
-          if (!(Test-Path $bundle)) { throw "Missing source bundle" }
-          if ((Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle hash mismatch" }
+          if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
           git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          if ($LASTEXITCODE) { throw "Upstream clone failed" }
           git -C source fetch $bundle refs/heads/cursor-fps-v3-full-build
-          if ($LASTEXITCODE) { throw "Bundle import failed" }
           git -C source checkout --detach FETCH_HEAD
-          if ($LASTEXITCODE) { throw "Source checkout failed" }
-          if ((git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source commit mismatch" }
-
-      - name: Check out pinned UWP dependencies
-        uses: actions/checkout@v4
-        with:
-          repository: SternXD/uwp-dep
-          ref: ${{ env.UWP_DEP_COMMIT }}
-          path: source/scratch/uwp-dep
-          persist-credentials: false
-
-      - name: Download preserved Windows core
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.CORE_RUNTIME_ARTIFACT }}
-          path: source/scratch/core-artifact
-
-      - name: Download redistributable port archive
-        uses: actions/download-artifact@v4
-        with:
-          name: INTERNAL-soh-port-archive
-          path: source/scratch/host-assets
-
+          if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
+      - uses: actions/checkout@v4
+        with: {repository: SternXD/uwp-dep, ref: "${{ env.UWP_DEP_COMMIT }}", path: source/scratch/uwp-dep}
+      - uses: actions/download-artifact@v4
+        with: {name: "${{ env.CORE_RUNTIME_ARTIFACT }}", path: source/scratch/core-artifact}
+      - uses: actions/download-artifact@v4
+        with: {name: INTERNAL-soh-port-archive, path: source/scratch/host-assets}
       - name: Build, sign, and audit AppX/MSIX
         shell: pwsh
-        env:
-          UWP_VERSION: 1.0.${{ github.run_number }}.${{ github.run_attempt }}
+        env: {UWP_VERSION: "1.0.${{ github.run_number }}.${{ github.run_attempt }}"}
         run: ./tools/ci/uwp_windows.ps1 Package
-
-      - name: Upload phone-ready Device Portal package
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.PACKAGE_NAME }}
-          path: source/scratch/dist/${{ env.PACKAGE_NAME }}
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-
-      - name: Publish package diagnostics
-        if: failure()
+      - uses: actions/upload-artifact@v4
+        with: {name: "${{ env.PACKAGE_NAME }}", path: "source/scratch/dist/${{ env.PACKAGE_NAME }}", if-no-files-found: error, compression-level: 0, retention-days: 30}
+      - if: failure()
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 PackageDiagnostics
