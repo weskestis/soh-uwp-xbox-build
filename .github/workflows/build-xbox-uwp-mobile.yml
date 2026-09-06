@@ -127,20 +127,31 @@ jobs:
           fetch-depth: 1
           submodules: false
           persist-credentials: false
+
       - name: Verify exact source snapshot
         run: |
           test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+
       - name: Generate and validate soh.o2r
         run: bash tools/ci/uwp_host_assets.sh
+
       - uses: actions/upload-artifact@v4
-        with: {name: INTERNAL-soh-port-archive, path: source/Shipwright/soh/soh.o2r, if-no-files-found: error, compression-level: 0, retention-days: 3}
+        with:
+          name: INTERNAL-soh-port-archive
+          path: source/Shipwright/soh/soh.o2r
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
 
   windows-core:
     name: Reuse or compile Windows core DLL
     needs: source-ready
     runs-on: windows-2022
     timeout-minutes: 180
-    defaults: {run: {working-directory: source}}
+    defaults:
+      run:
+        working-directory: source
+
     steps:
       - name: Check out exact source snapshot
         uses: actions/checkout@v4
@@ -150,45 +161,78 @@ jobs:
           fetch-depth: 1
           submodules: false
           persist-credentials: false
+
       - name: Verify exact source snapshot
         shell: pwsh
         run: |
-          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Wrong source snapshot" }
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) {
+            throw "Wrong source snapshot"
+          }
+
       - id: core-cache
         uses: actions/cache@v4
-        with: {path: source/scratch/windows-core-runtime.zip, key: "windows-${{ env.CORE_BUILD_KEY }}"}
+        with:
+          path: source/scratch/windows-core-runtime.zip
+          key: "windows-${{ env.CORE_BUILD_KEY }}"
+
       - name: Find preserved core
         id: prior-core
         if: steps.core-cache.outputs.cache-hit != 'true'
         shell: pwsh
-        env: {GH_TOKEN: "${{ github.token }}"}
+        env:
+          GH_TOKEN: "${{ github.token }}"
         run: ./tools/ci/uwp_windows.ps1 FindCore
+
       - name: Download preserved core
         if: steps.core-cache.outputs.cache-hit != 'true' && steps.prior-core.outputs.found == 'true'
         uses: actions/download-artifact@v4
-        with: {name: "${{ steps.prior-core.outputs.artifact_name }}", path: source/scratch/reused-core, github-token: "${{ github.token }}", repository: "${{ github.repository }}", run-id: "${{ steps.prior-core.outputs.run_id }}"}
+        with:
+          name: "${{ steps.prior-core.outputs.artifact_name }}"
+          path: source/scratch/reused-core
+          github-token: "${{ github.token }}"
+          repository: "${{ github.repository }}"
+          run-id: "${{ steps.prior-core.outputs.run_id }}"
+
       - name: Validate reusable core
         id: reusable-core
         if: steps.core-cache.outputs.cache-hit == 'true' || steps.prior-core.outputs.found == 'true'
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 ValidateCore -CacheHit '${{ steps.core-cache.outputs.cache-hit }}'
+
       - name: Check out UWP dependencies
         if: steps.reusable-core.outputs.ready != 'true'
         uses: actions/checkout@v4
-        with: {repository: SternXD/uwp-dep, ref: "${{ env.UWP_DEP_COMMIT }}", path: source/scratch/uwp-dep}
+        with:
+          repository: SternXD/uwp-dep
+          ref: "${{ env.UWP_DEP_COMMIT }}"
+          path: source/scratch/uwp-dep
+
       - name: Check out vcpkg
         if: steps.reusable-core.outputs.ready != 'true'
         uses: actions/checkout@v4
-        with: {repository: microsoft/vcpkg, ref: "${{ env.VCPKG_COMMIT }}", path: source/scratch/vcpkg}
+        with:
+          repository: microsoft/vcpkg
+          ref: "${{ env.VCPKG_COMMIT }}"
+          path: source/scratch/vcpkg
+
       - name: Compile core only when unavailable
         if: steps.reusable-core.outputs.ready != 'true'
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 BuildCore
+
       - name: Validate final core
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 VerifyCore
+
       - uses: actions/upload-artifact@v4
-        with: {name: "${{ env.CORE_RUNTIME_ARTIFACT }}", path: source/scratch/windows-core-runtime.zip, if-no-files-found: error, overwrite: true, compression-level: 0, retention-days: 30}
+        with:
+          name: "${{ env.CORE_RUNTIME_ARTIFACT }}"
+          path: source/scratch/windows-core-runtime.zip
+          if-no-files-found: error
+          overwrite: true
+          compression-level: 0
+          retention-days: 30
+
       - if: failure()
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 CoreDiagnostics
@@ -198,7 +242,10 @@ jobs:
     needs: [host-assets, windows-core]
     runs-on: windows-2022
     timeout-minutes: 60
-    defaults: {run: {working-directory: source}}
+    defaults:
+      run:
+        working-directory: source
+
     steps:
       - name: Check out exact source snapshot
         uses: actions/checkout@v4
@@ -208,23 +255,153 @@ jobs:
           fetch-depth: 1
           submodules: false
           persist-credentials: false
+
       - name: Verify exact source snapshot
         shell: pwsh
         run: |
-          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Wrong source snapshot" }
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) {
+            throw "Wrong source snapshot"
+          }
+
       - uses: actions/checkout@v4
-        with: {repository: SternXD/uwp-dep, ref: "${{ env.UWP_DEP_COMMIT }}", path: source/scratch/uwp-dep}
+        with:
+          repository: SternXD/uwp-dep
+          ref: "${{ env.UWP_DEP_COMMIT }}"
+          path: source/scratch/uwp-dep
+
       - uses: actions/download-artifact@v4
-        with: {name: "${{ env.CORE_RUNTIME_ARTIFACT }}", path: source/scratch/core-artifact}
+        with:
+          name: "${{ env.CORE_RUNTIME_ARTIFACT }}"
+          path: source/scratch/core-artifact
+
       - uses: actions/download-artifact@v4
-        with: {name: INTERNAL-soh-port-archive, path: source/scratch/host-assets}
+        with:
+          name: INTERNAL-soh-port-archive
+          path: source/scratch/host-assets
+
+      - name: Mark native core for Xbox AppContainer
+        shell: pwsh
+        run: |
+          $archive = (Resolve-Path "scratch/core-artifact/windows-core-runtime.zip").Path
+          $stage = Join-Path $env:RUNNER_TEMP "appcontainer-core"
+          $repacked = Join-Path $env:RUNNER_TEMP "windows-core-runtime-appcontainer.zip"
+
+          Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+          Remove-Item $repacked -Force -ErrorAction SilentlyContinue
+          Expand-Archive -LiteralPath $archive -DestinationPath $stage
+
+          $core = Join-Path $stage "soh_core.dll"
+          if (!(Test-Path $core -PathType Leaf)) {
+            throw "Preserved core archive has no soh_core.dll"
+          }
+
+          [byte[]]$image = [IO.File]::ReadAllBytes($core)
+          if ($image.Length -lt 256 -or
+              [BitConverter]::ToUInt16($image, 0) -ne 0x5A4D) {
+            throw "soh_core.dll has an invalid DOS header"
+          }
+
+          $peOffset = [BitConverter]::ToInt32($image, 0x3C)
+          if ($peOffset -lt 0 -or
+              $peOffset + 96 -gt $image.Length -or
+              [BitConverter]::ToUInt32($image, $peOffset) -ne 0x00004550) {
+            throw "soh_core.dll has an invalid PE header"
+          }
+
+          $optionalHeader = $peOffset + 24
+          $magic = [BitConverter]::ToUInt16($image, $optionalHeader)
+          if ($magic -notin @(0x010B, 0x020B)) {
+            throw "Unsupported PE optional-header magic"
+          }
+
+          $characteristicsOffset = $optionalHeader + 0x46
+          [uint16]$characteristics =
+            [BitConverter]::ToUInt16($image, $characteristicsOffset)
+          [uint16]$appContainerCharacteristics =
+            $characteristics -bor 0x1000
+          [byte[]]$flagBytes =
+            [BitConverter]::GetBytes($appContainerCharacteristics)
+
+          [Array]::Copy(
+            $flagBytes,
+            0,
+            $image,
+            $characteristicsOffset,
+            2
+          )
+          [IO.File]::WriteAllBytes($core, $image)
+
+          $checkImage = [IO.File]::ReadAllBytes($core)
+          $checkCharacteristics =
+            [BitConverter]::ToUInt16(
+              $checkImage,
+              $characteristicsOffset
+            )
+
+          if (($checkCharacteristics -band 0x1000) -eq 0) {
+            throw "Failed to mark soh_core.dll for AppContainer"
+          }
+
+          Write-Output (
+            "soh_core.dll DllCharacteristics: 0x{0:X4} -> 0x{1:X4}" -f
+            $characteristics,
+            $appContainerCharacteristics
+          )
+
+          Compress-Archive `
+            -Path "$stage\*" `
+            -DestinationPath $repacked `
+            -CompressionLevel Fastest
+
+          Move-Item $repacked $archive -Force
+
+          python tools/uwp_runtime_stage.py verify-core `
+            --archive $archive
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Repacked AppContainer core archive failed validation"
+          }
+
       - name: Build, sign, and audit AppX/MSIX
         timeout-minutes: 5
         shell: pwsh
-        env: {UWP_VERSION: "1.0.${{ github.run_number }}.${{ github.run_attempt }}"}
+        env:
+          UWP_VERSION: "1.0.${{ github.run_number }}.${{ github.run_attempt }}"
         run: ./tools/ci/uwp_windows.ps1 Package
+
+      - name: Verify packaged AppContainer core
+        shell: pwsh
+        run: |
+          $core = (
+            Resolve-Path "scratch/appx-audit/soh_core.dll"
+          ).Path
+
+          [byte[]]$image = [IO.File]::ReadAllBytes($core)
+          $peOffset = [BitConverter]::ToInt32($image, 0x3C)
+          $characteristicsOffset = $peOffset + 24 + 0x46
+          $characteristics =
+            [BitConverter]::ToUInt16(
+              $image,
+              $characteristicsOffset
+            )
+
+          if (($characteristics -band 0x1000) -eq 0) {
+            throw "Final AppX core is not marked for AppContainer execution"
+          }
+
+          Write-Output (
+            "Final AppX soh_core.dll DllCharacteristics=0x{0:X4}" -f
+            $characteristics
+          )
+
       - uses: actions/upload-artifact@v4
-        with: {name: "${{ env.PACKAGE_NAME }}", path: "source/scratch/dist/${{ env.PACKAGE_NAME }}", if-no-files-found: error, compression-level: 0, retention-days: 30}
+        with:
+          name: "${{ env.PACKAGE_NAME }}"
+          path: "source/scratch/dist/${{ env.PACKAGE_NAME }}"
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
       - if: failure()
         shell: pwsh
         run: ./tools/ci/uwp_windows.ps1 PackageDiagnostics
