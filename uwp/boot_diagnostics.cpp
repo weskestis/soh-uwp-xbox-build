@@ -29,7 +29,8 @@ void WriteLine(const char* line, const char* mode = "ab") {
         return;
     }
 
-    if (FILE* file = std::fopen(gLogPath, mode)) {
+    FILE* file = nullptr;
+    if (fopen_s(&file, gLogPath, mode) == 0 && file != nullptr) {
         std::fputs(line, file);
         std::fputs("\r\n", file);
         std::fflush(file);
@@ -74,11 +75,6 @@ void ProbePackagedRuntime() {
 
     Zelda3DUwp_BootLog("runtime-probe.begin");
     for (const ModuleProbe& probe : probes) {
-        if (GetModuleHandleW(probe.filename) != nullptr) {
-            WriteFormat("runtime.module=%s state=already-loaded", probe.label);
-            continue;
-        }
-
         HMODULE module = LoadPackagedLibrary(probe.filename, 0);
         if (module == nullptr) {
             WriteFormat("runtime.module=%s state=failed win32=%lu", probe.label, GetLastError());

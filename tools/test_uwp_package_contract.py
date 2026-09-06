@@ -85,9 +85,18 @@ def main() -> int:
         'L"opengl32.dll"',
         "__try",
         "GetExceptionInformation()",
+        "fopen_s(&file, gLogPath, mode)",
         "std::fflush(file)",
     ):
         require(token in boot_diagnostics, f"durable Xbox boot diagnostic missing: {token}")
+    require(
+        "GetModuleHandleW(" not in boot_diagnostics,
+        "desktop-only module probing was restored to the UWP wrapper",
+    )
+    require(
+        "std::fopen(" not in boot_diagnostics,
+        "deprecated CRT file opening was restored to the UWP wrapper",
+    )
     main_cpp = (UWP / "main.cpp").read_text(encoding="utf-8")
     require(
         main_cpp.index("    Zelda3DUwp_BootLogStart();")
