@@ -6,9 +6,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-21a32e03.bundle
-  SOURCE_BUNDLE_SHA256: 64e52145c5e4fd492ca7db995c618c04aa49d616c6f61ae6c8f6ccae4ce16b9b
-  SOURCE_COMMIT: 21a32e03e89c114c012a1bceca8c04ed82369fab
+  SOURCE_BUNDLE: SOH-Source-5a0d04d9.bundle
+  SOURCE_BUNDLE_SHA256: 7229d2d509110ac3cb0891654b3d92cdc01af4209cc42d8652058db1ab328467
+  SOURCE_COMMIT: 5a0d04d96faa2ffa68e3d1a02c7d1f81306d2775
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
@@ -34,7 +34,7 @@ jobs:
           test -f "$SOURCE_BUNDLE"
           echo "$SOURCE_BUNDLE_SHA256  $SOURCE_BUNDLE" | sha256sum --check --strict
           git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch "$GITHUB_WORKSPACE/$SOURCE_BUNDLE" refs/heads/cursor-fps-v3-full-build
+          git -C source fetch "$GITHUB_WORKSPACE/$SOURCE_BUNDLE" refs/heads/cursor-fps-v3-xbox-boot-diagnostics
           git -C source checkout --detach FETCH_HEAD
           test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
       - name: Generate and validate soh.o2r
@@ -56,7 +56,7 @@ jobs:
           $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
           if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
           git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch $bundle refs/heads/cursor-fps-v3-full-build
+          git -C source fetch $bundle refs/heads/cursor-fps-v3-xbox-boot-diagnostics
           git -C source checkout --detach FETCH_HEAD
           if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
       - id: core-cache
@@ -113,7 +113,7 @@ jobs:
           $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
           if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
           git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch $bundle refs/heads/cursor-fps-v3-full-build
+          git -C source fetch $bundle refs/heads/cursor-fps-v3-xbox-boot-diagnostics
           git -C source checkout --detach FETCH_HEAD
           if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
       - uses: actions/checkout@v4
@@ -126,14 +126,7 @@ jobs:
         timeout-minutes: 5
         shell: pwsh
         env: {UWP_VERSION: "1.0.${{ github.run_number }}.${{ github.run_attempt }}"}
-        run: |
-          $p = "tools/ci/uwp_windows.ps1"
-          $s = [IO.File]::ReadAllText($p)
-          $old = '$verifyText -notmatch ''(?i)root certificate.+not trusted'''
-          $new = '($verifyText -replace ''\s+'', '' '') -notmatch ''(?i)root certificate.+not trusted'''
-          if ([regex]::Matches($s, [regex]::Escape($old)).Count -ne 1) { throw "Signature hotfix target mismatch" }
-          [IO.File]::WriteAllText((Resolve-Path $p).Path, $s.Replace($old, $new), [Text.UTF8Encoding]::new($false))
-          ./tools/ci/uwp_windows.ps1 Package
+        run: ./tools/ci/uwp_windows.ps1 Package
       - uses: actions/upload-artifact@v4
         with: {name: "${{ env.PACKAGE_NAME }}", path: "source/scratch/dist/${{ env.PACKAGE_NAME }}", if-no-files-found: error, compression-level: 0, retention-days: 30}
       - if: failure()
