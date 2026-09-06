@@ -12,9 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BUNDLE: SOH-Source-046730ad.bundle
-  SOURCE_BUNDLE_SHA256: 9e9683095b1c6f68c5f520414a0cfcaffe60be5d746488f887c595608eede6ec
-  SOURCE_COMMIT: 046730ad450c8f5c6b8df0554519d0dab4289ee5
+  SOURCE_BUNDLE: SOH-Source-03f339f7.bundle
+  SOURCE_BUNDLE_SHA256: 6ffc58dcf27578bbce1350efb3f3631cb482a8115b37d923dfebaf549c9bcc97
+  SOURCE_COMMIT: 03f339f741d9b10f779aa0c187137d46a0a684b9
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
@@ -215,7 +215,7 @@ jobs:
           name: INTERNAL-soh-port-archive
           path: source/scratch/host-assets
 
-      - name: Build, sign, and audit AppX
+      - name: Build, sign, and audit AppX/MSIX
         shell: pwsh
         env:
           UWP_VERSION: 1.0.${{ github.run_number }}.${{ github.run_attempt }}
