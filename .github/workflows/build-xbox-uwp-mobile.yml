@@ -1,4 +1,4 @@
-name: Build Xbox UWP package from mobile bundle
+name: Build Xbox UWP package
 on: {workflow_dispatch: {}}
 permissions: {actions: read, contents: read}
 concurrency:
@@ -9,6 +9,9 @@ env:
   SOURCE_BUNDLE: SOH-Source-5a0d04d9.bundle
   SOURCE_BUNDLE_SHA256: 7229d2d509110ac3cb0891654b3d92cdc01af4209cc42d8652058db1ab328467
   SOURCE_COMMIT: 5a0d04d96faa2ffa68e3d1a02c7d1f81306d2775
+  SOURCE_BUNDLE_REF: refs/heads/cursor-fps-v3-xbox-boot-diagnostics
+  SOURCE_BRANCH: source-cursor-fps-v3-xbox
+  SOURCE_SNAPSHOT_COMMIT: c4d7b2321410f7dfb96451601c0c13aee81bec78
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
   VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
   ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
@@ -21,22 +24,106 @@ env:
   PACKAGE_PUBLISHER: CN=SOHCursorFPSV3OoT3DFull
 
 jobs:
+  source-ready:
+    name: Prepare permanent source branch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - name: Check out bootstrap files
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: builder
+
+      - name: Create permanent source branch when missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="https://github.com/$GITHUB_REPOSITORY.git"
+          published="$(git ls-remote "$remote" "refs/heads/$SOURCE_BRANCH" | cut -f1)"
+          if [[ -n "$published" ]]; then
+            test "$published" = "$SOURCE_SNAPSHOT_COMMIT"
+            echo "$SOURCE_BRANCH already contains the verified source snapshot."
+            exit 0
+          fi
+
+          bundle="$GITHUB_WORKSPACE/builder/$SOURCE_BUNDLE"
+          test -f "$bundle"
+          echo "$SOURCE_BUNDLE_SHA256  $bundle" | sha256sum --check --strict
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/SomeoneIsWorking/zelda3d.git source
+          git -C source fetch "$bundle" "$SOURCE_BUNDLE_REF"
+          git -C source checkout --detach FETCH_HEAD
+          test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
+
+          index_dir="$(mktemp -d)"
+          index_path="$index_dir/source.index"
+          GIT_INDEX_FILE="$index_path" git -C source read-tree HEAD^{tree}
+          workflow_blob="$(git -C source rev-parse HEAD:.github/workflows/build-xbox-uwp.yml)"
+          GIT_INDEX_FILE="$index_path" git -C source update-index \
+            --force-remove .github/workflows/build-xbox-uwp.yml
+          GIT_INDEX_FILE="$index_path" git -C source update-index \
+            --add --cacheinfo "100644,$workflow_blob,.source-workflow/build-xbox-uwp.yml"
+          tree="$(GIT_INDEX_FILE="$index_path" git -C source write-tree)"
+          snapshot="$(
+            printf '%s\n' \
+              'Snapshot SOH Cursor FPS V3 + OoT3D Xbox source' \
+              '' \
+              'Build tree from 5a0d04d96faa2ffa68e3d1a02c7d1f81306d2775.' \
+              'The source-side GitHub workflow is preserved under .source-workflow so the branch can be published by GITHUB_TOKEN.' |
+              GIT_AUTHOR_NAME='Codex' \
+              GIT_AUTHOR_EMAIL='codex@openai.com' \
+              GIT_AUTHOR_DATE='2026-09-06T18:00:00Z' \
+              GIT_COMMITTER_NAME='Codex' \
+              GIT_COMMITTER_EMAIL='codex@openai.com' \
+              GIT_COMMITTER_DATE='2026-09-06T18:00:00Z' \
+              git -C source commit-tree "$tree"
+          )"
+          test "$snapshot" = "$SOURCE_SNAPSHOT_COMMIT"
+          git -C source update-ref "refs/heads/$SOURCE_BRANCH" "$snapshot"
+
+          auth_header="$(git -C builder config --local --get http.https://github.com/.extraheader)"
+          git -C source \
+            -c "http.https://github.com/.extraheader=$auth_header" \
+            push "$remote" "refs/heads/$SOURCE_BRANCH:refs/heads/$SOURCE_BRANCH"
+          published="$(git ls-remote "$remote" "refs/heads/$SOURCE_BRANCH" | cut -f1)"
+          test "$published" = "$SOURCE_SNAPSHOT_COMMIT"
+
+      - name: Remove promoted bundle from main
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="$GITHUB_WORKSPACE/builder/$SOURCE_BUNDLE"
+          if [[ ! -f "$bundle" ]]; then
+            echo "Bundle is already absent."
+            exit 0
+          fi
+          git -C builder config user.name github-actions[bot]
+          git -C builder config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git -C builder rm "$SOURCE_BUNDLE"
+          git -C builder commit -m "Remove promoted source bundle"
+          git -C builder push origin HEAD:main
+
   host-assets:
     name: Generate redistributable port archive
+    needs: source-ready
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     defaults: {run: {working-directory: source}}
     steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct exact source
-        working-directory: .
+      - name: Check out exact source snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ env.SOURCE_BRANCH }}"
+          path: source
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+      - name: Verify exact source snapshot
         run: |
-          test -f "$SOURCE_BUNDLE"
-          echo "$SOURCE_BUNDLE_SHA256  $SOURCE_BUNDLE" | sha256sum --check --strict
-          git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch "$GITHUB_WORKSPACE/$SOURCE_BUNDLE" refs/heads/cursor-fps-v3-xbox-boot-diagnostics
-          git -C source checkout --detach FETCH_HEAD
-          test "$(git -C source rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SNAPSHOT_COMMIT"
       - name: Generate and validate soh.o2r
         run: bash tools/ci/uwp_host_assets.sh
       - uses: actions/upload-artifact@v4
@@ -44,21 +131,23 @@ jobs:
 
   windows-core:
     name: Reuse or compile Windows core DLL
+    needs: source-ready
     runs-on: windows-2022
     timeout-minutes: 180
     defaults: {run: {working-directory: source}}
     steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct exact source
+      - name: Check out exact source snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ env.SOURCE_BRANCH }}"
+          path: source
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+      - name: Verify exact source snapshot
         shell: pwsh
-        working-directory: .
         run: |
-          $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
-          if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
-          git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch $bundle refs/heads/cursor-fps-v3-xbox-boot-diagnostics
-          git -C source checkout --detach FETCH_HEAD
-          if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SNAPSHOT_COMMIT) { throw "Wrong source snapshot" }
       - id: core-cache
         uses: actions/cache@v4
         with: {path: source/scratch/windows-core-runtime.zip, key: "windows-${{ env.CORE_BUILD_KEY }}"}
@@ -105,17 +194,18 @@ jobs:
     timeout-minutes: 60
     defaults: {run: {working-directory: source}}
     steps:
-      - uses: actions/checkout@v4
-      - name: Reconstruct exact source
+      - name: Check out exact source snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: "${{ env.SOURCE_BRANCH }}"
+          path: source
+          fetch-depth: 1
+          submodules: false
+          persist-credentials: false
+      - name: Verify exact source snapshot
         shell: pwsh
-        working-directory: .
         run: |
-          $bundle = Join-Path $env:GITHUB_WORKSPACE $env:SOURCE_BUNDLE
-          if (!(Test-Path $bundle) -or (Get-FileHash $bundle -Algorithm SHA256).Hash.ToLowerInvariant() -ne $env:SOURCE_BUNDLE_SHA256) { throw "Bundle validation failed" }
-          git clone --filter=blob:none --no-checkout https://github.com/SomeoneIsWorking/zelda3d.git source
-          git -C source fetch $bundle refs/heads/cursor-fps-v3-xbox-boot-diagnostics
-          git -C source checkout --detach FETCH_HEAD
-          if ($LASTEXITCODE -or (git -C source rev-parse HEAD).Trim() -ne $env:SOURCE_COMMIT) { throw "Source reconstruction failed" }
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_SNAPSHOT_COMMIT) { throw "Wrong source snapshot" }
       - uses: actions/checkout@v4
         with: {repository: SternXD/uwp-dep, ref: "${{ env.UWP_DEP_COMMIT }}", path: source/scratch/uwp-dep}
       - uses: actions/download-artifact@v4
