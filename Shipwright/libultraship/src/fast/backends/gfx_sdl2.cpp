@@ -1,6 +1,7 @@
 #if defined(ENABLE_OPENGL) || defined(__APPLE__)
 
 #include <stdio.h>
+#include "ship/utils/Environment.h"
 
 #include "fast/Fast3dWindow.h"
 
@@ -397,7 +398,7 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     // the user's desktop. The GL context + framebuffer still exist, so rendering and
     // SOH_FRAMEDUMP keep working — this is true offscreen operation even on a Wayland
     // session (where a SHOWN window would otherwise pop up regardless of DISPLAY).
-    const char* headlessEnv = getenv("SOH_HEADLESS");
+    const char* headlessEnv = ShipGetEnvironmentVariable("SOH_HEADLESS");
     bool headless = headlessEnv != nullptr && headlessEnv[0] == '1';
     if (headless) {
         flags = (flags & ~(Uint32)SDL_WINDOW_SHOWN) | SDL_WINDOW_HIDDEN;
@@ -847,7 +848,7 @@ void GfxWindowBackendSDL2::SwapBuffersBegin() {
     // framebuffer at frame SOH_FRAMEDUMP_FRAME (default 300) then exits, so we
     // can capture renders headlessly (Xvfb GL content isn't grabbable via X).
     {
-        static const char* dumpPath = getenv("SOH_FRAMEDUMP");
+        static const char* dumpPath = ShipGetEnvironmentVariable("SOH_FRAMEDUMP");
         if (dumpPath != nullptr) {
             static long frame = 0;
             ++frame;
@@ -856,11 +857,11 @@ void GfxWindowBackendSDL2::SwapBuffersBegin() {
             // animation in ONE headless run so screen-fixed vs world-locked geometry can
             // be compared frame-to-frame (the camera moves between dumps). Single-frame
             // mode (default) dumps once at SOH_FRAMEDUMP_FRAME then exits.
-            static const bool seq = getenv("SOH_FRAMEDUMP_SEQ") != nullptr;
+            static const bool seq = ShipGetEnvironmentVariable("SOH_FRAMEDUMP_SEQ") != nullptr;
             if (seq) {
-                static long start = getenv("SOH_FRAMEDUMP_START") ? atol(getenv("SOH_FRAMEDUMP_START")) : 1;
-                static long end = getenv("SOH_FRAMEDUMP_END") ? atol(getenv("SOH_FRAMEDUMP_END")) : 300;
-                static long step = getenv("SOH_FRAMEDUMP_STEP") ? atol(getenv("SOH_FRAMEDUMP_STEP")) : 10;
+                static long start = ShipGetEnvironmentVariable("SOH_FRAMEDUMP_START") ? atol(ShipGetEnvironmentVariable("SOH_FRAMEDUMP_START")) : 1;
+                static long end = ShipGetEnvironmentVariable("SOH_FRAMEDUMP_END") ? atol(ShipGetEnvironmentVariable("SOH_FRAMEDUMP_END")) : 300;
+                static long step = ShipGetEnvironmentVariable("SOH_FRAMEDUMP_STEP") ? atol(ShipGetEnvironmentVariable("SOH_FRAMEDUMP_STEP")) : 10;
                 if (frame >= start && frame <= end && (frame - start) % step == 0) {
                     char p[1100];
                     snprintf(p, sizeof(p), "%s_%04ld.ppm", dumpPath, frame);
@@ -870,7 +871,7 @@ void GfxWindowBackendSDL2::SwapBuffersBegin() {
                     exit(0);
                 }
             } else {
-                static long targetFrame = getenv("SOH_FRAMEDUMP_FRAME") ? atol(getenv("SOH_FRAMEDUMP_FRAME")) : 300;
+                static long targetFrame = ShipGetEnvironmentVariable("SOH_FRAMEDUMP_FRAME") ? atol(ShipGetEnvironmentVariable("SOH_FRAMEDUMP_FRAME")) : 300;
                 if (frame == targetFrame) {
                     Soh3dWritePpm(mWnd, dumpPath);
                     exit(0);

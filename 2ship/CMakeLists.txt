@@ -192,7 +192,7 @@ if(ZELDA3D_UWP_CORE)
     # sheet writes to <source>/x64/Release and must not be overwritten by MM.
     set_target_properties(mm_lib mm_core PROPERTIES
         INTERPROCEDURAL_OPTIMIZATION FALSE
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     set_target_properties(mm_core PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
         ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")

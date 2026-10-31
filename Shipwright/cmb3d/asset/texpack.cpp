@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cerrno>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <filesystem>
 #include <fstream>
@@ -414,7 +414,7 @@ bool directoryHasMip0Texture(const fs::path& root) {
 }
 
 fs::path autoSource() {
-    if (const char* environment = std::getenv("ZELDA3D_TEXPACK"); environment != nullptr && *environment != '\0') {
+    if (const char* environment = ShipGetEnvironmentVariable("ZELDA3D_TEXPACK"); environment != nullptr && *environment != '\0') {
         if (disabledValue(environment)) {
             g_pack.requestedEnabled = false;
             g_pack.error = "disabled by ZELDA3D_TEXPACK";
@@ -425,7 +425,7 @@ fs::path autoSource() {
     if (directoryHasMip0Texture("textures")) {
         return "textures";
     }
-    if (const char* romPath = std::getenv("ZELDA3D_OOT3D_ROM"); romPath != nullptr && *romPath != '\0') {
+    if (const char* romPath = ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROM"); romPath != nullptr && *romPath != '\0') {
         const fs::path candidate = fs::path(romPath).parent_path() / "textures";
         if (directoryHasMip0Texture(candidate)) {
             return candidate;

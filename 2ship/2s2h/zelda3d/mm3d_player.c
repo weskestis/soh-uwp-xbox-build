@@ -12,14 +12,14 @@
 #include "2s2h/zelda3d/mm3d_player_right_hand.h"
 #include "2s2h/zelda3d/mm3d_player_sheath.h"
 #include <fast/zelda3d_material_overrides.h>
-#include <stdlib.h> // getenv
+#include "ship/utils/Environment.h"
 
 static int mm_link_enabled(void) {
     // Snapshot once: env-var reads are dozens of ns each; the Player draw runs per-frame.
     // Any change requires a restart — matches the OoT ZELDA3D_LINK convention.
     static int sCached = -1;
     if (sCached < 0) {
-        const char* v = getenv("MM_ZELDA3D_LINK");
+        const char* v = ShipGetEnvironmentVariable("MM_ZELDA3D_LINK");
         sCached = (v != NULL && v[0] != '\0' && v[0] != '0') ? 1 : 0;
     }
     return sCached;

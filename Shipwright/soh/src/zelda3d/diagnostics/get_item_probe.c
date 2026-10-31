@@ -2,7 +2,7 @@
 #include "functions/math.h"
 #include "functions/rendering.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 int gZelda3dSpawnGi = -2;
 float gZelda3dGiDisp = 0.2f;
@@ -14,7 +14,7 @@ void Zelda3D_DebugDrawGetItem(PlayState* play) {
     float x, y, z;
 
     if (gid == -2) {
-        const char* value = getenv("ZELDA3D_SPAWNGI");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_SPAWNGI");
         gZelda3dSpawnGi = (value != NULL && value[0] != '\0') ? atoi(value) : -1;
         gid = gZelda3dSpawnGi;
     }

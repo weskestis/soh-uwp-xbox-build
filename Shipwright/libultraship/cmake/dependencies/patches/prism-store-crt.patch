@@ -1,0 +1,32 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ 
+-cmake_minimum_required(VERSION 3.5)
++cmake_minimum_required(VERSION 3.15)
+ project(prism)
+ include(FetchContent)
+ 
+@@ -65,13 +65,11 @@
+             /w;
+             /Od;
+             /ZI;
+-            /${LINK_TYPE}d
+         >
+         $<$<CONFIG:Release>:
+             /O3;
+             /Gy;
+             /W3;
+-            /${LINK_TYPE}
+         >
+         /permissive-;
+         /MP;
+@@ -97,7 +95,7 @@
+         target_link_options(${PROJECT_NAME} PRIVATE /bigobj)
+     endif()
+ 
+-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
++    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+ endif()
+ 
+ # Fetch Dependencies

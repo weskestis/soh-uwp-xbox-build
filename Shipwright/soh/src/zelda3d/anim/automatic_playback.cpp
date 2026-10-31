@@ -8,7 +8,7 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -95,7 +95,7 @@ extern "C" void Zelda3D_UpdateAnimAuto(int modelId, const char* animName, float 
         return;
     }
     if (gZelda3dMorph < 0) {
-        const char* v = getenv("ZELDA3D_MORPH");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_MORPH");
         gZelda3dMorph = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     if (!gZelda3dMorph)

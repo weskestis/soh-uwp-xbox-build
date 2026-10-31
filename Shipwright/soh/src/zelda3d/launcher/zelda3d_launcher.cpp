@@ -16,7 +16,7 @@
 // installs the incoming game's per-game half.
 
 #include <stdio.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 #include <ship/Context.h>
 
@@ -33,7 +33,7 @@ extern "C" {
 // Default ON, tooling opts OUT, rather than the reverse: that is what makes the launcher the real
 // entry point for a person while leaving automation behaving as it did before it existed.
 int Zelda3D_LauncherEnabled(void) {
-    const char* e = getenv("ZELDA3D_LAUNCHER");
+    const char* e = ShipGetEnvironmentVariable("ZELDA3D_LAUNCHER");
     return !(e != nullptr && e[0] == '0');
 }
 

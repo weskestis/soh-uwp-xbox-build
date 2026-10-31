@@ -14,7 +14,7 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 
 // ===========================================================================
@@ -47,7 +47,7 @@ int Zelda3D_AutoMode(void) {
     if (gZelda3dAuto < 0) {
         // Default ON (mode 1: replace non-table actors with their OoT3D object models). Part of the
         // no-flags unified default; ZELDA3D_AUTO=0 still disables, =2 routes ALL actors through auto.
-        const char* v = getenv("ZELDA3D_AUTO");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_AUTO");
         gZelda3dAuto = (v != NULL && v[0] != '\0') ? atoi(v) : 1;
     }
     return gZelda3dAuto;

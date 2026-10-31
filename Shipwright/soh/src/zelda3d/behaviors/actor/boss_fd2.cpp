@@ -1,6 +1,7 @@
 // OoT3D Boss_Fd2 multipart draw port.
 // Ground truth: oot3d-decomp/docs/boss_fd2.md; draw FUN_0020A3B0 and chain helper FUN_00335904.
 #include "boss_fd2.h"
+#include "ship/utils/Environment.h"
 #include "boss_fd2_animation_policy.h"
 #include "boss_fd2_materials.h"
 
@@ -353,7 +354,7 @@ bool BossFd2Behavior::prepareDeferredDraw(PlayState* play, Actor* actor) {
     Zelda3D_SetTrackPosedMinY(modelId, 1);
 
     Zelda3D::BossFd2Materials::ApplyBody(modelId, boss, sCsabController.materials);
-    if (const char* onlyMid = getenv("ZELDA3D_DBG_BOSSFD2_MID")) {
+    if (const char* onlyMid = ShipGetEnvironmentVariable("ZELDA3D_DBG_BOSSFD2_MID")) {
         char* end = nullptr;
         const long mid = strtol(onlyMid, &end, 0);
         if (end != onlyMid && *end == '\0' && mid >= 0 && mid < 64) {
@@ -516,7 +517,7 @@ extern "C" int Zelda3D_BossFd2DrawManeSegment(PlayState* play, Actor* actor, int
     static int debug = -1;
     static bool reported[3][9] = {};
     if (debug < 0) {
-        const char* value = getenv("ZELDA3D_DBG_BOSSFD2_MANE");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_DBG_BOSSFD2_MANE");
         debug = value != nullptr && value[0] != '\0';
     }
     if (debug && !reported[chain][segment]) {

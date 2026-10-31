@@ -7,7 +7,7 @@
 #include "overlays/actors/ovl_Boss_Fd2/z_boss_fd2.h"
 
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <initializer_list>
 
 namespace Zelda3D::BossFd2Materials {
@@ -58,7 +58,7 @@ void ApplyBody(int modelId, const BossFd2* boss, const Controller& controller) {
     static bool reportedLoad = false;
     static int lastEyeState = -1;
     if (debug < 0) {
-        const char* value = getenv("ZELDA3D_DBG_BOSSFD2_MAT");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_DBG_BOSSFD2_MAT");
         debug = value != nullptr && value[0] != '\0';
     }
     int uvSamples = 0;

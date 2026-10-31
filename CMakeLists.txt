@@ -78,10 +78,10 @@ if(ZELDA3D_UWP_CORE)
     set(NON_PORTABLE ON CACHE BOOL "Use the package LocalState directory" FORCE)
     set(DISABLE_DLL_LOADER ON CACHE BOOL "Only the UWP wrapper loads packaged game cores" FORCE)
     set(ENABLE_SCRIPTING OFF CACHE BOOL "Disable desktop runtime compilation on UWP" FORCE)
-    # The pinned x64-windows-static triplet uses /MT.  Apply the same runtime to
-    # every first-party and FetchContent target before any subdirectory creates
-    # one, avoiding LNK2038 mismatches at the final soh_core DLL link.
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    # Static dependency libraries still use the dynamic Store CRT. Configure
+    # every compiled target after all subdirectories have applied their props.
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/Zelda3DUwpRuntime.cmake)
+    zelda3d_uwp_runtime_defaults()
     # _UWP selects the WinRT-compatible branches in the established SDL2/libuwp
     # dependency stack.  ZELDA3D_UWP is the project-owned source/runtime gate.
     add_compile_definitions(ZELDA3D_UWP=1 _UWP=1 _CRT_SECURE_NO_WARNINGS NOMINMAX)
@@ -404,17 +404,11 @@ FetchContent_MakeAvailable(dr_libs)
 ################################################################################
 add_subdirectory(${ZELDA3D_ENGINE_DIR} ${CMAKE_BINARY_DIR}/libultraship)
 
-if(ZELDA3D_UWP_CORE)
-    find_package(spdlog CONFIG REQUIRED)
-    add_executable(uwp_release_logger_test tools/uwp_release_logger_test.cpp)
-    target_include_directories(uwp_release_logger_test PRIVATE ${ZELDA3D_ENGINE_DIR}/include)
-    target_link_libraries(uwp_release_logger_test PRIVATE spdlog::spdlog)
-    set_target_properties(uwp_release_logger_test PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/uwp-checks")
-endif()
+# The immediate-exit logger test has a separate native host build under
+# tools/uwp_logger_host; Store DLLs cannot serve as an unpackaged host EXE.
 target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 if(INCLUDE_MPQ_SUPPORT)
-    target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)
+    target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT STORMLIB_NO_AUTO_LINK)
 endif()
 
 if(ZELDA3D_ENABLE_ROM_EXTRACTION)
@@ -554,4 +548,8 @@ endif()
 if(ZELDA3D_BUILD_LAUNCHER)
     set(CPACK_PROJECT_CONFIG_FILE ${ZELDA3D_SHIPWRIGHT_DIR}/CMake/Packaging-2.cmake)
     include(${ZELDA3D_SHIPWRIGHT_DIR}/CMake/Packaging.cmake)
+endif()
+
+if(ZELDA3D_UWP_CORE)
+    zelda3d_uwp_runtime_targets("${CMAKE_CURRENT_SOURCE_DIR}")
 endif()

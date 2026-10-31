@@ -1,4 +1,5 @@
 #include "cmb.h"
+#include "ship/utils/Environment.h"
 #include "mat4.h"
 #include <cstring>
 #include <cmath>
@@ -816,7 +817,7 @@ std::string Cmb::indexRangeReport() const {
                     maxIdx = idx;
             }
         }
-        if (getenv("CMB_RANGE_ALL") != nullptr || maxIdx >= cap) {
+        if (ShipGetEnvironmentVariable("CMB_RANGE_ALL") != nullptr || maxIdx >= cap) {
             for (const auto& prms : sepd.prms) {
                 const Prm& pr = prms.prm;
                 snprintf(line, sizeof(line), "      prm first=%-6u count=%-6u itype=0x%X skin=%u boneTbl=%zu\n",

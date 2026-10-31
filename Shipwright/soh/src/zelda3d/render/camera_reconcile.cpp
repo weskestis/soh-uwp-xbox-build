@@ -4,7 +4,7 @@
 #include "camera_reconcile.h"
 #include "room_geometry_queries.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 // Lift play->view.eye/lookAt out of the OoT3D terrain for a cinematic camera. Returns the applied
 // lift (0 = none). Call AFTER the engine has computed play->view for the frame (i.e. in ReplPoll,
 // after Play_Update), so the corrected view is what Play_Draw renders.
@@ -13,7 +13,7 @@ static const float kZelda3dCamLiftClearance = 18.0f;
 static int Zelda3D_CamLiftEnabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_CAMLIFT");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_CAMLIFT");
         cached = (v != NULL && v[0] == '0') ? 0 : 1; // default ON
     }
     return Zelda3D_Enabled() && cached && gZelda3dCamLift;

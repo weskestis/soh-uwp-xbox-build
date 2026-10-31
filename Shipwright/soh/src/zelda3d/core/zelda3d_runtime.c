@@ -1,7 +1,7 @@
 #include "zelda3d_runtime.h"
 
 #include <libultraship/bridge.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 #include "soh/cvar_prefixes.h"
 
@@ -24,7 +24,7 @@ static int Zelda3D_DefaultGraphicsMode(void) {
     // The developer harness has historically used SOH3D=1/0. Keep that useful as the default for
     // an unset config, but never make it a permanent override: the packaged build must stay
     // toggleable from its Settings menu.
-    const char* value = getenv("SOH3D");
+    const char* value = ShipGetEnvironmentVariable("SOH3D");
     if (value != NULL) {
         return value[0] == '0' ? ZELDA3D_GRAPHICS_ORIGINAL : ZELDA3D_GRAPHICS_OOT3D;
     }

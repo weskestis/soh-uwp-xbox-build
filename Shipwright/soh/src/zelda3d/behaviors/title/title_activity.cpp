@@ -3,7 +3,7 @@
 #include "../../core/zelda3d_runtime.h"
 #include "../../diagnostics/boot_fixture.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 extern "C" {
 int gZelda3dTitleCam = 1;
@@ -50,7 +50,7 @@ bool TitleActivity::isActive() const {
 extern "C" int Zelda3D_TitleCamEnabled(void) {
     static int enabled = -1;
     if (enabled < 0) {
-        const char* value = std::getenv("ZELDA3D_TITLECAM");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_TITLECAM");
         enabled = (value != nullptr && value[0] == '0') ? 0 : 1;
     }
     return Zelda3D_Enabled() && enabled && gZelda3dTitleCam;

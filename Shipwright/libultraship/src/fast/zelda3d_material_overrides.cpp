@@ -5,7 +5,7 @@
 #include "zelda3d_material_override_state.h"
 
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -88,7 +88,7 @@ extern "C" void Zelda3D_GL_SetMatConstOverride(int modelId, int materialIndex, i
     Zelda3DFast::pendingOverrides[modelId].constants[materialIndex * 6 + constIdx] = override;
 
     static const bool debugEnabled = [] {
-        const char* value = std::getenv("ZELDA3D_DBG_MATCONST");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_DBG_MATCONST");
         return value != nullptr && value[0] != '\0';
     }();
     if (debugEnabled) {

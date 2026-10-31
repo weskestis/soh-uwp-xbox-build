@@ -3,13 +3,13 @@
 
 #include "../core/zelda3d_runtime.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 int gZelda3dSkip = -1;
 
 int Zelda3D_SkipEnabled(void) {
     if (gZelda3dSkip < 0) {
-        const char* value = getenv("ZELDA3D_SKIP");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_SKIP");
         gZelda3dSkip = (value != NULL && value[0] == '0') ? 0 : 1;
     }
     return gZelda3dSkip;

@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <string>
 
@@ -246,19 +246,19 @@ void GeometryObservationSetDisplayList(const char* name) {
 
 void GeometryObservationBeginFrame() {
     if (sDumpState == 0) {
-        const char* path = std::getenv("ZELDA3D_GFXDUMP");
+        const char* path = ShipGetEnvironmentVariable("ZELDA3D_GFXDUMP");
         if (path == nullptr) {
             sDumpState = 2;
         } else {
-            const char* frame = std::getenv("ZELDA3D_GFXDUMP_FRAME");
-            const char* filter = std::getenv("ZELDA3D_GFXDUMP_FILTER");
+            const char* frame = ShipGetEnvironmentVariable("ZELDA3D_GFXDUMP_FRAME");
+            const char* filter = ShipGetEnvironmentVariable("ZELDA3D_GFXDUMP_FILTER");
             sDumpTargetFrame = frame != nullptr ? std::atoi(frame) : 0;
             sDumpFilter = filter != nullptr ? filter : "";
             sDumpState = 1;
         }
     }
     if (sDumpState == 1 && sDumpFrame == sDumpTargetFrame) {
-        sDumpFile = std::fopen(std::getenv("ZELDA3D_GFXDUMP"), "w");
+        sDumpFile = std::fopen(ShipGetEnvironmentVariable("ZELDA3D_GFXDUMP"), "w");
         if (sDumpFile != nullptr) {
             std::fprintf(sDumpFile, "# Zelda3D gfx dump — frame %d  filter='%s'\n", sDumpFrame, sDumpFilter.c_str());
             sDumpBatch = {};

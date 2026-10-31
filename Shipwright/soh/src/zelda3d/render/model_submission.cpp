@@ -16,7 +16,7 @@
 #include <fast/zelda3d_pose.h>
 #include <fast/zelda3d_submission.h>
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 
 // Per-GL-model live playback state, so multiple DISTINCT GL characters animate
@@ -37,7 +37,7 @@ static struct {
 // SkelAnime sits at an actor-specific struct offset). NULL/return 0 -> no N64 joints.
 int Zelda3D_N64AnimEnabled(void) {
     if (gZelda3dN64Anim < 0) {
-        const char* v = getenv("ZELDA3D_N64ANIM");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_N64ANIM");
         // Default ON: skinned actors render as their OoT3D model driven by the live N64 jointTable.
         // Without it skinned characters fall back to the N64 model, which re-splits the frame into
         // N64 + OoT3D — the opposite of the unified default. ZELDA3D_N64ANIM=0 keeps the N64 path for A/B.
@@ -142,7 +142,7 @@ void Zelda3D_EmitModelDraw(PlayState* play, int modelId, Actor* actor, float wor
     // model and its material are fine and the fault is in the XLU segment itself. Default is on (1).
     static int sXluEnable = -1;
     if (sXluEnable < 0) {
-        const char* v = getenv("ZELDA3D_XLU");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_XLU");
         sXluEnable = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     const int xluPass = sXluEnable ? Zelda3D_AutoModelAllBlended(modelId) : 0;

@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <filesystem>
 #include <string>
 #include <unordered_set>
@@ -116,7 +116,7 @@ void DiscoverAndConfigure() {
     sSelectedSource.clear();
     sDiscoveryError.clear();
 
-    const char* environment = std::getenv("ZELDA3D_TEXPACK");
+    const char* environment = ShipGetEnvironmentVariable("ZELDA3D_TEXPACK");
     sExternalOverride = environment != nullptr && *environment != '\0';
     sExternalDisabled = sExternalOverride && IsDisabledValue(environment);
     if (sExternalOverride) {
@@ -195,7 +195,7 @@ void EnsureInitialized() {
 
 extern "C" void Zelda3D_TexturePackInitialize(void) {
     sInstallDirectory = Ship::Context::GetPathRelativeToAppDirectory("texture-packs", "soh");
-    const char* environment = std::getenv("ZELDA3D_TEXPACK");
+    const char* environment = ShipGetEnvironmentVariable("ZELDA3D_TEXPACK");
     sExternalOverride = environment != nullptr && *environment != '\0';
     sExternalDisabled = sExternalOverride && IsDisabledValue(environment);
     sRequestedEnabled = sExternalOverride ? !sExternalDisabled

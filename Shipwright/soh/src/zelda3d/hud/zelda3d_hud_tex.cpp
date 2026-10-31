@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cmath>
-#include <cstdlib> // getenv
+#include "ship/utils/Environment.h"
 #include <stb_image.h>
 #include "asset/texpack.h"     // Zelda3D::TexPackLookup (HD texture-pack atlas source)
 #include "../assets/xbox_glyphs_png.h"   // assets/zelda3d/xbox_{a,b,x,y}.svg (HUD button glyphs, #32)
@@ -707,7 +707,7 @@ int gZelda3dHudTex = -1;
 
 extern "C" int Zelda3D_HudTexEnabled(void) {
     if (gZelda3dHudTex < 0) {
-        const char* v = getenv("ZELDA3D_HUDTEX");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_HUDTEX");
         gZelda3dHudTex = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     return gZelda3dHudTex;

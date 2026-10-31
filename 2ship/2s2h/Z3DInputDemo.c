@@ -8,7 +8,7 @@
 #include "ship/controller/scripted/ScriptedInput.h"
 
 #include <stdio.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 // Timeline (frames, counted only while in gameplay):
 //   [0, WALK_END)        hold stick forward  -> Link walks
@@ -23,7 +23,7 @@
 static int Z3D_InputDemo_Enabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_MM_INPUTDEMO");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_MM_INPUTDEMO");
         cached = (v != NULL && v[0] != '\0') ? 1 : 0;
     }
     return cached;

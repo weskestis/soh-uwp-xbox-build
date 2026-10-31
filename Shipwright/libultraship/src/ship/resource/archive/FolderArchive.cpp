@@ -1,7 +1,5 @@
 #pragma once
 
-#undef _DLL
-
 #include "ship/resource/archive/FolderArchive.h"
 
 #include "ship/Context.h"

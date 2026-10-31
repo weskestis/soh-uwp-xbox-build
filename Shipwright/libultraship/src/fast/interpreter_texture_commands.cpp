@@ -101,7 +101,14 @@ bool gfx_set_timg_handler_rdp(F3DGfx** cmd0) {
     // raw/unresolved path (no OTR load) can still be a stale segmented address, so gate on that.
     // For Windows, also check if the address is not from a dll because this validation returns a false positive caused
     // by how the virtual memory is allocated.
-#ifdef _WIN32
+#if defined(ZELDA3D_UWP)
+    MEMORY_BASIC_INFORMATION region = {};
+    if (!loadedOtrTex && i <= 0x0FFFFFFF &&
+        !(VirtualQuery(reinterpret_cast<LPCVOID>(i), &region, sizeof(region)) == sizeof(region) &&
+          region.State == MEM_COMMIT && region.Type == MEM_IMAGE)) {
+        return false;
+    }
+#elif defined(_WIN32)
     HMODULE module = nullptr;
     if (!loadedOtrTex && i <= 0x0FFFFFFF &&
         !(GetModuleHandleExA(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,

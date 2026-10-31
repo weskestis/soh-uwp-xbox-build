@@ -1,4 +1,5 @@
 #include "ship/audio/SDLAudioPlayer.h"
+#include "ship/utils/Environment.h"
 #include <spdlog/spdlog.h>
 
 namespace Ship {
@@ -31,7 +32,7 @@ void SDLAudioPlayer::DoClose() {
 bool SDLAudioPlayer::DoInit() {
     // Headless mode (env SOH_HEADLESS=1): use SDL's dummy audio driver so no sound is
     // played out of the user's speakers. Set before SDL inits its audio subsystem.
-    const char* headlessEnv = getenv("SOH_HEADLESS");
+    const char* headlessEnv = ShipGetEnvironmentVariable("SOH_HEADLESS");
     if (headlessEnv != nullptr && headlessEnv[0] == '1') {
         // SDL3-MIGRATION: SDL_setenv -> SDL_setenv_unsafe (SDL3 renamed it; the env must be set
         // before SDL_Init brings up the audio subsystem, so the non-thread-safe variant is fine here).

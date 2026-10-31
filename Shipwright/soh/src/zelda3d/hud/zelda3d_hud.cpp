@@ -4,7 +4,7 @@
 #include "../behaviors/title/title_activity.h" // Zelda3D_Title_IsActive — no HUD over the title demo
 
 #include <cstdint>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <spdlog/spdlog.h>
 #include <unordered_map>
 #include <vector>
@@ -57,7 +57,7 @@ int sEnabled = -1;
 
 bool hudEnabled() {
     if (sEnabled < 0) {
-        const char* v = getenv("ZELDA3D_HUD");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_HUD");
         sEnabled = (v != nullptr && v[0] == '0') ? 0 : 1;
     }
     return sEnabled != 0 && Zelda3D_Hud_Available() != 0;

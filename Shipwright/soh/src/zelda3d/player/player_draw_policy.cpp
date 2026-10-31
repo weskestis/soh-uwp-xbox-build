@@ -1,6 +1,6 @@
 #include "player_draw_policy.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 
 // --- OoT3D Link (player) replacement — proof-of-hook stage (see Zelda3D_TryDrawPlayer) ---
@@ -66,7 +66,7 @@ extern "C" int Zelda3D_LinkEnabled(void) {
 // ("3ds"/0 or "n64"/1); REPL `linksrc`.
 extern "C" int Zelda3D_LinkAnimSrc(void) {
     if (gZelda3dLinkAnimSrc < 0) {
-        const char* v = getenv("ZELDA3D_LINK_SRC");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_LINK_SRC");
         // DEFAULT = 3DS own-CSAB: Zelda3D is a graphical port of OoT3D, so Link plays the OoT3D rig's
         // OWN CSABs (1-1 parity). The former blocker — the named-CSAB path being "blind to walk/run" —
         // is fixed (#117 Zelda3D_LinkWalkRunGate selects nml_walk_free/nml_run_free by speedXZ). The N64

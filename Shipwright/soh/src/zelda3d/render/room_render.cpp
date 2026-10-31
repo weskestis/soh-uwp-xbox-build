@@ -11,7 +11,7 @@
 #include "room_render.h"
 #include "scene_tint.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 // Direct-GL room draw: same dlist path as the character GL draw, but the model matrix
 // is IDENTITY (scene CMB verts are already world-space) — just an optional debug
 // offset + uniform scale. MP_matrix at opcode time is then model(identity)·view·proj =
@@ -43,7 +43,7 @@ int Zelda3D_TryDrawRoom(PlayState* play, Room* room) {
     // divert), so a crash can be bisected room-divert vs actor-divert without a rebuild.
     static int sceneDivert = -1;
     if (sceneDivert < 0) {
-        const char* v = getenv("ZELDA3D_SCENE");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_SCENE");
         sceneDivert = (v != NULL && v[0] != '\0') ? atoi(v) : 1; // 0=off,1=draw,2=skip-only
     }
     if (sceneDivert == 0 || !Zelda3D_Enabled() || room == NULL) {

@@ -4,7 +4,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 namespace {
 
@@ -17,7 +17,7 @@ struct SessionDefaultsState {
 SessionDefaultsState sDefaults;
 
 int DefaultEnabledUnlessDisabled(const char* variable) {
-    const char* value = std::getenv(variable);
+    const char* value = ShipGetEnvironmentVariable(variable);
     return value != nullptr && value[0] == '1' ? 0 : 1;
 }
 

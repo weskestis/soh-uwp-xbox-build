@@ -1,4 +1,5 @@
 #include "soh/resource/importer/AnimationFactory.h"
+#include "ship/utils/Environment.h"
 #include "soh/resource/type/Animation.h"
 #include <ship/resource/ResourceManager.h>
 #include "spdlog/spdlog.h"
@@ -143,7 +144,7 @@ ResourceFactoryBinaryAnimationV0::ReadResource(std::shared_ptr<Ship::File> file,
         // names the branch taken and the resource Type actually returned, and says explicitly when a
         // load returned nothing -- a silent line here would be indistinguishable from "never asked".
         {
-            static const bool kLog = getenv("ZELDA3D_ANIMTYPE_LOG") != nullptr;
+            static const bool kLog = ShipGetEnvironmentVariable("ZELDA3D_ANIMTYPE_LOG") != nullptr;
             if (kLog) {
                 const char* branch = animData != nullptr             ? "Animation"
                                      : playerAnimData != nullptr     ? "PlayerAnimation"

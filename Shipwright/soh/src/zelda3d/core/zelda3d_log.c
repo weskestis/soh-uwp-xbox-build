@@ -2,7 +2,7 @@
 // header are the ONE registry for debug channels (no per-site getenv).
 #include "zelda3d_log.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 #include <string.h>
 #include <ctype.h>
 
@@ -83,7 +83,7 @@ static void lazyInit(void) {
         return;
     }
     sInit = 1;
-    env = getenv("ZELDA3D_LOG");
+    env = ShipGetEnvironmentVariable("ZELDA3D_LOG");
     if (env == NULL || env[0] == '\0') {
         return;
     }

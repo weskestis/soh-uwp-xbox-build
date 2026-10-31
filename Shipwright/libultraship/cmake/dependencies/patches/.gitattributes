@@ -1,2 +1,2 @@
-# Unified diff context prefixes upstream tab indentation with a required space.
-*.patch whitespace=-space-before-tab
+# Unified diff context and pinned upstream patches preserve their own whitespace.
+*.patch whitespace=-blank-at-eol,-blank-at-eof,-space-before-tab

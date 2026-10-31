@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <limits>
 #include <list>
@@ -347,7 +347,7 @@ static void Zelda3D_LogNewCombinerKey(const ColorCombinerKey& key) {
     static int state = -1; // -1 unread, 0 disabled, 1 enabled
     static FILE* f = nullptr;
     if (state < 0) {
-        const char* path = getenv("ZELDA3D_CC_DUMP");
+        const char* path = ShipGetEnvironmentVariable("ZELDA3D_CC_DUMP");
         state = (path && path[0]) ? 1 : 0;
         if (state) {
             f = fopen(path, "a");

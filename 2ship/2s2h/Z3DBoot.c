@@ -4,19 +4,19 @@
 // so a hex entrance ("0x6800") and a decimal one both work.
 #include "Z3DBoot.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 int Z3D_AutoWarpEnabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_MM_WARP");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_MM_WARP");
         cached = (v != NULL && v[0] != '\0') ? 1 : 0;
     }
     return cached;
 }
 
 int Z3D_AutoWarpEntrance(void) {
-    const char* v = getenv("ZELDA3D_MM_ENTRANCE");
+    const char* v = ShipGetEnvironmentVariable("ZELDA3D_MM_ENTRANCE");
     if (v != NULL && v[0] != '\0') {
         return (int)strtol(v, NULL, 0);
     }

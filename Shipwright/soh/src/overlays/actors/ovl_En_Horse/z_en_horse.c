@@ -12,7 +12,7 @@
 #include "zelda3d/core/zelda3d_log.h" // Z3D_LOG(RIDER, ...) — #152 saddle/riderPos diagnostics
 #include <assert.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 #define FLAGS ACTOR_FLAG_UPDATE_CULLING_DISABLED
 
@@ -3744,7 +3744,7 @@ static void EnHorse_ResolveHoofPos(Actor* thisx, PlayState* play, Skin* skin, s3
     // Diagnostic (ZELDA3D_DUST_DEBUG=1): dust is a small, short-lived, easily-occluded effect that's
     // hard to confirm by eye alone — this is the durable tooling hook for the next investigation,
     // same convention as zelda3d.c's gZelda3dAnimDebug [SKELSCALE] print.
-    if (getenv("ZELDA3D_DUST_DEBUG") != NULL) {
+    if (ShipGetEnvironmentVariable("ZELDA3D_DUST_DEBUG") != NULL) {
         fprintf(stderr, "[Zelda3D dust] limb=%d pos=(%.1f,%.1f,%.1f) corrected=%d actorY=%.1f\n",
                 n64LimbIndex, dst->x, dst->y, dst->z, corrected, thisx->world.pos.y);
     }

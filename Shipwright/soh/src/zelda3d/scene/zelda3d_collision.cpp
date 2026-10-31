@@ -7,7 +7,7 @@
 #include "scene_draw.h"
 #include "gameplay_collision.h" // extern "C" declarations for Zelda3D_BuildSceneCollision / Zelda3D_CollisionEnabled
 #include "zelda3d_collision.h" // C-ABI bridge: Zelda3D_RawCollision / LoadSceneCollisionRaw / stair treads
-#include <stdlib.h> // getenv, malloc/calloc/free
+#include "ship/utils/Environment.h"
 #include <stdio.h>  // fprintf/stderr
 #include <string.h> // memcpy
 #include <math.h>   // lrintf
@@ -24,7 +24,7 @@ int gZelda3dCollision = 1;
 int Zelda3D_CollisionEnabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_COLLISION");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_COLLISION");
         cached = (v != NULL && v[0] == '0') ? 0 : 1; // default ON
     }
     return Zelda3D_Enabled() && cached && gZelda3dCollision;

@@ -11,7 +11,7 @@
 #include "../behaviors/actor_behavior.h" // per-actor behavior modules (registry by actor->id)
 #include "fast/zelda3d_material_overrides.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 extern "C" {
 void Zelda3D_ClearBonePostRots(int modelId);
@@ -27,11 +27,11 @@ int gZelda3dFaceForce = -1;
 
 extern "C" void Zelda3D_ApplyActorOverrides(int modelId, void* actorv) {
     if (gZelda3dTrack < 0) {
-        const char* v = std::getenv("ZELDA3D_TRACK");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_TRACK");
         gZelda3dTrack = (v != nullptr && v[0] == '0') ? 0 : 1;
     }
     if (gZelda3dFacial < 0) {
-        const char* v = std::getenv("ZELDA3D_FACIAL");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_FACIAL");
         gZelda3dFacial = (v != nullptr && v[0] == '0') ? 0 : 1;
     }
     // Start from a clean slate each draw (no stale track pose / facial frame / body-color override).

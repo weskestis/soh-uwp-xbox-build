@@ -9,7 +9,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 #include <string.h>
 
 // ===========================================================================
@@ -124,7 +124,7 @@ extern "C" void Zelda3D_CuccoAdvanceFrame(void) {
 void Zelda3D_ApplyProcOverride(PlayState* play, int modelId, Vec3s* jointTable, int limbCount) {
     Zelda3D_ClearBoneRotDeltas(modelId); // stale-delta guard (model may be drawn via a path w/o probe)
     if (gZelda3dProcOverride < 0) {
-        const char* v = getenv("ZELDA3D_PROCOVERRIDE");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_PROCOVERRIDE");
         gZelda3dProcOverride = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     if (!gZelda3dProcOverride || gZelda3dPendingOverride == NULL || jointTable == NULL) {

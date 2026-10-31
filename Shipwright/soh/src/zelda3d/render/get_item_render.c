@@ -7,7 +7,7 @@
 #include "model_queries.h"
 #include <fast/zelda3d_pose.h>
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 float gZelda3dGiScaleMul = 1.0f;
 float gZelda3dGiRotX = 0.0f;
@@ -34,7 +34,7 @@ static const Zelda3dGetItemModel kGetItemModels[] = {
 
 static int Zelda3D_ItemsEnabled(void) {
     if (sItemsEnabled < 0) {
-        const char* value = getenv("ZELDA3D_ITEMS");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_ITEMS");
         sItemsEnabled = (value == NULL || value[0] != '0') ? 1 : 0;
     }
     return sItemsEnabled;

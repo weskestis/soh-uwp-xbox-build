@@ -210,7 +210,7 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 endif()
 
 # handle speechsynthesizer removals
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT ZELDA3D_UWP)
     list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/Darwin")
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     list(FILTER soh__ EXCLUDE REGEX "soh/Enhancements/speechsynthesizer/SAPI")
@@ -447,7 +447,7 @@ endif()
 ################################################################################
 # MSVC runtime library
 ################################################################################
-if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows" AND NOT ZELDA3D_UWP)
     get_property(MSVC_RUNTIME_LIBRARY_DEFAULT TARGET ${PROJECT_NAME} PROPERTY MSVC_RUNTIME_LIBRARY)
     if(SOH_WINDOWS_64BIT)
         string(CONCAT "MSVC_RUNTIME_LIBRARY_STR"

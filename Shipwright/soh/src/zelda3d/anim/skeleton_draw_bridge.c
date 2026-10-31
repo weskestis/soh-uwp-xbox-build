@@ -22,7 +22,7 @@
 
 #include <math.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 #include <string.h>
 
 #include "../tables/zelda3d_bonemap.inc"
@@ -208,7 +208,7 @@ static void Zelda3D_DumpPendingSkeleton(void** skeleton, Vec3s* jointTable, int 
     int index;
 
     if (enabled < 0) {
-        const char* value = getenv("ZELDA3D_SKELDUMP");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_SKELDUMP");
         enabled = (value != NULL && value[0] == '1') ? 1 : 0;
     }
     if (!enabled) {

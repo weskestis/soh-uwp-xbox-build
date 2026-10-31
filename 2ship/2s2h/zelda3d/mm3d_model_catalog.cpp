@@ -3,7 +3,7 @@
 
 #include <cstddef>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <string>
 #include <unordered_map>
@@ -117,7 +117,7 @@ int ResolveObjectModel(int objectId) {
     if (skinned) {
         static int skinnedEnabled = -1;
         if (skinnedEnabled < 0) {
-            const char* value = getenv("ZELDA3D_MM_SKINNED");
+            const char* value = ShipGetEnvironmentVariable("ZELDA3D_MM_SKINNED");
             skinnedEnabled = value != nullptr && value[0] != '\0' && value[0] != '0';
         }
         if (!skinnedEnabled) {

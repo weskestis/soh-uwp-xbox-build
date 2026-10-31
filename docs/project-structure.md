@@ -27,6 +27,16 @@ and RmlUi loading/window/dialog code; `common.cmake` applies them only for the X
 properties, dynamic CRT and WindowsApp linkage. Its separate workflow preserves verbose library
 selection, imports, exports, and AppContainer headers. It does not alter either game's build.
 
+`cmake/Zelda3DUwpRuntime.cmake` owns native C++20 Store properties and applies them after all
+first-party/FetchContent target overrides. The UWP core now requires `x64-uwp-static-md` and
+SDK 19041. `cmake/vcpkg-uwp-ports/` holds the pinned FreeType API guard and memory-only OpusFile
+overlays. `Zelda3DUwpGlew.cmake` builds GLEW against an import library generated from the
+pinned Mesa DLL; `tools/uwp_store_build.py` checks generated projects and final link evidence.
+The existing Fusion workflow builds both game cores independently; native validation is pending.
+`tools/uwp_logger_host/` keeps the immediate-exit logger test in a separate desktop process.
+`ship/utils/Environment.h` supplies unchanged desktop environment reads and unset UWP defaults;
+`SohRmlUiDensity.cpp` owns display scaling and its optional desktop override.
+
 The project is two layers. **zelda** = the N64-asset PC-port engines (the Shipwright family, which
 render the game from N64 assets). **zelda3d** = the 3DS-asset render layer we build *on top of* those
 engines, substituting OoT3D / MM3D (Nintendo 3DS) models, world, animation, camera-math and lighting

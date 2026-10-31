@@ -1,5 +1,5 @@
 #include "SohModals.h"
-#include <cstdlib> // getenv (unattended-run popup auto-resolve)
+#include <cstdlib> // ShipGetEnvironmentVariable(unattended-run popup auto-resolve)
 #include <imgui.h>
 #include <vector>
 #include <string>
@@ -86,9 +86,9 @@ void SohModalWindow::DrawElement() {
 //   - ZELDA3D_HEADLESS=1  -> the project's Xvfb headless marker.
 //   - SOH_HEADLESS=1    -> libultraship's headless marker.
 static bool sohRunIsUnattended() {
-    const char* repl = getenv("ZELDA3D_REPL");
-    const char* a = getenv("ZELDA3D_HEADLESS");
-    const char* b = getenv("SOH_HEADLESS");
+    const char* repl = ShipGetEnvironmentVariable("ZELDA3D_REPL");
+    const char* a = ShipGetEnvironmentVariable("ZELDA3D_HEADLESS");
+    const char* b = ShipGetEnvironmentVariable("SOH_HEADLESS");
     return (repl && repl[0] != '\0') || (a && a[0] == '1') || (b && b[0] == '1');
 }
 

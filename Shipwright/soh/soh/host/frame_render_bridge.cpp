@@ -13,7 +13,7 @@
 #include <libultraship/bridge/gfxdebuggerbridge.h>
 #include <ship/Context.h>
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -27,7 +27,7 @@ extern "C" void Graph_ProcessGfxCommands(Gfx* commands) {
 
     std::vector<std::unordered_map<Mtx*, MtxF>> replacements;
     std::vector<float> interpolationSteps;
-    static const bool kFreezeInterpolation = std::getenv("ZELDA3D_FREEZE_INTERP") != nullptr;
+    static const bool kFreezeInterpolation = ShipGetEnvironmentVariable("ZELDA3D_FREEZE_INTERP") != nullptr;
     const int targetFps = OTRGlobals::Instance->GetInterpolationFPS();
     static int lastFps;
     static int lastUpdateRate;

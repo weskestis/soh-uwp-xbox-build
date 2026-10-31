@@ -426,7 +426,7 @@ def main() -> int:
     ):
         require(token in root_cmake, f"UWP core boundary missing: {token}")
     require(
-        "if(INCLUDE_MPQ_SUPPORT)\n    target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)" in root_cmake,
+        "if(INCLUDE_MPQ_SUPPORT)\n    target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT STORMLIB_NO_AUTO_LINK)" in root_cmake,
         "legacy MPQ support is still forced into the UWP core",
     )
     soh_cmake = (ROOT / "Shipwright/soh/CMakeLists.txt").read_text(encoding="utf-8")

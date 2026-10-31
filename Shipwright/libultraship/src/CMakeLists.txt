@@ -25,7 +25,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 use_props(${PROJECT_NAME} "${CMAKE_CONFIGURATION_TYPES}" "${DEFAULT_CXX_PROPS}")
 if(ZELDA3D_UWP)
     set_target_properties(libultraship PROPERTIES
-        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 endif()
 endif()
 

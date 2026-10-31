@@ -34,7 +34,7 @@ bool CleanupPermissionProbe() {
 } // namespace
 
 bool WindowsInstallValidation::Advance() {
-#ifndef _WIN32
+#if !defined(_WIN32) || defined(ZELDA3D_UWP)
     return true;
 #else
     switch (phase_) {

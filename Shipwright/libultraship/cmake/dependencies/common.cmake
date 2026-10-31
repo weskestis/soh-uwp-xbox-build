@@ -209,10 +209,17 @@ list(APPEND ADDITIONAL_LIB_INCLUDES ${threadpool_SOURCE_DIR}/include)
 
 #=========== prism ===========
 option(PRISM_STANDALONE "Build prism as a standalone library" OFF)
+set(prism_patch_arguments)
+if(ZELDA3D_UWP)
+    list(APPEND prism_patch_arguments PATCH_COMMAND ${CMAKE_COMMAND}
+        -Dpatch_file=${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/prism-store-crt.patch
+        -Dwith_reset=TRUE -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/git-patch.cmake)
+endif()
 FetchContent_Declare(
     prism
     GIT_REPOSITORY https://github.com/KiritoDv/prism-processor.git
     GIT_TAG 1de054450e7b3c5f777d2e3dfcb228ad120c329d
+    ${prism_patch_arguments}
 )
 FetchContent_MakeAvailable(prism)
 

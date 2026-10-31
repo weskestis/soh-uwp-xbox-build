@@ -13,7 +13,7 @@
 
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <string>
 #include <vector>
@@ -63,7 +63,7 @@ void freePrevious() {
 int collisionDivertEnabled() {
     static int v = -1;
     if (v < 0) {
-        const char* e = getenv("ZELDA3D_MM_COLLISION");
+        const char* e = ShipGetEnvironmentVariable("ZELDA3D_MM_COLLISION");
         v = (e != nullptr && e[0] != '\0') ? atoi(e) : 0;
     }
     return v;

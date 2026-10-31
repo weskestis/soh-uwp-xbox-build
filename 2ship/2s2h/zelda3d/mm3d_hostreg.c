@@ -14,14 +14,14 @@
 
 #include "ship/zelda3d_hostiface.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 // Gates per-frame input diagnostics. SoH routes this through its zelda3d logger registry; MM has no
 // such logger, so it gates on an env var, off by default, matching the diagnostic intent.
 static int Mm3d_DbgInputEnabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_MM_DBG_INPUT");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_MM_DBG_INPUT");
         cached = (v != NULL && v[0] != '\0' && v[0] != '0') ? 1 : 0;
     }
     return cached;

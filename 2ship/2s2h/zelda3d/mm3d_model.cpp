@@ -2,7 +2,7 @@
 #include "mm3d_model_store.h"
 
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -133,7 +133,7 @@ void LoadActorModel(int modelId, const ModelSpec& spec, LoadedModel& model) {
 CtrRom* AssetRom() {
     if (!g_romTried) {
         g_romTried = true;
-        const char* path = getenv("ZELDA3D_MM3D_ROM");
+        const char* path = ShipGetEnvironmentVariable("ZELDA3D_MM3D_ROM");
         if (path == nullptr) {
             fprintf(stderr, "[MM3D] ZELDA3D_MM3D_ROM not set — cannot load MM3D assets\n");
             return nullptr;

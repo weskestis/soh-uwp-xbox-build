@@ -1,7 +1,7 @@
 #include "../lighting/zelda3d_lighting.h"
 #include "scene_tint.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 namespace {
 
@@ -11,8 +11,8 @@ void ApplyTintEnvironmentOverrides() {
         return;
     }
 
-    const char* diffuse = std::getenv("ZELDA3D_TINT_DIFF");
-    const char* multiplier = std::getenv("ZELDA3D_TINT_MUL");
+    const char* diffuse = ShipGetEnvironmentVariable("ZELDA3D_TINT_DIFF");
+    const char* multiplier = ShipGetEnvironmentVariable("ZELDA3D_TINT_MUL");
     if (diffuse != nullptr && diffuse[0] != '\0') {
         gZelda3dTintDiff = static_cast<float>(std::atof(diffuse));
     }

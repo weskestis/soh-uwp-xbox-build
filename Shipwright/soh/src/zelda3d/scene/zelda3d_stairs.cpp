@@ -9,7 +9,7 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <vector>
 
@@ -192,7 +192,7 @@ void generateStairsGroup(Zelda3D::CmbDrawGroup& g) {
     outv.reserve(g.verts.size() * 4);
 
     static int stairDbg = -1;
-    if (stairDbg < 0) { const char* e = getenv("ZELDA3D_STAIRDBG"); stairDbg = (e && *e) ? atoi(e) : 0; }
+    if (stairDbg < 0) { const char* e = ShipGetEnvironmentVariable("ZELDA3D_STAIRDBG"); stairDbg = (e && *e) ? atoi(e) : 0; }
 
     for (const std::vector<int>& tris : patches) {
         StairFrame f;
@@ -350,7 +350,7 @@ void ensureStairsEnv() {
     static int envChecked = 0;
     if (!envChecked) {
         envChecked = 1;
-        const char* e = getenv("ZELDA3D_STAIRS");
+        const char* e = ShipGetEnvironmentVariable("ZELDA3D_STAIRS");
         if (e && *e) gZelda3dStairs = atoi(e);
     }
 }

@@ -36,18 +36,22 @@ set(SDL2_INCLUDE_DIRS
     "${ZELDA3D_UWP_DEPS_ARCH}/include/SDL2;${ZELDA3D_UWP_DEPS_ARCH}/include")
 set(SDL2_FOUND TRUE)
 
-# The packaged Mesa opengl32.dll intentionally uses the Windows OpenGL ABI, so
-# the SDK import name is the correct link contract. The app-local DLL supplies
-# the implementation at runtime.
+# Link against the exact app-local Mesa ABI, never the desktop SDK OpenGL lib.
+# tools/ci/fusion_mm_windows.ps1 generates this import library from DLL exports.
+set(zelda3d_uwp_mesa_dll "${ZELDA3D_UWP_DEPS_ARCH}/bin/opengl32.dll")
+set(zelda3d_uwp_mesa_lib "${ZELDA3D_UWP_DEPS_ARCH}/lib/fusion-mesa-opengl32.lib")
+foreach(required_path IN ITEMS "${zelda3d_uwp_mesa_dll}" "${zelda3d_uwp_mesa_lib}")
+    if(NOT EXISTS "${required_path}")
+        message(FATAL_ERROR "Generate the pinned Mesa import library first: ${required_path}")
+    endif()
+endforeach()
 if(NOT TARGET OpenGL::GL)
-    add_library(OpenGL::GL INTERFACE IMPORTED GLOBAL)
-    set_property(TARGET OpenGL::GL PROPERTY INTERFACE_LINK_LIBRARIES opengl32)
+    add_library(OpenGL::GL SHARED IMPORTED GLOBAL)
+    set_target_properties(OpenGL::GL PROPERTIES
+        IMPORTED_LOCATION "${zelda3d_uwp_mesa_dll}"
+        IMPORTED_IMPLIB "${zelda3d_uwp_mesa_lib}")
 endif()
 set(OpenGL_FOUND TRUE)
 set(OPENGL_FOUND TRUE)
-set(OPENGL_gl_LIBRARY opengl32)
-
-# Fast3D's Windows OpenGL path uses GLEW for extension entry points.  Keep it a
-# static vcpkg dependency inside the core DLL; Mesa's app-local opengl32.dll is
-# still the runtime implementation supplied by the UWP dependency depot.
-find_package(GLEW CONFIG REQUIRED)
+set(OPENGL_gl_LIBRARY "${zelda3d_uwp_mesa_lib}")
+include(${CMAKE_CURRENT_LIST_DIR}/Zelda3DUwpGlew.cmake)

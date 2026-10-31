@@ -33,7 +33,7 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "iOS")
 endif()
 
 if (ZELDA3D_WINDOWS_FAMILY)
-    if(CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
+    if(ZELDA3D_UWP OR CMAKE_SYSTEM_NAME STREQUAL "WindowsStore")
         set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     else()
 	    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

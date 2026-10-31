@@ -37,7 +37,7 @@
 #include <set>
 #include <functional>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <filesystem>
 #include <memory>
@@ -143,11 +143,11 @@ static std::string resolveAssetSourcePath() {
     // An explicit override is authoritative: a typo must be reported rather than silently loading
     // a different source from a search directory. Prefer the extracted-directory override because
     // retail cartridge images are commonly encrypted even when their RomFS has already been dumped.
-    const char* romfsOverride = getenv("ZELDA3D_OOT3D_ROMFS");
+    const char* romfsOverride = ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROMFS");
     if (romfsOverride != nullptr && *romfsOverride != '\0') {
         return romfsOverride;
     }
-    const char* overridePath = getenv("ZELDA3D_OOT3D_ROM");
+    const char* overridePath = ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROM");
     if (overridePath != nullptr && *overridePath != '\0') {
         return overridePath;
     }

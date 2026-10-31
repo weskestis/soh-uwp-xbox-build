@@ -29,7 +29,7 @@
 #include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 // Unique id for blocking game input while the RML menu is open (sequence continues the existing
 // *_BLOCK_ID constants in gfx_dxgi.cpp / InputEditorWindow.cpp). Without this, SoH polls the
@@ -325,7 +325,7 @@ bool SohRmlUi::Init(void* sdlWindow, void* glContext, int width, int height, boo
     Zelda3DRmlUiRegistry::Attach(this);
     // Debug: open the menu at startup (deterministic verification via the screenshot harness, no
     // input injection needed). Normal use opens it with ESC / the Start button.
-    if (const char* e = std::getenv("ZELDA3D_RMLUI_OPEN"); e && e[0] == '1') {
+    if (const char* e = ShipGetEnvironmentVariable("ZELDA3D_RMLUI_OPEN"); e && e[0] == '1') {
         SetVisible(true);
     }
     // The launcher is NOT shown from here. It used to be, and that was the bug: showing the
@@ -1079,34 +1079,6 @@ bool SohRmlUi::ProcessSdlEvent(void* sdlEvent) {
             return true;
         default:
             return false;
-    }
-}
-
-void SohRmlUi::ApplyDensityRatio() {
-    if (!mContext || !mSdlWindow) {
-        return;
-    }
-    // SDL3 reports the display content scale (1.0 on a 96-dpi monitor, 1.5/2.0 on HiDPI / fractional
-    // scaling). RmlUi multiplies every `dp` unit by this ratio, so the sheet — authored in dp — renders
-    // at a consistent physical size across displays. A debug override lets the headless harness verify
-    // the scaling math (the Xvfb display always reports 1.0).
-#ifdef ZELDA3D_USE_SDL2
-    float scale = 1.0f;
-#else
-    float scale = SDL_GetWindowDisplayScale(static_cast<SDL_Window*>(mSdlWindow));
-#endif
-    if (const char* e = std::getenv("ZELDA3D_RML_DPI")) {
-        float v = (float)atof(e);
-        if (v > 0.0f) {
-            scale = v;
-        }
-    }
-    if (!(scale > 0.0f)) {
-        scale = 1.0f;
-    }
-    if (scale != mDpRatio) {
-        mDpRatio = scale;
-        mContext->SetDensityIndependentPixelRatio(scale);
     }
 }
 

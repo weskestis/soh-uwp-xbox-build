@@ -1,6 +1,6 @@
 #include "cmb_glgroups.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstdio>
 #include <cstring>
 
@@ -246,7 +246,7 @@ Zelda3DGlGroup MakeGlGroup(const Cmb& cmb, const CmbDrawGroup& g, const CmbVerte
     cg.uv2Trans[0] = mat ? mat->trans2_s : 0.0f;
     cg.uv2Trans[1] = mat ? mat->trans2_t : 0.0f;
     cg.coord2Mapping = mat ? mat->coord2_mapping : 1;
-    if (getenv("ZELDA3D_DBG_MAT")) {
+    if (ShipGetEnvironmentVariable("ZELDA3D_DBG_MAT")) {
         fprintf(stderr,
                 "[MAT] mi=%d vlit=%d comb=%.1f amb=(%.2f,%.2f,%.2f) dif=(%.2f,%.2f,%.2f) "
                 "constIdx=%d const%d=(%.2f,%.2f,%.2f,%.2f)\n",

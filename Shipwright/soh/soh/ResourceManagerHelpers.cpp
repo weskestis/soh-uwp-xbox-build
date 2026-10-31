@@ -1,4 +1,5 @@
 #include "soh/OTRGlobals.h"
+#include "ship/utils/Environment.h"
 #include "ResourceManagerHelpers.h"
 
 #include "soh/host/archive_extension_cache.h"
@@ -542,7 +543,7 @@ extern "C" int ResourceMgr_OTRSigCheck(char* imgData) {
 // which is the value ASAN says lands in a freed file buffer. A line that printed only "resolved ok"
 // could not distinguish any of those cases.
 static void Zelda3D_LogAnimResolution(const char* path, const char* branch, const void* result) {
-    static const bool kLog = getenv("ZELDA3D_ANIMTYPE_LOG") != nullptr;
+    static const bool kLog = ShipGetEnvironmentVariable("ZELDA3D_ANIMTYPE_LOG") != nullptr;
     if (!kLog) {
         return;
     }

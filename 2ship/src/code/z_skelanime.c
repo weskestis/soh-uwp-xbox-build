@@ -1,4 +1,4 @@
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 #include "global.h"
 #include "BenPort.h"
 #include <string.h>
@@ -241,7 +241,7 @@ void SkelAnime_DrawFlexLod(PlayState* play, void** skeleton, Vec3s* jointTable, 
         static s32 sLastCount = -1;
         static const char* sSkelLog = NULL;
         if (sSkelLog == NULL) {
-            sSkelLog = getenv("ZELDA3D_SKELLOG") ? "1" : "0";
+            sSkelLog = ShipGetEnvironmentVariable("ZELDA3D_SKELLOG") ? "1" : "0";
         }
         sSkelCalls++;
         if (sSkelLog[0] == '1') {

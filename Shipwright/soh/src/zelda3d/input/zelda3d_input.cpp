@@ -14,7 +14,7 @@
 #include "ship/Context.h"                            // #20 keyboard-inject verification shim
 #include "ship/controller/controldeck/ControlDeck.h" // #20 ProcessKeyboardEvent path
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstdio>
 
 // ---------------------------------------------------------------------------------------------
@@ -47,7 +47,7 @@ int Zelda3D_InjectKey(int scancode, int down) {
 int gZelda3dXboxBtn = -1;
 int Zelda3D_XboxBtnEnabled(void) {
     if (gZelda3dXboxBtn < 0) {
-        const char* v = getenv("ZELDA3D_XBOXUI");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_XBOXUI");
         gZelda3dXboxBtn = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     return gZelda3dXboxBtn;
@@ -68,7 +68,7 @@ int Zelda3D_XboxBtnEnabled(void) {
 // never read. ZELDA3D_INPUTDEV silently lost that race. Resolving it at a known point removes the
 // race and the sentinel together.
 void Zelda3D_InputDeviceInit(void) {
-    const char* v = getenv("ZELDA3D_INPUTDEV");
+    const char* v = ShipGetEnvironmentVariable("ZELDA3D_INPUTDEV");
     // Default to keyboard (1) when no env set so the headless game shows keyboard glyphs without
     // requiring a connected gamepad. (A real gamepad event flips it to 0 instantly.)
     gZelda3dInputDevice = (v != NULL && v[0] == '0') ? 0 : 1;
@@ -179,7 +179,7 @@ void Zelda3D_WalkInject(PlayState* play) {
 
     // #16 FP_REPRO: deterministically engage first-person right as the cold scene-load settles.
     if (gZelda3dFpRepro < 0) {
-        const char* e = getenv("ZELDA3D_FP_REPRO");
+        const char* e = ShipGetEnvironmentVariable("ZELDA3D_FP_REPRO");
         gZelda3dFpRepro = (e != NULL && atoi(e) != 0) ? 1 : 0;
     }
     if (gZelda3dFpRepro) {

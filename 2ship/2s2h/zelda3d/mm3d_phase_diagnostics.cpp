@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <map>
 #include <set>
 #include <string>
@@ -28,7 +28,7 @@ std::map<std::pair<int, std::string>, PhaseStat> g_phaseStats;
 bool PhaseReportEnabled() {
     static int enabled = -1;
     if (enabled < 0) {
-        const char* value = getenv("ZELDA3D_MM_PHASE_REPORT");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_MM_PHASE_REPORT");
         enabled = value != nullptr && value[0] != '\0' && value[0] != '0';
         if (enabled) {
             atexit(DumpAndClearAnimationPhases);

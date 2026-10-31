@@ -2,7 +2,7 @@
 #include "mm3d_pending_draw.h"
 
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <unordered_map>
 
 #include "global.h"
@@ -28,7 +28,7 @@ void ClearPending() {
 void LogSkinnedDraw(const char* csab) {
     static int enabled = -1;
     if (enabled < 0) {
-        const char* value = getenv("ZELDA3D_MM_DBG_SKIN");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_MM_DBG_SKIN");
         enabled = value != nullptr && value[0] != '\0' && value[0] != '0';
     }
     if (!enabled) {
@@ -91,7 +91,7 @@ void Zelda3D_MM_OverridePending(float worldScale, float groundOffset) {
 
     static int logEnabled = -1;
     if (logEnabled < 0) {
-        const char* value = getenv("ZELDA3D_MM_SCALE_LOG");
+        const char* value = ShipGetEnvironmentVariable("ZELDA3D_MM_SCALE_LOG");
         logEnabled = value != nullptr && value[0] != '\0' && value[0] != '0';
     }
     if (logEnabled) {

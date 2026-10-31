@@ -8,7 +8,7 @@
 #include "terrain_alignment_render.h"
 #include "functions/collision.h"
 
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 
 PlayState* sWarpPlay = NULL;
 
@@ -18,7 +18,7 @@ void Zelda3D_TerrainAlignmentResetRunState(void) {
 static int Zelda3D_TerrainWarpEnabled(void) {
     static int cached = -1;
     if (cached < 0) {
-        const char* v = getenv("ZELDA3D_TERRAIN_WARP");
+        const char* v = ShipGetEnvironmentVariable("ZELDA3D_TERRAIN_WARP");
         cached = (v != NULL && v[0] == '0') ? 0 : 1; // default ON
     }
     if (!cached || !gZelda3dTerrainWarp) {

@@ -9,7 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <unordered_map>
 
@@ -56,15 +56,15 @@ void SeedIsolationControls() {
     if (seeded)
         return;
     seeded = true;
-    if (const char* value = std::getenv("ZELDA3D_SG_DRAWONLY"))
+    if (const char* value = ShipGetEnvironmentVariable("ZELDA3D_SG_DRAWONLY"))
         gZelda3dSgDrawOnly = std::atoi(value);
-    if (const char* value = std::getenv("ZELDA3D_SG_DRAWSKIP"))
+    if (const char* value = ShipGetEnvironmentVariable("ZELDA3D_SG_DRAWSKIP"))
         gZelda3dSgDrawSkip = std::atoi(value);
-    if (const char* value = std::getenv("ZELDA3D_SG_DRAWSKIP_AFTER"))
+    if (const char* value = ShipGetEnvironmentVariable("ZELDA3D_SG_DRAWSKIP_AFTER"))
         gZelda3dSgDrawSkipAfter = std::atoi(value);
-    if (const char* value = std::getenv("ZELDA3D_SG_MODELONLY"))
+    if (const char* value = ShipGetEnvironmentVariable("ZELDA3D_SG_MODELONLY"))
         gZelda3dSgModelOnly = std::atoi(value);
-    if (const char* value = std::getenv("ZELDA3D_SG_DRAWLIST"))
+    if (const char* value = ShipGetEnvironmentVariable("ZELDA3D_SG_DRAWLIST"))
         gZelda3dSgDrawList = value[0] != '0';
 }
 
@@ -344,7 +344,7 @@ void DrawModel(int modelId, const float* modelProjection, const float* modelView
     glDisable(GL_POLYGON_OFFSET_FILL);
 
     if (gZelda3dFaceCull < 0) {
-        const char* setting = std::getenv("ZELDA3D_FACECULL");
+        const char* setting = ShipGetEnvironmentVariable("ZELDA3D_FACECULL");
         gZelda3dFaceCull = setting != nullptr && setting[0] == '0' ? 0 : 1;
     }
     const bool forceBlend = alpha < 255;
@@ -379,7 +379,7 @@ void DrawModel(int modelId, const float* modelProjection, const float* modelView
             ubo.uTintSkin[1] = 0.0f;
             ubo.uTintSkin[2] = 0.0f;
         }
-        if (const char* selected = std::getenv("ZELDA3D_SG_FRAGDBG_DRAW"))
+        if (const char* selected = ShipGetEnvironmentVariable("ZELDA3D_SG_FRAGDBG_DRAW"))
             ubo.uDebug[0] = std::atoi(selected) == drawIndex ? 1.0f : 0.0f;
         glBindBuffer(GL_UNIFORM_BUFFER, state.commonUbo);
         glBufferSubData(GL_UNIFORM_BUFFER, 0, Zelda3DSg::kCommonBytes, &ubo);

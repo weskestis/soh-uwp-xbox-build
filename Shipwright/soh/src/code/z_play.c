@@ -20,7 +20,7 @@
 
 #include <time.h>
 #include <assert.h>
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 TransitionUnk sTrnsnUnk;
 s32 gTrnsnUnkState;
@@ -598,7 +598,7 @@ void Play_Init(GameState* thisx) {
     // — world geometry was already bit-exact once frame_count/interp were pinned; only Link's own
     // RNG-driven pose still differed). Pin the seed for test captures the same way.
     {
-        const char* freezeRand = getenv("ZELDA3D_FREEZE_RAND_SEED");
+        const char* freezeRand = ShipGetEnvironmentVariable("ZELDA3D_FREEZE_RAND_SEED");
         Rand_Seed(freezeRand != NULL ? (u32)strtoul(freezeRand, NULL, 0) : (u32)osGetTime());
     }
     Matrix_Init(&play->state);

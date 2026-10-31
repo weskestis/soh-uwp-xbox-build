@@ -1,0 +1,12 @@
+--- a/builds/windows/ftsystem.c
++++ b/builds/windows/ftsystem.c
+@@ -197,7 +197,8 @@
+ 
+ 
+   /* support for Universal Windows Platform UWP, formerly WinRT */
+-#ifdef _WINRT_DLL
++#if defined( _WINRT_DLL ) || ( defined( WINAPI_FAMILY ) && \
++                              WINAPI_FAMILY == WINAPI_FAMILY_APP )
+ 
+ #define PACK_DWORD64( hi, lo )  ( ( (DWORD64)(hi) << 32 ) | (DWORD)(lo) )
+ 

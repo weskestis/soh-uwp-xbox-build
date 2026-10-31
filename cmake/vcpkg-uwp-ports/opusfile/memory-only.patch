@@ -1,0 +1,134 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -13,6 +13,7 @@
+   LANGUAGES C
+ )
+ 
++option(OP_DISABLE_FILE_IO "Omit file helpers; retain memory and callback decoding" OFF)
+ option(OP_DISABLE_HTTP "Disable HTTP support" OFF)
+ option(OP_DISABLE_FLOAT_API "Disable floating-point API" OFF)
+ option(OP_FIXED_POINT "Enable fixed-point calculation" OFF)
+@@ -77,6 +78,8 @@
+     $<$<C_COMPILER_ID:Clang,GNU>:-fvisibility=hidden>
+ )
+ target_compile_definitions(opusfile
++  PUBLIC
++    $<$<BOOL:${OP_DISABLE_FILE_IO}>:OP_DISABLE_FILE_IO>
+   PRIVATE
+     $<$<BOOL:${OP_DISABLE_FLOAT_API}>:OP_DISABLE_FLOAT_API>
+     $<$<BOOL:${OP_FIXED_POINT}>:OP_FIXED_POINT>
+--- a/src/stream.c
++++ b/src/stream.c
+@@ -24,7 +24,7 @@
+ #include <stdlib.h>
+ #include <errno.h>
+ #include <string.h>
+-#if defined(_WIN32)
++#if defined(_WIN32) && !defined(OP_DISABLE_FILE_IO)
+ # include <io.h>
+ #endif
+ 
+@@ -49,6 +49,7 @@
+   ptrdiff_t            pos;
+ };
+ 
++#ifndef OP_DISABLE_FILE_IO
+ static int op_fread(void *_stream,unsigned char *_ptr,int _buf_size){
+   FILE   *stream;
+   size_t  ret;
+@@ -332,6 +333,8 @@
+   return fp;
+ }
+ 
++#endif /* OP_DISABLE_FILE_IO */
++
+ static int op_mem_read(void *_stream,unsigned char *_ptr,int _buf_size){
+   OpusMemStream *stream;
+   ptrdiff_t      size;
+--- a/src/opusfile.c
++++ b/src/opusfile.c
+@@ -1649,10 +1649,12 @@
+   return of;
+ }
+ 
++#ifndef OP_DISABLE_FILE_IO
+ OggOpusFile *op_open_file(const char *_path,int *_error){
+   OpusFileCallbacks cb;
+   return op_open_close_on_failure(op_fopen(&cb,_path,"rb"),&cb,_error);
+ }
++#endif
+ 
+ OggOpusFile *op_open_memory(const unsigned char *_data,size_t _size,
+  int *_error){
+@@ -1675,10 +1677,12 @@
+   return of;
+ }
+ 
++#ifndef OP_DISABLE_FILE_IO
+ OggOpusFile *op_test_file(const char *_path,int *_error){
+   OpusFileCallbacks cb;
+   return op_test_close_on_failure(op_fopen(&cb,_path,"rb"),&cb,_error);
+ }
++#endif
+ 
+ OggOpusFile *op_test_memory(const unsigned char *_data,size_t _size,
+  int *_error){
+--- a/include/opusfile.h
++++ b/include/opusfile.h
+@@ -930,9 +930,11 @@
+    \param      _mode The mode to open the file in.
+    \return A stream handle to use with the callbacks, or <code>NULL</code> on
+             error.*/
++#ifndef OP_DISABLE_FILE_IO
+ OP_WARN_UNUSED_RESULT void *op_fopen(OpusFileCallbacks *_cb,
+  const char *_path,const char *_mode) OP_ARG_NONNULL(1) OP_ARG_NONNULL(2)
+  OP_ARG_NONNULL(3);
++#endif
+ 
+ /**Opens a stream with <code>fdopen()</code> and fills in a set of callbacks
+     that can be used to access it.
+@@ -947,8 +949,10 @@
+    \param      _mode The mode to open the file in.
+    \return A stream handle to use with the callbacks, or <code>NULL</code> on
+             error.*/
++#ifndef OP_DISABLE_FILE_IO
+ OP_WARN_UNUSED_RESULT void *op_fdopen(OpusFileCallbacks *_cb,
+  int _fd,const char *_mode) OP_ARG_NONNULL(1) OP_ARG_NONNULL(3);
++#endif
+ 
+ /**Opens a stream with <code>freopen()</code> and fills in a set of callbacks
+     that can be used to access it.
+@@ -969,9 +973,11 @@
+                         or op_freopen().
+    \return A stream handle to use with the callbacks, or <code>NULL</code> on
+             error.*/
++#ifndef OP_DISABLE_FILE_IO
+ OP_WARN_UNUSED_RESULT void *op_freopen(OpusFileCallbacks *_cb,
+  const char *_path,const char *_mode,void *_stream) OP_ARG_NONNULL(1)
+  OP_ARG_NONNULL(2) OP_ARG_NONNULL(3) OP_ARG_NONNULL(4);
++#endif
+ 
+ /**Creates a stream that reads from the given block of memory.
+    This block of memory must contain the complete stream to decode.
+@@ -1089,8 +1095,10 @@
+                        be opened, or one of the other failure codes from
+                        op_open_callbacks() otherwise.
+    \return A freshly opened \c OggOpusFile, or <code>NULL</code> on error.*/
++#ifndef OP_DISABLE_FILE_IO
+ OP_WARN_UNUSED_RESULT OggOpusFile *op_open_file(const char *_path,int *_error)
+  OP_ARG_NONNULL(1);
++#endif
+ 
+ /**Open a stream from a memory buffer.
+    \param      _data  The memory buffer to open.
+@@ -1240,8 +1248,10 @@
+                        be opened, or one of the other failure codes from
+                        op_open_callbacks() otherwise.
+    \return A partially opened \c OggOpusFile, or <code>NULL</code> on error.*/
++#ifndef OP_DISABLE_FILE_IO
+ OP_WARN_UNUSED_RESULT OggOpusFile *op_test_file(const char *_path,int *_error)
+  OP_ARG_NONNULL(1);
++#endif
+ 
+ /**Partially open a stream from a memory buffer.
+    \see op_test_callbacks

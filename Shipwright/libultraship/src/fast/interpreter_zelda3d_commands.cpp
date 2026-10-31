@@ -7,7 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <cstring>
 #include <limits>
 #include <list>
@@ -108,7 +108,7 @@ bool gfx_zelda3d_draw_handler_custom(F3DGfx** cmd0) {
     if (screenSpace) {
         static int sDbgOverlayMp = -1;
         if (sDbgOverlayMp < 0) {
-            const char* v = getenv("ZELDA3D_DBG_OVERLAY_MP");
+            const char* v = ShipGetEnvironmentVariable("ZELDA3D_DBG_OVERLAY_MP");
             sDbgOverlayMp = (v && *v == '1') ? 1 : 0;
         }
         if (sDbgOverlayMp) {

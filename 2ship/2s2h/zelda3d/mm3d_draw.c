@@ -12,7 +12,7 @@
 
 #include <fast/zelda3d_pose.h>
 #include <stdio.h>  // fprintf (bring-up diagnostic)
-#include <stdlib.h> // getenv, atoi
+#include "ship/utils/Environment.h"
 #include "global.h" // Actor, PlayState, POLY_OPA_DISP, Matrix_*, Gfx_SetupDL25_Opa, gSPZelda3DDraw
 
 static void Zelda3D_EmitModelDraw(PlayState* play, Actor* actor, int modelId, float worldScale, float groundOffset) {
@@ -147,7 +147,7 @@ int Zelda3D_MM_InterceptSkelAnime(PlayState* play, Actor* actor, void** skeleton
                 {
                     static int sT = -1;
                     if (sT < 0) {
-                        const char* e = getenv("ZELDA3D_MM_SCALE_LOG");
+                        const char* e = ShipGetEnvironmentVariable("ZELDA3D_MM_SCALE_LOG");
                         sT = (e != NULL && e[0] != '\0' && e[0] != '0') ? 1 : 0;
                     }
                     if (sT) {
@@ -242,7 +242,7 @@ int Zelda3D_TryDrawActor(PlayState* play, Actor* actor) {
 static int mmSceneDivertEnabled(void) {
     static int v = -1;
     if (v < 0) {
-        const char* e = getenv("ZELDA3D_MM_SCENE");
+        const char* e = ShipGetEnvironmentVariable("ZELDA3D_MM_SCENE");
         v = (e != NULL && e[0] != '\0') ? atoi(e) : 1; // 0=off, 1=draw, 2=skip-only
     }
     return v;
@@ -301,7 +301,7 @@ int Zelda3D_TryDrawRoom(PlayState* play, Room* room) {
     {
         static int rotMode = -1;
         if (rotMode < 0) {
-            const char* e = getenv("ZELDA3D_MM_SCENE_ROT");
+            const char* e = ShipGetEnvironmentVariable("ZELDA3D_MM_SCENE_ROT");
             rotMode = (e != NULL && e[0] != '\0') ? atoi(e) : 0;
         }
         if (rotMode == 1) {

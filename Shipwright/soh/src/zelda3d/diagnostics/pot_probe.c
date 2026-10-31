@@ -2,10 +2,10 @@
 #include "functions/actors.h"
 #include "functions/math.h"
 
-#include <stdlib.h>
+#include "ship/utils/Environment.h"
 
 void Zelda3D_DebugDrawPot(PlayState* play) {
-    const char* value = getenv("ZELDA3D_SPAWNPOT");
+    const char* value = ShipGetEnvironmentVariable("ZELDA3D_SPAWNPOT");
     static unsigned char spawned = 0;
 
     if (value != NULL && value[0] == '1' && !spawned) {

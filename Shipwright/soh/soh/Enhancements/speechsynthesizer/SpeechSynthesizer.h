@@ -37,7 +37,7 @@ class SpeechSynthesizer {
 
 #endif /* SpeechSynthesizer_h */
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 #include "SAPISpeechSynthesizer.h"
 #elif defined(__APPLE__)
 #include "DarwinSpeechSynthesizer.h"

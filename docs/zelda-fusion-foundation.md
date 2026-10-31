@@ -34,6 +34,19 @@ and the final unpacked-package audit requires the exact Fusion name and signing 
 
 ## Current checkpoint
 
+The next native candidate migrates **both** cores from desktop `/MT` to dynamic Store CRT.
+`cmake/Zelda3DUwpRuntime.cmake` applies the previously proven native C++20 Store properties to
+all compiled targets after legacy overrides, selects SDK 19041, disables C++/CX per source, and
+replaces desktop default libraries with WindowsApp. Dependencies use genuine
+`x64-uwp-static-md` builds. FreeType's API-family guard and OpusFile's memory-only surface have
+reviewed pinned overlays; GLEW uses the exact bundled Mesa exports. The four `_DLL` header hacks
+are removed, desktop SAPI/install-directory probes are excluded, and UWP environment overrides
+use existing unset defaults. Host contracts pass. **Native Store core compilation/link validation
+is still pending**; the old `/MT` DLL and isolated probe results below are historical evidence,
+not a validation of this migration. The old OoT-only package retry scripts remain unmigrated and
+must not be used to package this candidate or reuse its obsolete preserved core.
+
+
 Implemented here: independent package identity, branding, signing defaults, rejection of legacy
 identities, and a pair-aware DLL routing/validation boundary. `uwp/core_bootstrap.*` now accepts only
 the following requested game routes:

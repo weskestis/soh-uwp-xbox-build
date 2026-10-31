@@ -12,7 +12,7 @@
 #include "host/texture_cache_bridge.h"
 #include "host/window_session.h"
 #include "port/core_boot_error.h"
-#include <cstdlib>
+#include "ship/utils/Environment.h"
 #include <algorithm>
 #include <atomic>
 #include <filesystem>
@@ -561,7 +561,7 @@ extern "C" int InitOTR(int argc, char* argv[]) {
         // moving the user's ROMs around -- so without this hook the return-instead-of-exit contract
         // would ship untested, which is how it silently reverts to exit() the next time someone
         // touches the boot chain. tools/zelda3d_sequence.sh --bootfail drives it.
-        if (const char* e = std::getenv("ZELDA3D_BOOTFAIL_TEST"); e != nullptr && e[0] == '1') {
+        if (const char* e = ShipGetEnvironmentVariable("ZELDA3D_BOOTFAIL_TEST"); e != nullptr && e[0] == '1') {
             throw Zelda3D::CoreBootError("ZELDA3D_BOOTFAIL_TEST=1 -- deliberate failure, exercising the "
                                          "return-to-launcher path");
         }
@@ -613,7 +613,7 @@ extern "C" int InitOTR(int argc, char* argv[]) {
 #ifdef __APPLE__
         ReplacePerRunSingleton(SpeechSynthesizer::Instance, "SpeechSynthesizer");
         SpeechSynthesizer::Instance = new DarwinSpeechSynthesizer();
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(ZELDA3D_UWP)
         ReplacePerRunSingleton(SpeechSynthesizer::Instance, "SpeechSynthesizer");
         SpeechSynthesizer::Instance = new SAPISpeechSynthesizer();
 #elif ESPEAK
@@ -661,7 +661,7 @@ extern "C" int InitOTR(int argc, char* argv[]) {
         // actor draw distance well past the N64 cull, and stop culling actors at the widescreen
         // edges. Aspect ratio already follows the window when unset, so it needs no override. Gated
         // on SOH3D mode (set by run.sh) so a plain SoH build is untouched.
-        if (getenv("SOH3D") != nullptr && CVarGetInteger(CVAR_GENERAL("Zelda3DDefaults"), 0) < 1) {
+        if (ShipGetEnvironmentVariable("SOH3D") != nullptr && CVarGetInteger(CVAR_GENERAL("Zelda3DDefaults"), 0) < 1) {
             CVarSetInteger(CVAR_SETTING("MatchRefreshRate"), 1);           // FPS follows monitor refresh
             CVarSetInteger(CVAR_ENHANCEMENT("DisableDrawDistance"), 20);   // 20x actor forward draw/cull range
             CVarSetInteger(CVAR_ENHANCEMENT("WidescreenActorCulling"), 1); // don't cull at widescreen X edges
