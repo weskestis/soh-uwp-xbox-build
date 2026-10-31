@@ -121,10 +121,18 @@ FetchContent_MakeAvailable(lunasvg)
 set(rmlui_saved_build_shared_libs "${BUILD_SHARED_LIBS}")
 set(BUILD_SHARED_LIBS OFF)
 
+set(rmlui_patch_arguments)
+if(ZELDA3D_UWP)
+    # The default assertion logger must use OutputDebugString, not MessageBox.
+    list(APPEND rmlui_patch_arguments PATCH_COMMAND ${CMAKE_COMMAND}
+        -Dpatch_file=${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/patches/rmlui-log-uwp.patch
+        -Dwith_reset=TRUE -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/dependencies/git-patch.cmake)
+endif()
 FetchContent_Declare(
     RmlUi
     GIT_REPOSITORY https://github.com/mikke89/RmlUi.git
     GIT_TAG 6.2
+    ${rmlui_patch_arguments}
 )
 FetchContent_MakeAvailable(RmlUi)
 

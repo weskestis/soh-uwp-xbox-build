@@ -165,7 +165,8 @@ and `SDL_free` releases it. MM creates its file logger before archive validation
 so the existing boot-error catch can record missing/incompatible archives under LocalState.
 `ReleaseLogger.h` makes UWP logging synchronous; desktop Release keeps its asynchronous logger.
 The native logger test writes through this factory and exits immediately without destructors,
-requiring caller-thread delivery and the complete error on disk. Its native execution is pending.
+requiring caller-thread delivery and the complete error on disk. Its native execution passed
+in the startup follow-up run recorded below.
 The package audit now rejects `mm.o2r`, including nested/case-varied names, alongside OoT data.
 
 `tools/test_uwp_core_imports.py` passes nine tests. The real `dumpbin /imports` gate rejects known
@@ -182,6 +183,12 @@ in `early-error.log` after exit 23. MM compilation exposed `Context.cpp` includi
 before `windows.h`, formerly masked by CrashHandler's transitive Windows include. The Windows SDK
 umbrella header now precedes its specialized headers in Context and SDL2; native rerun pending.
 
+Run [41229086328](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41229086328), source
+`20ff1fe`, passes the full MM compile/link and immediate-exit logger test. The stricter import audit
+correctly fails on one remaining desktop function: `USER32!MessageBoxA`, in RmlUi 6.2's default
+assertion logger. Its new UWP-only patch keeps `OutputDebugStringA` and excludes the dialog;
+native follow-up pending. DbgHelp, Shell32 and Imm32 are already absent in this DLL.
+
 **Newly confirmed delivery blocker:** the existing normal-Windows core and vcpkg profile use
 `/MT`. Microsoft's [UWP CRT guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/windows-store-apps-the-windows-runtime-and-the-c-run-time?view=msvc-170)
 excludes UWP apps and DLLs statically linked to the CRT. The supported migration requires a
@@ -195,7 +202,7 @@ normal-Windows CMake, MSBuild Store project properties, `/MD`, `WINAPI_FAMILY_AP
 `/APPCONTAINER`, and `/WINMD:NO`. Its DLL exercises strings, exceptions, threading and absolute-path
 filesystem/stream code. The separate `fusion-uwp-runtime-probe.yml` preserves verbose library paths,
 imports, exports and PE headers; its audit requires actual Store CRT library paths and `_app` CRT
-imports. Native results are pending. The two host audit tests reject six forms of missing/desktop
+imports. The passing native rerun is recorded below. The two host audit tests reject six forms of missing/desktop
 evidence and explicitly leave execution/game migration unverified.
 
 The first native probe (run 41228533033, source `e04804b`) configured but exposed Store props
@@ -213,6 +220,9 @@ Migration still needs reviewed UWP dependency builds: pinned OpusFile and GLEW/O
 UWP unsupported; FreeType's existing UWP file mapping branch needs appropriate selection; libzip
 must use its WindowsStore `CreateFile2` path. The shared texture interpreter also has a desktop-only
 `GetModuleHandleExA` image-address check. Replacing `/MT` alone would leave those API issues intact.
+The three archive headers also undefine `_DLL` before including STL headers; that must be removed
+or replaced with the dependency's own static-link definitions during the `/MD` migration. Root,
+libultraship, OoT and MM CMake files all select CRT settings, so a root-only change is insufficient.
 
 `python3 tools/test_uwp_package_contract.py`: **19/19 PASS** on 2026-10-31. The tests populate the
 checked-in manifest from its CMake defaults, accept Fusion and later Fusion versions, reject four
@@ -235,7 +245,7 @@ The changed-source size/no-growth checks pass; `BenPort.cpp` was reduced to 1,98
 legacy ceiling reduced with it. The broader source-structure unit suite has one unchanged baseline
 failure (`SohRmlUi.cpp` is 1,228 lines against 1,200); it is not a regression from this port.
 
-`tools/codemap.py check` reports the same 23 missing external/pre-existing paths as the unmodified
+`tools/codemap.py check` reports the same 22 missing external/pre-existing paths as the unmodified
 baseline (including optional decomp submodules); this change introduces zero missing references.
 
 Physical acceptance is pending: install alongside a prior build, create distinct settings/saves
