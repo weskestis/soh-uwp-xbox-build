@@ -24,7 +24,8 @@ UWP-only patches under `Shipwright/libultraship/cmake/dependencies/patches/` ada
 and RmlUi loading/window/dialog code; `common.cmake` applies them only for the Xbox profile.
 
 `tools/uwp_runtime_probe/` optionally links the production Store FreeType overlay and keeps real
-font initialization/property calls in a separate exported entry. The native audit checks that entry,
+font initialization/property calls in a separate exported entry (native link/audit passed in run
+41239812609). The native audit checks that entry,
 the actual UWP FreeType library path, generated options, and absence of unsupported environment
 imports. Its workflow also records the exact pinned dependency/framework inventories.
 
@@ -42,7 +43,8 @@ overlays. `Zelda3DUwpGlew.cmake` builds GLEW against an import library generated
 pinned Mesa DLL; `tools/uwp_store_build.py` checks generated projects and final link evidence.
 The Fusion workflow builds both game cores independently and preserves an active compile when a
 new candidate queues. MM Store linking passed in run 41236909295; OoT and the subsequent FreeType
-environment correction remain under validation. The FreeType overlay selects the upstream no-op
+full-core environment correction remain under validation. The independent native FreeType
+link/audit probe passed in run 41239812609. The FreeType overlay selects the upstream no-op
 environment-properties implementation only for WindowsStore; the import audit rejects unsupported
 CRT environment functions even behind API-set DLL names.
 `tools/uwp_logger_host/` keeps the immediate-exit logger test in a separate desktop process.
@@ -488,3 +490,10 @@ names and prose may use either. No renames are done:
 
 Prose uses the clean taxonomy (zelda / zelda3d · soh / soh3d · 2ship / 2ship3d); code keeps `2s2h`,
 `mm`, `mm3d_*`, `zelda3d_*`. `2ship`≡`2s2h` and `2ship3d`≡`mm3d` are interchangeable.
+
+Fusion wrapper activation belongs to SDL_WinRTRunApp; the pinned SDL2/Mesa bridge does not use
+libuwp's separate window cache. `uwp/main.cpp` no longer calls that helper and the package graph
+excludes the unused DLL. Native UWP activation remains `uwp.App`; the manifest omits desktop
+`runFullTrust` and Xbox-unsupported `broadFileSystemAccess` capabilities. Package-scoped storage
+and Xbox `expandedResources` are retained. The wrapper explicitly selects SDK19041, /MD and native
+C++20 metadata with `UwpNativeCpp.props`. Native wrapper/MakeAppx validation is still pending.

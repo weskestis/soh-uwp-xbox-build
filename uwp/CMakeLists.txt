@@ -13,12 +13,16 @@ endif()
 if(NOT CMAKE_VS_PLATFORM_NAME STREQUAL "x64")
     message(FATAL_ERROR "The Xbox Device Portal target is x64; configure with -A x64.")
 endif()
+if(NOT CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION STREQUAL "10.0.19041.0")
+    message(FATAL_ERROR "Select -A x64,version=10.0.19041.0 for the Fusion wrapper.")
+endif()
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 get_filename_component(ZELDA3D_SOURCE_ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(ZELDA3D_UWP_RUNTIME_DIR "" CACHE PATH
     "Staged Windows runtime containing the core DLL, assets, soh.o2r, and dependency DLLs")
 set(ZELDA3D_UWP_DEPS_ROOT "" CACHE PATH
-    "UWP dependency root with x64/include, x64/lib, and x64/bin (SDL2/libuwp/Mesa)")
+    "UWP dependency root with x64/include, x64/lib, and x64/bin (SDL2/Mesa)")
 set(ZELDA3D_UWP_EXTRA_DLLS "" CACHE STRING
     "Optional semicolon-separated absolute paths to additional runtime DLLs")
 
@@ -70,11 +74,9 @@ set(required_runtime_files
     "${ZELDA3D_UWP_RUNTIME_DIR}/soh.o2r"
     "${uwp_dep_arch}/bin/dxil.dll"
     "${uwp_dep_arch}/bin/libgallium_wgl.dll"
-    "${uwp_dep_arch}/bin/libuwp.dll"
     "${uwp_dep_arch}/bin/opengl32.dll"
     "${uwp_dep_arch}/bin/SDL2.dll"
     "${uwp_dep_arch}/bin/z-1.dll"
-    "${uwp_dep_arch}/lib/libuwp.lib"
     "${uwp_dep_arch}/lib/SDL2.lib")
 foreach(required_file IN LISTS required_runtime_files)
     if(NOT EXISTS "${required_file}")
@@ -94,15 +96,17 @@ add_executable(zelda3d-uwp WIN32
     core_bootstrap.cpp
     core_bootstrap.h
     "${CMAKE_CURRENT_BINARY_DIR}/Package.appxmanifest")
+set_source_files_properties(main.cpp boot_diagnostics.cpp core_bootstrap.cpp
+    PROPERTIES VS_SETTINGS "CompileAsWinRT=false")
 target_compile_features(zelda3d-uwp PRIVATE cxx_std_20)
 target_compile_definitions(zelda3d-uwp PRIVATE
+    WINAPI_FAMILY=WINAPI_FAMILY_APP _WIN32_WINNT=0x0A00
     ZELDA3D_CORE_DYNAMIC_LOAD=1
     ZELDA3D_UWP_PACKAGE_VERSION="${ZELDA3D_UWP_VERSION}")
 target_include_directories(zelda3d-uwp PRIVATE
     "${ZELDA3D_SOURCE_ROOT}/Shipwright/libultraship/include"
     "${uwp_dep_arch}/include")
 target_link_libraries(zelda3d-uwp PRIVATE
-    "${uwp_dep_arch}/lib/libuwp.lib"
     "${uwp_dep_arch}/lib/SDL2.lib"
     runtimeobject.lib
     WindowsApp.lib
@@ -114,6 +118,7 @@ target_link_options(zelda3d-uwp PRIVATE "/WINMD:NO")
 
 set_target_properties(zelda3d-uwp PROPERTIES
     OUTPUT_NAME "zelda-fusion"
+    VS_USER_PROPS "${ZELDA3D_SOURCE_ROOT}/cmake/UwpNativeCpp.props"
     VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION "10.0.19041.0"
     VS_GLOBAL_RootNamespace "uwp"
     VS_GLOBAL_ApplicationTypeRevision "10.0"

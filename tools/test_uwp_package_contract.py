@@ -45,6 +45,8 @@ def main() -> int:
     require("internetClient" not in capability_names, "online capability added despite local-only scope")
     require("internetClientServer" not in capability_names, "server capability added despite local-only scope")
     require("privateNetworkClientServer" not in capability_names, "LAN capability added despite local-only scope")
+    require("broadFileSystemAccess" not in capability_names, "Xbox-unsupported filesystem capability restored")
+    require("runFullTrust" not in capability_names, "desktop trust capability added to native UWP activation")
     tests += 1
 
     cmake = (UWP / "CMakeLists.txt").read_text(encoding="utf-8")
@@ -102,7 +104,7 @@ def main() -> int:
     main_cpp = (UWP / "main.cpp").read_text(encoding="utf-8")
     require(
         main_cpp.index("    Zelda3DUwp_BootLogStart();")
-        < main_cpp.index("    uwp_GetWindowReference();"),
+        < main_cpp.index("    return Zelda3DUwp_RunPackagedCore("),
         "boot report no longer starts before the window/core boundary",
     )
     tests += 1
@@ -371,13 +373,13 @@ def main() -> int:
         manifest_path.write_text(fusion_manifest, encoding="utf-8")
         tests += 1
 
-        for name in ("glfw3.dll", "assets/GLFW3.DLL", "SDL3.dll"):
+        for name in ("glfw3.dll", "assets/GLFW3.DLL", "SDL3.dll", "LIBUWP.dll"):
             stale_dll = unpacked / name
-            stale_dll.write_bytes(b"unused desktop dependency")
+            stale_dll.write_bytes(b"unused dependency")
             try:
                 runtime_stage.audit_appx(unpacked, runtime_stage.FUSION_PUBLISHER)
             except RuntimeError as error:
-                require("Unused desktop runtime" in str(error), str(error))
+                require("Unused runtime DLL" in str(error), str(error))
             else:
                 raise AssertionError(f"AppX audit accepted {name}")
             stale_dll.unlink()

@@ -56,14 +56,32 @@ called by `FT_Init_FreeType`. The new WindowsStore-only overlay disables
 no-op implementation. Host builds of exact FreeType 2.14.3 confirmed that desktop environment
 settings still apply, the Store configuration has no `getenv` reference, initialization works, and
 `FT_Property_Set` remains functional. The stricter core audit now rejects the original MM DLL.
-**Native Windows validation of this correction is pending.**
+Native probe [41239812609](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41239812609),
+source `9dcc5b47418bc0110bd5ae565095d145c9191cef`, now builds the exact production FreeType
+overlay and links real initialization/property calls into a Store DLL. Its stricter audit passes:
+actual `x64-uwp-static-md` FreeType library, disabled generated option, Store CRT imports, and no
+unsupported CRT environment imports. Probe DLL SHA-256:
+`30727fe1dd81cf1c6d9213d07e6bbea3cf7e3d01fbc5087b6934cde28daf57fe`.
+This verifies native linkage; the full-core correction run
+[41239071818](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41239071818) remains queued.
 
 The actual MM binary has 172 direct Store-runtime imports and 137 direct SDL2/Mesa imports; all
 resolve against the collected framework/depot exports. This does not establish complete loader or
 API compatibility. The pinned Mesa library still imports unsupported `LoadLibraryA`,
-`GetModuleHandleA`, and `getenv`; `libuwp.dll` imports `LoadLibraryW`. DXIL is dynamically referenced
-and cannot be removed based only on static import reports. GLFW and SDL3 are excluded from Fusion
-staging. No Fusion installer, MM Xbox boot, or safe in-process core handoff is claimed.
+`GetModuleHandleA`, and `getenv`. DXIL is dynamically referenced and cannot be removed based only
+on static import reports. The wrapper's only `libuwp` call populated a private window cache unused
+by this pinned SDL2/Mesa bridge. That call, import library, staged DLL, and diagnostic load are removed;
+the package audit rejects libuwp, GLFW, and SDL3. The generated C++/WinRT loader inside libuwp was
+not patched, and its presence was never proof of an Xbox startup failure.
+
+The native `SDL_WinRTRunApp` activation and `uwp.App` manifest entry remain. `runFullTrust` had no
+full-trust application/extension to support; `broadFileSystemAccess` is
+[unsupported on Xbox](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations).
+Both unused capabilities are removed; package-scoped storage and `expandedResources` remain.
+The wrapper now explicitly selects SDK 19041, dynamic CRT, and native C++20 metadata through the
+same property sheet proven in the cores. Wrapper package contracts still pass 20/20.
+A native wrapper/MakeAppx validation of this cleanup
+is pending. No Fusion installer, MM Xbox boot, or safe in-process core handoff is claimed.
 
 
 Implemented here: independent package identity, branding, signing defaults, rejection of legacy

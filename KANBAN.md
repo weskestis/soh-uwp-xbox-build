@@ -137,7 +137,7 @@ Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple increment
 
 ## in-review
 
-- [#215] Separate Zelda Fusion Xbox installation — dedicated package family and signing subject implemented on `feature/zelda-fusion-isolation`; host packaging contracts 20/20 PASS, including legacy-identity and unused desktop-DLL rejection. [Scope and evidence](docs/zelda-fusion-foundation.md). Physical side-by-side installation remains pending; the combined game is not built yet.
+- [#215] Separate Zelda Fusion Xbox installation — dedicated package family and signing subject implemented on `feature/zelda-fusion-isolation`; host packaging contracts 20/20 PASS, including legacy-identity and unused-DLL rejection. [Scope and evidence](docs/zelda-fusion-foundation.md). Physical side-by-side installation remains pending; the combined game is not built yet.
 
 _(empty)_
 

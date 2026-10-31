@@ -38,7 +38,7 @@ compile. A full rebuild occurs only when that preserved core is unavailable or f
 ## Safety gates
 
 Configuration requires an x64 Visual Studio Windows toolchain for the self-contained core, an x64
-UWP toolchain for this wrapper, the pinned SDL2/libuwp/Mesa dependency tree, runtime assets, and
+UWP toolchain for this wrapper, the pinned SDL2/Mesa dependency tree, runtime assets, and
 `soh.o2r`. `ZELDA3D_UWP_ALLOW_INCOMPLETE_RENDERER` remains off by default until the remote build and
 Xbox hardware run are validated. CI enables it only for explicit compile/package experiments; that
 output is not called device-verified until it has launched and rendered correctly on Xbox.

@@ -3,17 +3,12 @@
 #include <Windows.h>
 #include <SDL2/SDL.h>
 
-// libuwp captures the CoreWindow reference once on the WinRT UI thread.  SDL2's
-// UWP backend and the Mesa/OpenGL bridge then reuse it from the game thread.
-extern "C" __declspec(dllimport) void* uwp_GetWindowReference();
-
 namespace {
 
 int RunFusionBootstrap(int argc, char** argv) {
     Zelda3DUwp_BootLogStart();
-    Zelda3DUwp_BootLog("window-reference.begin");
-    uwp_GetWindowReference();
-    Zelda3DUwp_BootLog("window-reference.ok");
+    // SDL_WinRTRunApp owns activation. The pinned Mesa SDL2 bridge obtains its
+    // window through SDL; no separate libuwp window-reference cache is used.
     // Keep the existing single-core entry path until MM's UWP build and shared
     // engine ownership are implemented. The pair-aware loader does not itself
     // enforce MQ layouts or provide the combined randomizer/session.

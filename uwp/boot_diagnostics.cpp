@@ -63,7 +63,6 @@ void ProbePackagedRuntime() {
     };
     static const ModuleProbe probes[] = {
         { L"SDL2.dll", "SDL2.dll" },
-        { L"libuwp.dll", "libuwp.dll" },
         { L"z-1.dll", "z-1.dll" },
         { L"dxil.dll", "dxil.dll" },
         { L"libgallium_wgl.dll", "libgallium_wgl.dll" },

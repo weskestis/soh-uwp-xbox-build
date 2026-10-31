@@ -48,8 +48,6 @@
   </Applications>
 
   <Capabilities>
-    <rescap:Capability Name="runFullTrust" />
-    <rescap:Capability Name="broadFileSystemAccess" />
     <rescap:Capability Name="expandedResources" />
     <uap:Capability Name="removableStorage" />
   </Capabilities>

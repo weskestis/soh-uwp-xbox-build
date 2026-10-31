@@ -25,11 +25,9 @@ UWP_DEPENDENCIES = (
     "x64/bin/SDL2.dll",
     "x64/bin/dxil.dll",
     "x64/bin/libgallium_wgl.dll",
-    "x64/bin/libuwp.dll",
     "x64/bin/opengl32.dll",
     "x64/bin/z-1.dll",
     "x64/lib/SDL2.lib",
-    "x64/lib/libuwp.lib",
 )
 PACKAGED_RUNTIME_FILES = (
     "soh_core.dll",
@@ -37,7 +35,6 @@ PACKAGED_RUNTIME_FILES = (
     "SDL2.dll",
     "dxil.dll",
     "libgallium_wgl.dll",
-    "libuwp.dll",
     "opengl32.dll",
     "z-1.dll",
     "assets/rml/zelda3d_launcher.rml",
@@ -197,11 +194,11 @@ def assemble_runtime(archive: Path, port_archive: Path, deps_root: Path, runtime
 def audit_appx(unpacked_dir: Path, publisher: str) -> None:
     if not unpacked_dir.is_dir():
         raise RuntimeError(f"Unpacked AppX directory is missing: {unpacked_dir}")
-    # The selected SDL2/Mesa closure does not use GLFW or SDL3. The pinned
-    # GLFW binary imports desktop User32/GDI/Shell32 and must not be shipped.
+    # The pinned SDL2/Mesa closure uses neither GLFW/SDL3 nor libuwp's separate
+    # window cache. Do not silently restore unused libraries through extra DLLs.
     for path in unpacked_dir.rglob("*"):
-        if path.is_file() and path.name.lower() in {"glfw3.dll", "sdl3.dll"}:
-            raise RuntimeError(f"Unused desktop runtime DLL in AppX: {path.name}")
+        if path.is_file() and path.name.lower() in {"glfw3.dll", "sdl3.dll", "libuwp.dll"}:
+            raise RuntimeError(f"Unused runtime DLL in AppX: {path.name}")
     for relative in PACKAGED_RUNTIME_FILES:
         require_file(unpacked_dir / relative, "packed AppX runtime file")
     for relative, (dimensions, expected_hash) in PACKAGE_ICONS.items():
