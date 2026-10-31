@@ -162,6 +162,10 @@ switch ($Command) {
     }
 
     "Package" {
+        if ($env:PACKAGE_PUBLISHER -ne "CN=WesKestisZeldaFusion" -or
+            $env:PACKAGE_NAME -ne "ZELDA-FUSION-XBOX") {
+            throw "Fusion packaging requires its own publisher and artifact name; use the Fusion workflow."
+        }
         python tools/uwp_runtime_stage.py assemble `
             --archive scratch/core-artifact/windows-core-runtime.zip `
             --port-archive scratch/host-assets/soh.o2r `
@@ -199,7 +203,7 @@ switch ($Command) {
         if ($candidates.Count -eq 0) { $candidates = @($allCandidates | Sort-Object Length -Descending) }
         if ($candidates.Count -eq 0) { throw "Visual Studio produced no AppX/MSIX" }
         $packageExtension = $candidates[0].Extension.ToLowerInvariant()
-        $appPackage = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL-x64$packageExtension"
+        $appPackage = "$dist\ZELDA-FUSION-x64$packageExtension"
         Copy-Item $candidates[0].FullName $appPackage
         Get-ChildItem $wrapper -Recurse -File |
             Where-Object {
@@ -220,7 +224,7 @@ switch ($Command) {
         $makeAppx = Join-Path $sdkBin.FullName "x64\makeappx.exe"
 
         $pfx = "$env:GITHUB_WORKSPACE\source\scratch\ephemeral-signing.pfx"
-        $cer = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL.cer"
+        $cer = "$dist\ZELDA-FUSION.cer"
         $passwordText = [guid]::NewGuid().ToString("N")
         $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
         $cert = $null

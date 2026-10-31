@@ -22,11 +22,11 @@ set(ZELDA3D_UWP_DEPS_ROOT "" CACHE PATH
 set(ZELDA3D_UWP_EXTRA_DLLS "" CACHE STRING
     "Optional semicolon-separated absolute paths to additional runtime DLLs")
 
-set(ZELDA3D_UWP_PACKAGE_NAME "WesKestis.SOHCursorFPSV3.OoT3DFull" CACHE STRING "Stable AppX identity")
-set(ZELDA3D_UWP_PUBLISHER "CN=SOHCursorFPSV3OoT3DFull" CACHE STRING
+set(ZELDA3D_UWP_PACKAGE_NAME "WesKestis.ZeldaFusion.UWP" CACHE STRING "Stable AppX identity")
+set(ZELDA3D_UWP_PUBLISHER "CN=WesKestisZeldaFusion" CACHE STRING
     "Publisher subject; must match the signing certificate")
 set(ZELDA3D_UWP_PUBLISHER_DISPLAY_NAME "Wes Kestis" CACHE STRING "Publisher display name")
-set(ZELDA3D_UWP_DISPLAY_NAME "SOH CURSOR FPS V3 - OoT3D Full" CACHE STRING "Installed app name")
+set(ZELDA3D_UWP_DISPLAY_NAME "Zelda Fusion" CACHE STRING "Installed app name")
 set(ZELDA3D_UWP_VERSION "1.0.0.0" CACHE STRING "Four-part numeric AppX version")
 set(ZELDA3D_UWP_SIGNING_CERTIFICATE "" CACHE FILEPATH "Private AppX signing certificate")
 option(ZELDA3D_UWP_REQUIRE_SIGNING "Refuse to produce a Device Portal package without signing" ON)
@@ -40,8 +40,12 @@ if(NOT ZELDA3D_UWP_ALLOW_INCOMPLETE_RENDERER)
         "mistaken for a tested package. Set -DZELDA3D_UWP_ALLOW_INCOMPLETE_RENDERER=ON only for the next "
         "Windows wrapper/link validation experiment; keep it OFF for any claimed Device Portal release.")
 endif()
-if(ZELDA3D_UWP_PACKAGE_NAME STREQUAL "Shipwright")
-    message(FATAL_ERROR "The full build must not reuse the original V3 package identity.")
+if(NOT ZELDA3D_UWP_PACKAGE_NAME STREQUAL "WesKestis.ZeldaFusion.UWP" OR
+   NOT ZELDA3D_UWP_PUBLISHER STREQUAL "CN=WesKestisZeldaFusion")
+    message(FATAL_ERROR
+        "Zelda Fusion must use its own package family: WesKestis.ZeldaFusion.UWP / "
+        "CN=WesKestisZeldaFusion. Clear stale CMake identity overrides; previous Shipwright "
+        "packages and their saves must remain separate.")
 endif()
 if(NOT ZELDA3D_UWP_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$")
     message(FATAL_ERROR "ZELDA3D_UWP_VERSION must be four numeric fields, for example 1.0.0.0.")
@@ -110,7 +114,7 @@ target_link_libraries(zelda3d-uwp PRIVATE
 target_link_options(zelda3d-uwp PRIVATE "/WINMD:NO")
 
 set_target_properties(zelda3d-uwp PROPERTIES
-    OUTPUT_NAME "soh-cursor-fps-v3-oot3d-full"
+    OUTPUT_NAME "zelda-fusion"
     VS_WINDOWS_TARGET_PLATFORM_MIN_VERSION "10.0.19041.0"
     VS_GLOBAL_RootNamespace "uwp"
     VS_GLOBAL_ApplicationTypeRevision "10.0"

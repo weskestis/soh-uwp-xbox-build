@@ -12,6 +12,9 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 
+FUSION_PACKAGE_NAME = "WesKestis.ZeldaFusion.UWP"
+FUSION_PUBLISHER = "CN=WesKestisZeldaFusion"
+
 CORE_FILES = ("soh_core.dll", "soh_core.lib")
 ASSET_SENTINELS = (
     "assets/Config_N64_NTSC_10.xml",
@@ -214,10 +217,12 @@ def audit_appx(unpacked_dir: Path, publisher: str) -> None:
     identity = manifest.find("f:Identity", namespace)
     if identity is None:
         raise RuntimeError("Packed AppX manifest has no Identity")
+    if publisher != FUSION_PUBLISHER:
+        raise RuntimeError("Zelda Fusion must be signed by its own package publisher")
     if identity.attrib.get("Publisher") != publisher:
         raise RuntimeError("Packed AppX publisher does not match signing certificate subject")
-    if identity.attrib.get("Name") == "Shipwright":
-        raise RuntimeError("Packed AppX reused the original V3 package identity")
+    if identity.attrib.get("Name") != FUSION_PACKAGE_NAME:
+        raise RuntimeError("Packed AppX does not use the separate Zelda Fusion package identity")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:

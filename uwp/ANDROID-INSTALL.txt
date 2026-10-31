@@ -1,18 +1,23 @@
-SOH CURSOR FPS V3 + OoT3D Full — Android-to-Xbox install
+Zelda Fusion — Android-to-Xbox install
 ========================================================
 
-This package is ROM-free. You do not need a PC, Visual Studio, a command line,
-GitHub signing setup, or a certificate tool.
+These instructions apply to a future signed Fusion development package. This source checkpoint
+only establishes a separate identity; it is not a completed OoT/MM fusion game. The inherited
+runtime currently accepts OoT archives; MM and raw-ROM import support are still pending.
+
+The package is ROM-free. You do not need a PC, Visual Studio, a command line,
+GitHub signing setup, or a certificate tool to install a provided signed package.
 
 1. On Android, download and unzip the GitHub Actions artifact named
-   SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX.
+   ZELDA-FUSION-XBOX.
 2. Open Xbox Device Portal in your phone browser and go to Apps.
 3. Choose the included .msix (or .appx) as the app package, the included
    public .cer as the certificate, and any .appx/.msix files under
    Dependencies as dependencies.
-4. Install it. Its identity is separate from the original CURSOR FPS V3 app.
+4. Install it alongside your existing apps. Its identity is separate from every previous build.
 5. In Device Portal, open File Explorer, then LocalAppData, then
-   WesKestis.SOHCursorFPSV3.OoT3DFull, then LocalState, then the soh folder.
+   the package starting with WesKestis.ZeldaFusion.UWP, then LocalState, then the soh folder.
+   This is Fusion's own storage. Keep previous builds' files in their own package folders.
    Launch the app once first if the soh folder is not present yet.
 6. Upload your private files into LocalState\soh:
       oot.o2r       Normal Quest (at least one quest archive is required)

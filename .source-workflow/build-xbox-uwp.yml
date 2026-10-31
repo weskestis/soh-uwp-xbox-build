@@ -1,24 +1,14 @@
-name: Build Xbox UWP package
+name: Build Zelda Fusion Xbox UWP foundation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/build-xbox-uwp.yml"
-      - "CMakeLists.txt"
-      - "cmake/**"
-      - "Shipwright/**"
-      - "uwp/**"
-      - "tools/test_uwp_package_contract.py"
-      - "tools/uwp_runtime_stage.py"
 
 permissions:
   actions: read
   contents: read
 
 concurrency:
-  group: xbox-uwp-${{ github.ref }}
+  group: zelda-fusion-uwp-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -31,8 +21,8 @@ env:
   CORE_BUILD_KEY: soh-core-a00a4d86-f5dbd58e-9e593bb1-v1
   CORE_RUNTIME_ARTIFACT: INTERNAL-windows-core-runtime-a00a4d86-v1
   LEGACY_CORE_RUNTIME_ARTIFACT: INTERNAL-windows-core-runtime
-  PACKAGE_NAME: SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX
-  PACKAGE_PUBLISHER: CN=SOHCursorFPSV3OoT3DFull
+  PACKAGE_NAME: ZELDA-FUSION-XBOX
+  PACKAGE_PUBLISHER: CN=WesKestisZeldaFusion
 
 jobs:
   host-assets:
@@ -398,7 +388,7 @@ jobs:
           }
           if ($candidates.Count -eq 0) { throw "Visual Studio produced no AppX/MSIX" }
           $packageExtension = $candidates[0].Extension.ToLowerInvariant()
-          $appPackage = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL-x64$packageExtension"
+          $appPackage = "$dist\ZELDA-FUSION-x64$packageExtension"
           Copy-Item $candidates[0].FullName $appPackage
 
           Get-ChildItem $wrapper -Recurse -File |
@@ -420,7 +410,7 @@ jobs:
           $makeAppx = Join-Path $sdkBin.FullName "x64\makeappx.exe"
 
           $pfx = "$env:GITHUB_WORKSPACE\scratch\ephemeral-signing.pfx"
-          $cer = "$dist\SOH-CURSOR-FPS-V3-OOT3D-FULL.cer"
+          $cer = "$dist\ZELDA-FUSION.cer"
           $passwordText = [guid]::NewGuid().ToString("N")
           $password = ConvertTo-SecureString $passwordText -AsPlainText -Force
           $cert = $null

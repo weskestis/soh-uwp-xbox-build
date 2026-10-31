@@ -7,6 +7,7 @@ import base64
 import hashlib
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -114,7 +115,7 @@ def main() -> int:
     require(not committed_private, f"private package data committed: {committed_private}")
     tests += 1
 
-    workflow = (ROOT / ".github/workflows/build-xbox-uwp.yml").read_text(encoding="utf-8")
+    workflow = (ROOT / ".source-workflow/build-xbox-uwp.yml").read_text(encoding="utf-8")
     for token in (
         "f5dbd58ee06a4b439bf260d641585dbc8bef3b86",
         "9e593bb18ea69cc5095e012465dcd675a822ed0d",
@@ -136,7 +137,7 @@ def main() -> int:
         "root certificate.+not trusted",
         "Export-Certificate",
         "Remove-Item $pfx",
-        "SOH-CURSOR-FPS-V3-OOT3D-FULL-XBOX",
+        "ZELDA-FUSION-XBOX",
         "PRIVATE-DATA-NOT-INCLUDED.txt",
         "Publish core build diagnostics",
         "Publish wrapper build diagnostics",
@@ -145,7 +146,7 @@ def main() -> int:
         "::error title=UWP package diagnostic",
         '".appx", ".msix"',
         "Visual Studio produced no AppX/MSIX",
-        "SOH-CURSOR-FPS-V3-OOT3D-FULL-x64$packageExtension",
+        "ZELDA-FUSION-x64$packageExtension",
     ):
         require(token in workflow, f"remote build contract missing: {token}")
     require(
@@ -235,7 +236,7 @@ def main() -> int:
     for token in (
         '".appx", ".msix"',
         "Visual Studio produced no AppX/MSIX",
-        "SOH-CURSOR-FPS-V3-OOT3D-FULL-x64$packageExtension",
+        "ZELDA-FUSION-x64$packageExtension",
         '".appx", ".msix", ".cer"',
         "Assert-EphemeralPackageSignature",
         "Get-AuthenticodeSignature",
@@ -305,21 +306,75 @@ def main() -> int:
             packaged = unpacked / relative
             packaged.parent.mkdir(parents=True, exist_ok=True)
             packaged.write_bytes((UWP / relative).read_bytes())
-        (unpacked / "AppxManifest.xml").write_text(
-            '<?xml version="1.0" encoding="utf-8"?>\n'
-            '<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10">\n'
-            '  <Identity Name="WesKestis.SOHCursorFPSV3.OoT3DFull" '
-            'Publisher="CN=SOHCursorFPSV3OoT3DFull" Version="1.0.1.1" />\n'
-            '</Package>\n',
+        # Exercise the actual template/defaults so a stale build identity cannot hide
+        # behind a test fixture that already contains the desired Fusion identity.
+        manifest_defaults = dict(re.findall(
+            r'set\((ZELDA3D_UWP_[A-Z_]+)\s+"([^"]*)"', cmake
+        ))
+        manifest_defaults["ZELDA3D_UWP_VERSION"] = "1.0.1.1"
+        configured_manifest = re.sub(
+            r"@(ZELDA3D_UWP_[A-Z_]+)@",
+            lambda match: manifest_defaults[match.group(1)],
+            manifest_text,
+        )
+        (unpacked / "AppxManifest.xml").write_text(configured_manifest, encoding="utf-8")
+        runtime_stage.audit_appx(unpacked, "CN=WesKestisZeldaFusion")
+
+        # Renaming the artifact is insufficient: only the manifest's Name and Publisher
+        # determine whether Windows updates an existing app and reuses its LocalState.
+        manifest_path = unpacked / "AppxManifest.xml"
+        fusion_manifest = manifest_path.read_text(encoding="utf-8")
+        for old_name in (
+            "Shipwright",
+            "ShipwrightDualOOTMQ",
+            "ShipwrightCursorFPSFresh3DualOOTMQ",
+            "WesKestis.SOHCursorFPSV3.OoT3DFull",
+        ):
+            manifest_path.write_text(
+                fusion_manifest.replace(runtime_stage.FUSION_PACKAGE_NAME, old_name),
+                encoding="utf-8",
+            )
+            try:
+                runtime_stage.audit_appx(unpacked, runtime_stage.FUSION_PUBLISHER)
+            except RuntimeError as error:
+                require("separate Zelda Fusion package identity" in str(error),
+                        f"legacy identity failed for the wrong reason: {error}")
+            else:
+                raise AssertionError(f"Fusion AppX audit accepted legacy identity {old_name}")
+
+        old_publisher = "CN=SOHCursorFPSV3OoT3DFull"
+        manifest_path.write_text(
+            fusion_manifest.replace(runtime_stage.FUSION_PUBLISHER, old_publisher),
             encoding="utf-8",
         )
-        runtime_stage.audit_appx(unpacked, "CN=SOHCursorFPSV3OoT3DFull")
+        # Reject a legacy signer even when it agrees with the manifest.
+        try:
+            runtime_stage.audit_appx(unpacked, old_publisher)
+        except RuntimeError as error:
+            require("own package publisher" in str(error), str(error))
+        else:
+            raise AssertionError("Fusion AppX audit accepted a matching legacy signer")
+        try:
+            runtime_stage.audit_appx(unpacked, runtime_stage.FUSION_PUBLISHER)
+        except RuntimeError as error:
+            require("does not match signing certificate" in str(error), str(error))
+        else:
+            raise AssertionError("Fusion AppX audit accepted a mismatched manifest publisher")
+
+        # Later versions must keep the same family so Fusion can update its own saves.
+        manifest_path.write_text(
+            fusion_manifest.replace('Version="1.0.1.1"', 'Version="1.0.2.0"'),
+            encoding="utf-8",
+        )
+        runtime_stage.audit_appx(unpacked, runtime_stage.FUSION_PUBLISHER)
+        manifest_path.write_text(fusion_manifest, encoding="utf-8")
+        tests += 1
 
         icon = unpacked / "Assets/Square150x150Logo.scale-200.png"
         approved_icon = icon.read_bytes()
         icon.write_bytes(b"stale-stock-icon")
         try:
-            runtime_stage.audit_appx(unpacked, "CN=SOHCursorFPSV3OoT3DFull")
+            runtime_stage.audit_appx(unpacked, "CN=WesKestisZeldaFusion")
         except RuntimeError:
             pass
         else:
@@ -329,7 +384,7 @@ def main() -> int:
         private_archive = unpacked / "oot.o2r"
         private_archive.write_bytes(b"must-be-rejected")
         try:
-            runtime_stage.audit_appx(unpacked, "CN=SOHCursorFPSV3OoT3DFull")
+            runtime_stage.audit_appx(unpacked, "CN=WesKestisZeldaFusion")
         except RuntimeError:
             pass
         else:

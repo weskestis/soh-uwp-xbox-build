@@ -1,8 +1,16 @@
-# Xbox/UWP package
+# Zelda Fusion Xbox/UWP package
 
-This directory owns the WinRT entry point and AppX deployment boundary for the SOH CURSOR FPS V3 +
-OoT3D full build. Its package identity differs from the original V3 app, so both installs and their
-`LocalState` save trees remain isolated.
+This branch starts the separate Zelda Fusion app. Its stable package name is
+`WesKestis.ZeldaFusion.UWP`, publisher is `CN=WesKestisZeldaFusion`, and installed display name is
+`Zelda Fusion`. The package family differs from every previous Shipwright/Cursor FPS build;
+Windows therefore gives it separate `LocalState`, settings, imports, and saves. The existing
+`LocalState\soh` directory is inside Fusion's own package, not the older application's directory.
+Configure and final package audit both reject another identity or publisher.
+
+Current scope is package isolation only. The inherited runtime still boots the OoT core and needs
+pre-extracted archives. MM loading, raw-ROM import on Xbox, shared gameplay, and the combined
+randomizer are not implemented by this change. Intended seed modes are exactly **OoT + MM** and
+**MQ + MM**, with one OoT edition locked to each seed; see `docs/zelda-fusion-foundation.md`.
 
 The package is ROM-free. It contains the source-generated `soh.o2r`, but never contains `oot.o2r`,
 `oot-mq.o2r`, an N64 ROM, `oot3d.3ds`, an extracted RomFS, a save, or an HD texture pack. SDL2 maps

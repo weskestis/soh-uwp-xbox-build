@@ -6,15 +6,15 @@
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   IgnorableNamespaces="mp uap rescap">
 
-  <!-- Deliberately distinct from the original V3 package, so both apps and
-       their LocalState/save trees remain installed side by side. -->
+  <!-- Fusion has its own package family, separate from every prior Shipwright
+       build. Each family owns its own LocalState, settings, imports, and saves. -->
   <Identity
     Name="@ZELDA3D_UWP_PACKAGE_NAME@"
     Publisher="@ZELDA3D_UWP_PUBLISHER@"
     Version="@ZELDA3D_UWP_VERSION@" />
 
   <mp:PhoneIdentity
-    PhoneProductId="5dd45ca6-708d-4ad6-a467-58d6817d5982"
+    PhoneProductId="a46c0141-62e5-45b7-b344-3270c514ffaf"
     PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
@@ -35,10 +35,10 @@
   </Resources>
 
   <Applications>
-    <Application Id="OoT3DFull" Executable="$targetnametoken$.exe" EntryPoint="uwp.App">
+    <Application Id="ZeldaFusion" Executable="$targetnametoken$.exe" EntryPoint="uwp.App">
       <uap:VisualElements
         DisplayName="@ZELDA3D_UWP_DISPLAY_NAME@"
-        Description="SOH CURSOR FPS V3 with toggleable Ocarina of Time 3D graphics"
+        Description="Zelda Fusion - Xbox development build"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png">

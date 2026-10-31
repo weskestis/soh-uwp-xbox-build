@@ -124,7 +124,7 @@ void Zelda3DUwp_BootLogStart() {
     std::memcpy(gLogPath + filenameOffset, kLogName, sizeof(kLogName));
     SDL_free(directory);
 
-    WriteLine("SOH Cursor FPS V3 + OoT3D Xbox boot report", "wb");
+    WriteLine("Zelda Fusion Xbox boot report", "wb");
     WriteFormat("package.version=%s", ZELDA3D_UWP_PACKAGE_VERSION);
     Zelda3DUwp_BootLog("callback.enter");
 }
