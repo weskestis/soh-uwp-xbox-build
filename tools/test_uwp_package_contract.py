@@ -417,10 +417,11 @@ def main() -> int:
         "LocalState\\soh",
         "oot.o2r",
         "oot-mq.o2r",
-        "oot3d.3ds",
+        "LocalState\\2ship",
+        "mm.o2r",
     ):
         require(token in install_text, f"Android install guide missing: {token}")
-        if token.startswith("oot") or token.startswith("LocalState"):
+        if token.startswith("oot") or token.startswith("LocalState") or token == "mm.o2r":
             require(token in private_notice, f"private-data notice missing: {token}")
     require("command line" in install_text, "guide does not explicitly preserve phone-only setup")
     tests += 1

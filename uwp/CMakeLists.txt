@@ -71,7 +71,9 @@ endforeach()
 set(uwp_dep_arch "${ZELDA3D_UWP_DEPS_ROOT}/x64")
 set(required_runtime_files
     "${ZELDA3D_UWP_RUNTIME_DIR}/soh_core.dll"
+    "${ZELDA3D_UWP_RUNTIME_DIR}/mm_core.dll"
     "${ZELDA3D_UWP_RUNTIME_DIR}/soh.o2r"
+    "${ZELDA3D_UWP_RUNTIME_DIR}/2ship.o2r"
     "${uwp_dep_arch}/bin/dxil.dll"
     "${uwp_dep_arch}/bin/libgallium_wgl.dll"
     "${uwp_dep_arch}/bin/opengl32.dll"
@@ -95,8 +97,10 @@ add_executable(zelda3d-uwp WIN32
     boot_diagnostics.h
     core_bootstrap.cpp
     core_bootstrap.h
+    startup_selection.cpp
+    startup_selection.h
     "${CMAKE_CURRENT_BINARY_DIR}/Package.appxmanifest")
-set_source_files_properties(main.cpp boot_diagnostics.cpp core_bootstrap.cpp
+set_source_files_properties(main.cpp boot_diagnostics.cpp core_bootstrap.cpp startup_selection.cpp
     PROPERTIES VS_SETTINGS "CompileAsWinRT=false")
 target_compile_features(zelda3d-uwp PRIVATE cxx_std_20)
 target_compile_definitions(zelda3d-uwp PRIVATE
@@ -153,6 +157,7 @@ foreach(runtime_file IN LISTS required_runtime_files runtime_dependency_dlls ZEL
     endif()
 endforeach()
 zelda3d_uwp_deploy("${ZELDA3D_UWP_RUNTIME_DIR}/soh.o2r" "")
+zelda3d_uwp_deploy("${ZELDA3D_UWP_RUNTIME_DIR}/2ship.o2r" "")
 
 if(IS_DIRECTORY "${ZELDA3D_UWP_RUNTIME_DIR}/assets")
     file(GLOB_RECURSE runtime_assets CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE

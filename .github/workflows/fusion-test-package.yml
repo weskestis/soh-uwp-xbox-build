@@ -1,0 +1,143 @@
+name: Fusion Xbox test installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/zelda-fusion-isolation]
+    paths:
+      - '.github/workflows/fusion-test-package.yml'
+      - 'tools/fusion_package_*.py'
+      - 'tools/test_fusion_package.py'
+      - 'tools/uwp_startup_selection_test.cpp'
+      - 'tools/ci/fusion_xbox_package.ps1'
+      - 'uwp/**'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: fusion-test-package-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ASSET_SOURCE: 3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa
+  UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
+  ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
+  ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 tools/test_uwp_package_contract.py
+      - run: python3 tools/test_fusion_package.py
+
+  oot-port:
+    needs: contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: scratch/engine-assets-source
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_SOURCE }}
+          path: scratch/engine-assets-source
+          persist-credentials: false
+      - name: Prepare pinned exporter
+        run: |
+          git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
+          git init Shipwright/ZAPDTR
+          git -C Shipwright/ZAPDTR remote add origin https://github.com/SomeoneIsWorking/ZAPDTR.git
+          git -C Shipwright/ZAPDTR fetch --depth 1 origin "$ZAPDTR_BASE_COMMIT"
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          mkdir -p scratch
+          base64 --decode cmake/Zelda3DZAPDTR-5f37af8.bundle.b64 > scratch/ZAPDTR.bundle
+          echo "f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6  scratch/ZAPDTR.bundle" | sha256sum --check --strict
+          git -C Shipwright/ZAPDTR fetch "$PWD/scratch/ZAPDTR.bundle" HEAD
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_COMMIT"
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build lsb-release zipcmp zipmerge ziptool \
+            libsdl2-dev libsdl2-net-dev libpng-dev libzip-dev nlohmann-json3-dev libtinyxml2-dev \
+            libspdlog-dev libopengl-dev libopusfile-dev libvorbis-dev libfreetype6-dev
+      - name: Build ROM-free OoT port archive
+        run: |
+          cmake -S . -B scratch/build-host-assets -G Ninja -DCMAKE_BUILD_TYPE=Release -DGAME_STR=OOT \
+            -DZELDA3D_SDL2_OPENGL=ON -DZELDA3D_BUILD_MM=OFF -DZELDA3D_BUILD_LAUNCHER=OFF \
+            -DZELDA3D_ENABLE_ROM_EXTRACTION=ON -DLUS_BUILD_TESTS=OFF
+          cmake --build scratch/build-host-assets --target GenerateSohOtr --parallel 2
+          unzip -t Shipwright/soh/soh.o2r | tail -1
+          mkdir -p "$GITHUB_WORKSPACE/scratch/oot-port"
+          cp Shipwright/soh/soh.o2r "$GITHUB_WORKSPACE/scratch/oot-port/"
+          sha256sum Shipwright/soh/soh.o2r > "$GITHUB_WORKSPACE/scratch/oot-port/SHA256.txt"
+          git rev-parse HEAD > "$GITHUB_WORKSPACE/scratch/oot-port/SOURCE_COMMIT.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: INTERNAL-fusion-oot-port-${{ github.sha }}
+          path: scratch/oot-port/
+          if-no-files-found: error
+          retention-days: 14
+
+  package:
+    needs: [contracts, oot-port]
+    runs-on: windows-2022
+    timeout-minutes: 50
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      UWP_VERSION: 1.0.${{ github.run_number }}.${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.ASSET_SOURCE }}
+          path: scratch/engine-assets-source
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: ${{ env.UWP_DEP_COMMIT }}
+          path: scratch/uwp-dep
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: INTERNAL-fusion-oot-port-${{ github.sha }}
+          path: scratch/oot-port
+      - name: Install PE inspection dependency
+        run: python -m pip install pefile==2024.8.26
+      - name: Verify exact native core artifacts and assemble payload
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/fusion_package_inputs.py
+      - name: Build, sign and audit Fusion test installer
+        run: ./tools/ci/fusion_xbox_package.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZELDA-FUSION-XBOX-${{ env.UWP_VERSION }}
+          path: scratch/dist/ZELDA-FUSION-XBOX/
+          if-no-files-found: error
+          retention-days: 30
+      - name: Preserve packaging evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-package-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            scratch/fusion-package-diagnostics/
+            scratch/fusion-package-inputs/BUILD.json
+            scratch/fusion-package-audit.json
+            scratch/build-fusion-package/*.vcxproj
+          if-no-files-found: warn
+          retention-days: 30

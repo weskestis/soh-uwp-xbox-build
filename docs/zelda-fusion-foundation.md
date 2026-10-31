@@ -34,178 +34,39 @@ and the final unpacked-package audit requires the exact Fusion name and signing 
 
 ## Current checkpoint
 
-Native Store run `41239071818`, engine source `3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa`,
-has now passed for **both** OoT and MM, including the FreeType environment-import correction.
-Its artifacts are game DLLs, not an installer. Packaging review found MM's inherited 3DS
-scene diversion default could suppress an original N64 skybox without replacement assets.
-The UWP path now keeps N64 room, actor, and skeleton drawing; desktop 3DS behavior is unchanged.
-This needs a fresh MM native build and physical Xbox rendering verification. OoT already
-defaults to Original SoH in a fresh Fusion profile; do not import old 3DS settings.
+Native Store run `41239071818`, source `3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa`,
+passes both game cores: native C++20, SDK 19041, dynamic Store CRT, AppContainer,
+Mesa import ABI, and the corrected FreeType environment-import gate. This is
+compile/link/import evidence; physical Xbox rendering and execution are unverified.
 
+Packaging review found MM's inherited 3DS scene default could hide original N64
+backgrounds without replacement assets. Commit `4bec8b52bdeb14f0a226c6fbea409fb6521f8e25`
+keeps the UWP scene, actor and skeleton draw paths original. Actual extracted UWP
+functions compiled and returned the N64 fallback without dereferencing deliberately
+invalid pointers; archive/version/FIFO tests and all three MM CMake profiles pass.
+Native follow-up run `41246667942` rebuilds this correction. OoT already defaults
+to Original SoH in a fresh profile; importing previous 3DS settings is outside this test.
 
-Both cores now select dynamic Store CRT, native C++20, SDK 19041, WindowsApp, and genuine
-`x64-uwp-static-md` dependencies. `cmake/Zelda3DUwpRuntime.cmake` applies those properties after
-legacy overrides; its property sheet also keeps generated PCH units native and prevents nonexistent
-WinRT metadata references. FreeType and OpusFile use reviewed pinned overlays; GLEW links against
-the packaged Mesa exports. Desktop SAPI, WASAPI, install-directory probes, and environment overrides
-are excluded from the UWP path. The old OoT-only package retry scripts remain unmigrated and must
-not package this candidate or reuse an obsolete preserved core.
+The new `Fusion Xbox test installer` workflow reuses the exact passed OoT artifact
+and the corrected MM artifact after its individual native job succeeds. Each core's
+source, native audit and hash are recorded separately. It generates the ROM-free
+OoT port archive at the pinned asset source and reuses the verified matching MM
+port archive. It does not use the old static-CRT cache or newest-artifact fallback.
 
-Native run [41236909295](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41236909295),
-source `71f57b817393a07b8c4aeb6d2acb906933f5676d`, **compiled and linked MM with Store CRT**.
-Its 18 generated projects, immediate-exit host logger, Store library/import audit, AppContainer flag,
-and pinned Mesa import ABI passed. `mm_core.dll` SHA-256:
-`b32091c09d32aa419428c1a5391d4f5fada8ef13d0778a8738a978ee4e2d4eb8`.
-**OoT is still compiling in that run.** This is native compile/link evidence, not Xbox execution.
+The wrapper reads a bounded `LocalState/soh/fusion-startup.txt` with four allowed
+pair/game routes, checks the selected private archive is readable, and launches
+one core. Missing selection defaults to OoT; invalid/unreadable selection stops
+before core loading. MQ layout enforcement, pair-bound saves, raw-ROM import,
+cross-core handoff and the combined randomizer remain unimplemented.
 
-A subsequent review found `getenv` in the actual MM DLL despite the successful link. The single
-import call passes `FREETYPE_PROPERTIES`, matching upstream FreeType's `FT_Set_Default_Properties`
-called by `FT_Init_FreeType`. The new WindowsStore-only overlay disables
-`FT_CONFIG_OPTION_ENVIRONMENT_PROPERTIES` in the generated header and selects FreeType's upstream
-no-op implementation. Host builds of exact FreeType 2.14.3 confirmed that desktop environment
-settings still apply, the Store configuration has no `getenv` reference, initialization works, and
-`FT_Property_Set` remains functional. The stricter core audit now rejects the original MM DLL.
-Native probe [41239812609](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41239812609),
-source `9dcc5b47418bc0110bd5ae565095d145c9191cef`, now builds the exact production FreeType
-overlay and links real initialization/property calls into a Store DLL. Its stricter audit passes:
-actual `x64-uwp-static-md` FreeType library, disabled generated option, Store CRT imports, and no
-unsupported CRT environment imports. Probe DLL SHA-256:
-`30727fe1dd81cf1c6d9213d07e6bbea3cf7e3d01fbc5087b6934cde28daf57fe`.
-This verifies native linkage; the full-core correction run
-[41239071818](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41239071818) remains queued.
-
-The actual MM binary has 172 direct Store-runtime imports and 137 direct SDL2/Mesa imports; all
-resolve against the collected framework/depot exports. This does not establish complete loader or
-API compatibility. The pinned Mesa library still imports unsupported `LoadLibraryA`,
-`GetModuleHandleA`, and `getenv`. DXIL is dynamically referenced and cannot be removed based only
-on static import reports. The wrapper's only `libuwp` call populated a private window cache unused
-by this pinned SDL2/Mesa bridge. That call, import library, staged DLL, and diagnostic load are removed;
-the package audit rejects libuwp, GLFW, and SDL3. The generated C++/WinRT loader inside libuwp was
-not patched, and its presence was never proof of an Xbox startup failure.
-
-The native `SDL_WinRTRunApp` activation and `uwp.App` manifest entry remain. `runFullTrust` had no
-full-trust application/extension to support; `broadFileSystemAccess` is
-[unsupported on Xbox](https://learn.microsoft.com/en-us/windows/apps/package-and-deploy/app-capability-declarations).
-Both unused capabilities are removed; package-scoped storage and `expandedResources` remain.
-The wrapper now explicitly selects SDK 19041, dynamic CRT, and native C++20 metadata through the
-same property sheet proven in the cores. Wrapper package contracts still pass 20/20.
-A native wrapper/MakeAppx validation of this cleanup
-is pending. No Fusion installer, MM Xbox boot, or safe in-process core handoff is claimed.
-
-
-Implemented here: independent package identity, branding, signing defaults, rejection of legacy
-identities, and a pair-aware DLL routing/validation boundary. `uwp/core_bootstrap.*` now accepts only
-the following requested game routes:
-
-| Selected pair | Requested game | Packaged DLL | Required core ID |
-|---|---|---|---|
-| OoT + MM | OoT | `soh_core.dll` | `oot` |
-| OoT + MM | MM | `mm_core.dll` | `mm` |
-| OoT MQ + MM | OoT MQ | `soh_core.dll` | `oot` |
-| OoT MQ + MM | MM | `mm_core.dll` | `mm` |
-
-An excluded edition or unknown selection returns error 78 before calling a core. A loaded DLL must
-return the expected ID, current ABI, and a non-null runner. The Windows loader uses the matching
-allowlisted filename and logs the requested pair/game, engine, and missing DLL by name. MQ is a
-content/layout choice within the OoT engine, not a third engine.
-
-**This is loader groundwork, not completed pairing enforcement.** Startup still requests OoT in
-the OoT + MM pair. There is no pairing selector or persisted combined session yet; archive selection,
-MQ layout enforcement, save binding, and randomizer logic are not connected to this boundary.
-The package still builds only `soh_core.dll` and requires pre-extracted archives. No actual MM DLL
-load, signed Fusion MSIX, or Xbox result is claimed.
-
-The opt-in MM Xbox compile profile now selects SDL2/OpenGL, MSVC options, direct object aggregation,
-the Windows core export, and archive-only startup. MM's desktop extraction UI moved out of
-`BenPort.cpp` into `2ship/2s2h/host/rom_extraction.cpp`; `host/archive_boot.*` validates archives
-before window setup in the Xbox profile. Missing, corrupt, or incompatible archives return through
-the core's existing boot-error boundary. The Xbox profile excludes desktop console setup and the
-POSIX developer FIFO. MM output stays in its own build directory so its assets cannot overwrite OoT.
-
-`.github/workflows/fusion-mm-uwp.yml` is a separate branch-scoped compile check. It builds current
-`mm_core` and `soh_core` sources independently on Windows, inspects exports/imports, and preserves diagnostics. Its DLL artifact is
-experimental compiler output, not an installer. Dependency binaries are cached before the compile
-so failures do not discard the dependency build. Native run
-[41219612617](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41219612617), source
-`ad347f9`, passed its host checks, dependency setup, and real Windows configuration. Compilation
-reported two undeclared `M_PI` uses in MM's optional scene-rotation path. Both now use the existing
-MM `M_PIf` constant, matching the float rotation API. The build diagnostics are preserved in
-that run's artifact; the successful follow-up is recorded below.
-
-Native rerun [41221349899](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41221349899),
-source `89b568d`, compiled the MM sources and reached linking. Its sole unresolved symbol was
-`bzero` in `CutsceneManager_ResetRunState`; both calls now use standard `memset` with `<string.h>`.
-Native run [41222720845](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41222720845),
-source `17dcfa1`, passed the host tests, Windows compilation/linking, and DLL audit. `mm_core.dll`
-exports `Zelda3D_CoreEntry` and imports SDL2 without SDL3. Its SHA-256 is
-`47f60330964334cbd31209647f3e8c1b717e94f6da9b296369b46d04e94c5fe9`.
-The artifact is experimental compiler output, not an installable package or Xbox boot proof.
-The audit checks the entry export and SDL choice; it is not an AppContainer API-compatibility test.
-Its dependency report includes OPENGL32, ADVAPI32, bcrypt, SDL2, KERNEL32, USER32, SHELL32, dbghelp,
-and IMM32. Packaged dependency resolution and Xbox compatibility still need verification.
-
-The follow-up also preserves desktop mod-directory search precedence, supplies the MSVC aligned
-allocator header through the build's precompiled header, and restores the generated build stamp
-after synthetic host configurations so those checks cannot overwrite a developer's engine version.
-
-### Next integration milestone
-
-Boot each game from the separate Fusion application, then establish a safe shared runtime before
-attempting world travel. The source survey found concrete prerequisites:
-
-1. **Validate the packaged MM core on Xbox.** Windows compile/link and the entry/SDL audit now pass.
-   Audit the recorded system imports and stage the required dependencies before enabling MM in an
-   installer. Root CMake keeps MM off by default for existing UWP builds and permits an explicit
-   `ZELDA3D_BUILD_MM=ON`; no actual MM Xbox boot has been verified.
-2. **Give both cores one engine owner.** The current Xbox build folds libultraship into the OoT DLL.
-   Linking that static library into MM too would create separate `Ship::Context` and switch-request
-   state. Desktop handoff depends on one shared engine. MM teardown retains its engine context, and
-   the existing lifecycle documents window teardown failures. Loading both DLLs alone does not fix
-   that. Do not add an in-process switch loop until ownership and run/teardown boundaries are tested.
-3. **Stage MM's distinct runtime assets.** MM needs `2ship.o2r` plus the user's `mm.o2r`. The former
-   has now been generated and validated for the ROM-free package; the latter must be imported. Keep game-specific extraction
-   metadata separate so staging one game cannot overwrite the other's files.
-4. **Connect import, pair selection, and saves.** Build the on-Xbox ROM validation/extraction flow,
-   bind the selected OoT edition to the session, and enforce it in archive loading and actual
-   randomizer generation/load. The current loader tests are not evidence of combined-game logic.
-
-Acceptance after those prerequisites: both selected games reach gameplay on Xbox, travel works in
-both directions in one process, and save/reload retains the same pair and progression. The shared
-items, models, enemies, entrances, and logic are subsequent gameplay integration work.
-
-### Follow-on implementation constraints
-
-The shared-engine change needs more than changing the library type. `ship/Api.h` selects exports
-unless `__DLL__` is defined, and current core targets do not define that consumer mode. Several
-engine data globals (including the execution stack, trace-model selector, interpolation step, and
-launcher/diagnostic state) have plain extern declarations. ImGui is also static and publicly linked,
-with game code directly using its context. Those boundaries need explicit ownership/import rules.
-Root, engine, and both game CMake files currently force the static MSVC runtime, and both dependency
-recipes use `x64-windows-static`. Game code passes shared pointers and STL objects to the engine;
-all C++ DLL boundaries need an agreed ABI/runtime. The archive headers also contain `_DLL` undefines
-that must be audited before any runtime-library change. Do not enable game switching as a side effect
-of turning on MM compilation.
-
-The ROM-free MM asset input is present under `2ship/assets/custom` (840 files; 79 PNG conversions).
-A separate `GAME_STR=MM` host exporter generates `2ship.o2r`, with `portVersion` matching the
-root project version. The stale exporter includes now resolve the repo-root `2ship` tree.
-`tools/build_mm_custom_archive.py` runs checked `botr --norom` in an empty staging directory,
-validates the exact member set, CRCs, version, unchanged raw assets, and converted texture headers
-and dimensions, texture type/size/aligned zero padding, then atomically replaces the output.
-Fourteen host tests cover malformed archives, supported texture padding, rejecting odd-width 4bpp
-inputs before export, and preserving an existing output when generation fails. `.github/workflows/fusion-mm-assets.yml`
-builds the pinned GAME_MM exporter and publishes only the validated port archive plus diagnostics.
-Native asset run [41222454896](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41222454896),
-source `98e2d85`, passed exporter compilation, generation, and validation. Its `2ship.o2r` contains
-841 members (840 custom assets plus `portVersion`), is 1,024,031 bytes, and has SHA-256
-`bc891ebc741019eadc900186d4e61b69c60947440525985eb0994284be382c59`. The downloaded artifact
-also passes the strengthened aligned-payload validator. The updated exporter/validation run
-[41223181631](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41223181631), source
-`8b6a2c3`, also passed all fourteen tests and real archive generation. Neither N64 nor 3DS ROM data was used;
-the user-provided `mm.o2r` remains a separate runtime requirement.
-
-The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
-activated. The new MM compile workflow does not replace main's pinned dispatcher or produce an MSIX.
+Packaging explicitly includes both cores, both port archives, the five pinned
+SDL2/Mesa dependency DLLs and the exact Microsoft retail x64 Store framework.
+Checks cover identity/version/architecture, signatures, every staged payload hash,
+private-file exclusion, framework metadata and packaged import/export resolution.
+The 20 existing host package checks and four new behavioral/provenance test groups
+pass. Native wrapper signing/packaging is the current next gate; no installer or
+Xbox runtime success is claimed before those results exist. Mesa dynamic driver
+loading and operating-system imports still require physical Xbox testing.
 
 ## Validation
 

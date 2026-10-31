@@ -1,34 +1,44 @@
-Zelda Fusion — Android-to-Xbox install
-========================================================
+Zelda Fusion - Xbox diagnostic boot test
+======================================
 
-These instructions apply to a future signed Fusion development package. This source checkpoint
-only establishes a separate identity; it is not a completed OoT/MM fusion game. The inherited
-runtime currently accepts OoT archives; MM and raw-ROM import support are still pending.
+This is a separate development app. The first test launches one original N64 game
+per app launch. It does not yet combine game worlds, items, saves or randomizer logic.
+Rendering, input, audio and saving still need physical Xbox testing.
 
-The package is ROM-free. You do not need a PC, Visual Studio, a command line,
-GitHub signing setup, or a certificate tool to install a provided signed package.
+Installation from Android needs no PC, Visual Studio or command line:
 
-1. On Android, download and unzip the GitHub Actions artifact named
-   ZELDA-FUSION-XBOX.
-2. Open Xbox Device Portal in your phone browser and go to Apps.
-3. Choose the included .msix (or .appx) as the app package, the included
-   public .cer as the certificate, and any .appx/.msix files under
-   Dependencies as dependencies.
-4. Install it alongside your existing apps. Its identity is separate from every previous build.
-5. In Device Portal, open File Explorer, then LocalAppData, then
-   the package starting with WesKestis.ZeldaFusion.UWP, then LocalState, then the soh folder.
-   This is Fusion's own storage. Keep previous builds' files in their own package folders.
-   Launch the app once first if the soh folder is not present yet.
-6. Upload your private files into LocalState\soh:
-      oot.o2r       Normal Quest (at least one quest archive is required)
-      oot-mq.o2r    Master Quest (optional)
-      oot3d.3ds     decrypted OoT3D source used by the graphics toggle
-7. Launch the app again from Device Portal or My games & apps.
+1. Unzip the ZELDA-FUSION-XBOX download on your phone.
+2. Open Xbox Device Portal in your phone browser. Install the included
+   ZeldaFusion_<version>_x64.msix and the dependency
+   Dependencies/x64/Microsoft.VCLibs.x64.14.00.appx.
+   The public ZELDA-FUSION.cer is included if the portal requests it.
+3. Keep the app classified as a Game in Xbox Developer Mode.
+4. Launch once, then open Device Portal File Explorer / LocalAppData /
+   the package beginning WesKestis.ZeldaFusion.UWP / LocalState.
+5. Upload your existing game archives to Fusion's own folders:
+      LocalState\soh\oot.o2r       for original OoT
+      LocalState\soh\oot-mq.o2r    for Master Quest
+      LocalState\2ship\mm.o2r      for Majora's Mask
+   Create the 2ship folder if it is absent. Raw ROM conversion is not in this test.
+   Do not copy old settings or saves into this new test app.
+6. Choose a folder under StartupSelections in the download and upload its
+   fusion-startup.txt into LocalState\soh (the same location for either game):
+      OoT-MM-OoT    -> launch OoT
+      OoT-MM-MM     -> launch MM with the OoT+MM requested pair
+      MQ-MM-MQ      -> launch Master Quest
+      MQ-MM-MM      -> launch MM with the MQ+MM requested pair
+   With no selection file, the app requests OoT. Invalid files stop startup.
+7. Fully stop the previous app process and launch again after changing selection.
 
-If install fails, keep the Device Portal error text. If the app closes during
-launch, refresh that same LocalState\soh folder and open uwp-boot.log. It is
-rewritten on every launch, so its final stage identifies the failed startup
-boundary even when Xbox Crash Data produces no dump.
+For this diagnostic, keep only the selected OoT quest archive in LocalState\soh.
+Pair-bound saves, MQ layout enforcement and combined seed logic are still pending.
+The installed soh.o2r and 2ship.o2r port files are included; do not upload them.
+No 3DS game image is needed. Use the default Original SoH graphics setting.
 
-If launch succeeds, report whether Original and OoT3D modes render, whether
-L3+R3 toggles the V3 cursor, and whether View/F1 opens the full settings menu.
+If the app closes at launch, retrieve LocalState\soh\uwp-boot.log before launching
+again. The log is replaced each launch, even when MM is selected. Missing archives
+are reported there before loading an engine. A failure before SDL startup may
+produce no boot log; retain the Device Portal error or crash report in that case.
+
+Report the chosen game, last boot-log line, and whether picture, controller input,
+audio and saving work. This test does not replace any previous installed app.
