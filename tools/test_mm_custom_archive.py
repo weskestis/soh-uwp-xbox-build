@@ -106,6 +106,25 @@ class ArchiveTests(unittest.TestCase):
             with self.assertRaisesRegex(ArchiveError, "payload size"):
                 self.validate()
 
+    def test_accepts_aligned_texture_payload_and_rejects_dirty_padding(self):
+        source = self.repo / "2ship/assets/custom/icon.rgba32.png"
+        source.write_bytes(source.read_bytes()[:16] + struct.pack(">2I", 1, 1))
+        texture = bytearray(self.contents["icon"][:0x58])
+        struct.pack_into("<3I", texture, 0x44, 1, 1, 4)
+        self.write_archive(contents={**self.contents, "icon": texture})
+        self.validate()
+        texture[-1] = 1
+        self.write_archive(contents={**self.contents, "icon": texture})
+        with self.assertRaisesRegex(ArchiveError, "padding"):
+            self.validate()
+
+    def test_rejects_odd_width_4bpp_before_export(self):
+        custom = self.repo / "2ship/assets/custom"
+        header = (custom / "icon.rgba32.png").read_bytes()[:16]
+        (custom / "odd.i4.png").write_bytes(header + struct.pack(">2I", 1, 2))
+        with self.assertRaisesRegex(ArchiveError, "even width"):
+            asset_manifest(custom)
+
     def test_rejects_corrupt_crc_and_non_zip(self):
         self.write_archive()
         data = self.output.read_bytes().replace(b"asset bytes", b"asset byte!")

@@ -27,6 +27,20 @@ class ArchiveError(RuntimeError):
     """The exporter failed or its archive does not match the package inputs."""
 
 
+def texture_dimensions(source: Path) -> tuple[int, int]:
+    png = source.read_bytes()
+    if len(png) < 24 or png[:8] != b"\x89PNG\r\n\x1a\n":
+        raise ArchiveError(f"Invalid source PNG: {source}")
+    width, height = struct.unpack_from(">2I", png, 16)
+    if not (0 < width <= 65535 and 0 < height <= 65535):
+        raise ArchiveError(f"Texture dimensions do not fit the runtime: {source}")
+    _, bits = TEXTURE_FORMATS[source.name.rsplit(".", 2)[-2]]
+    if bits == 4 and width % 2:
+        # ZAPD packs pairs within each row, reading x and x+1 together.
+        raise ArchiveError(f"4bpp texture needs an even width: {source}")
+    return width, height
+
+
 def project_version(repo: Path) -> tuple[int, int, int]:
     source = (repo / "CMakeLists.txt").read_text(encoding="utf-8")
     match = re.search(r"\bproject\s*\(\s*Ship\s+VERSION\s+(\d+)\.(\d+)\.(\d+)(?=\s|\))",
@@ -51,6 +65,7 @@ def asset_manifest(custom: Path) -> dict[str, tuple[Path, bool]]:
         parts = path.name.rsplit(".", 2)
         texture = len(parts) == 3 and parts[-1] == "png" and parts[-2] in TEXTURE_FORMATS
         if texture:
+            texture_dimensions(path)
             name = name.rsplit(".", 2)[0]
         elif "accessibility" in path.as_posix() and path.suffix != ".json":
             continue
@@ -90,12 +105,10 @@ def validate_archive(path: Path, members: dict[str, tuple[Path, bool]],
                     if data != original:
                         raise ArchiveError(f"Raw asset changed during export: {name}")
                     continue
-                if len(original) < 24 or original[:8] != b"\x89PNG\r\n\x1a\n":
-                    raise ArchiveError(f"Invalid source PNG: {source}")
                 if (len(data) <= 0x50 or data[:4] != b"\0\0\0\0" or
                         struct.unpack_from("<2I", data, 4) != (0x4F544558, 0)):
                     raise ArchiveError(f"Texture was not converted to an OTEX resource: {name}")
-                dimensions = struct.unpack_from(">2I", original, 16)
+                dimensions = texture_dimensions(source)
                 if struct.unpack_from("<2I", data, 0x44) != dimensions:
                     raise ArchiveError(f"Texture dimensions changed during export: {name}")
                 texture_type, bits = TEXTURE_FORMATS[source.name.rsplit(".", 2)[-2]]
@@ -103,8 +116,11 @@ def validate_archive(path: Path, members: dict[str, tuple[Path, bool]],
                     raise ArchiveError(f"Texture format changed during export: {name}")
                 expected_size = (dimensions[0] * dimensions[1] * bits + 7) // 8
                 declared_size = struct.unpack_from("<I", data, 0x4C)[0]
-                if not expected_size or declared_size != expected_size or len(data) != 0x50 + declared_size:
+                padded_size = (declared_size + 7) & ~7
+                if declared_size != expected_size or len(data) != 0x50 + padded_size:
                     raise ArchiveError(f"Texture payload size is invalid: {name}")
+                if any(data[0x50 + declared_size:]):
+                    raise ArchiveError(f"Texture padding is not zero: {name}")
     except (OSError, zipfile.BadZipFile, RuntimeError) as exc:
         if isinstance(exc, ArchiveError):
             raise

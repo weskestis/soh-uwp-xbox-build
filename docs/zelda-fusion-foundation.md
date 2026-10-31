@@ -96,7 +96,7 @@ attempting world travel. The source survey found concrete prerequisites:
    the existing lifecycle documents window teardown failures. Loading both DLLs alone does not fix
    that. Do not add an in-process switch loop until ownership and run/teardown boundaries are tested.
 3. **Stage MM's distinct runtime assets.** MM needs `2ship.o2r` plus the user's `mm.o2r`. The former
-   belongs in the ROM-free package; the latter must be imported. Keep game-specific extraction
+   has now been generated and validated for the ROM-free package; the latter must be imported. Keep game-specific extraction
    metadata separate so staging one game cannot overwrite the other's files.
 4. **Connect import, pair selection, and saves.** Build the on-Xbox ROM validation/extraction flow,
    bind the selected OoT edition to the session, and enforce it in archive loading and actual
@@ -124,11 +124,16 @@ A separate `GAME_STR=MM` host exporter generates `2ship.o2r`, with `portVersion`
 root project version. The stale exporter includes now resolve the repo-root `2ship` tree.
 `tools/build_mm_custom_archive.py` runs checked `botr --norom` in an empty staging directory,
 validates the exact member set, CRCs, version, unchanged raw assets, and converted texture headers
-and dimensions, then atomically replaces the output. Twelve host tests cover malformed archives and
-preserving an existing output when generation fails. `.github/workflows/fusion-mm-assets.yml`
+and dimensions, texture type/size/aligned zero padding, then atomically replaces the output.
+Fourteen host tests cover malformed archives, supported texture padding, rejecting odd-width 4bpp
+inputs before export, and preserving an existing output when generation fails. `.github/workflows/fusion-mm-assets.yml`
 builds the pinned GAME_MM exporter and publishes only the validated port archive plus diagnostics.
-Actual exporter generation remains pending at this checkpoint. Neither N64 nor 3DS ROM data is
-needed for this port archive; the user-provided `mm.o2r` remains a separate runtime requirement.
+Native asset run [41222454896](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41222454896),
+source `98e2d85`, passed exporter compilation, generation, and validation. Its `2ship.o2r` contains
+841 members (840 custom assets plus `portVersion`), is 1,024,031 bytes, and has SHA-256
+`bc891ebc741019eadc900186d4e61b69c60947440525985eb0994284be382c59`. The downloaded artifact
+also passes the strengthened aligned-payload validator. Neither N64 nor 3DS ROM data was used;
+the user-provided `mm.o2r` remains a separate runtime requirement.
 
 The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
 activated. The new MM compile workflow does not replace main's pinned dispatcher or produce an MSIX.
