@@ -341,6 +341,11 @@ set_source_files_properties(2s2h/mixer.c PROPERTIES
 # their include guards first, making the later include a no-op. soh (OoT) doesn't
 # need this; the MM tree was written against it, so it's a per-target PCH.
 ################################################################################
+if(MSVC)
+    # Declare the aligned allocator for the existing Windows heap path without
+    # adding platform includes to imported decomp sources.
+    target_precompile_headers(mm_settings INTERFACE <malloc.h>)
+endif()
 target_precompile_headers(mm_settings INTERFACE
     "$<$<COMPILE_LANGUAGE:CXX>:<libultraship/bridge/consolevariablebridge.h$<ANGLE-R>>"
     "$<$<COMPILE_LANGUAGE:CXX>:<ship/Context.h$<ANGLE-R>>"

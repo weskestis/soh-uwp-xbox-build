@@ -74,9 +74,12 @@ bool NeedsRomRegeneration() {
 
 void CreateModFolder() {
     try {
-        const auto modsPath = Ship::Context::GetPathRelativeToAppDirectory("mods", appShortName);
-        if (std::filesystem::create_directories(modsPath)) {
-            std::ofstream(modsPath + "/custom_mod_files_go_here.txt").close();
+        auto modsPath = Ship::Context::LocateFileAcrossAppDirs("mods", appShortName);
+        if (!std::filesystem::exists(modsPath)) {
+            modsPath = Ship::Context::GetPathRelativeToAppDirectory("mods", appShortName);
+            if (std::filesystem::create_directories(modsPath)) {
+                std::ofstream(modsPath + "/custom_mod_files_go_here.txt").close();
+            }
         }
     } catch (const std::filesystem::filesystem_error& error) {
         SPDLOG_WARN("Could not create MM mods folder: {}", error.what());

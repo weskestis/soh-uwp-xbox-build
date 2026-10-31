@@ -66,7 +66,16 @@ POSIX developer FIFO. MM output stays in its own build directory so its assets c
 `.github/workflows/fusion-mm-uwp.yml` is a separate branch-scoped compile check. It builds current
 `mm_core` source on Windows, inspects exports/imports, and preserves diagnostics. Its DLL artifact is
 experimental compiler output, not an installer. Dependency binaries are cached before the compile
-so failures do not discard the dependency build. Native compilation is pending at this checkpoint.
+so failures do not discard the dependency build. Native run
+[41219612617](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41219612617), source
+`ad347f9`, passed its host checks, dependency setup, and real Windows configuration. Compilation
+reported two undeclared `M_PI` uses in MM's optional scene-rotation path. Both now use the existing
+MM `M_PIf` constant, matching the float rotation API. Native compile/link rerun is pending; no native
+link or Xbox runtime success is claimed. The build diagnostics are preserved in that run's artifact.
+
+The follow-up also preserves desktop mod-directory search precedence, supplies the MSVC aligned
+allocator header through the build's precompiled header, and restores the generated build stamp
+after synthetic host configurations so those checks cannot overwrite a developer's engine version.
 
 ### Next integration milestone
 
@@ -92,6 +101,27 @@ Acceptance after those prerequisites: both selected games reach gameplay on Xbox
 both directions in one process, and save/reload retains the same pair and progression. The shared
 items, models, enemies, entrances, and logic are subsequent gameplay integration work.
 
+### Follow-on implementation constraints
+
+The shared-engine change needs more than changing the library type. `ship/Api.h` selects exports
+unless `__DLL__` is defined, and current core targets do not define that consumer mode. Several
+engine data globals (including the execution stack, trace-model selector, interpolation step, and
+launcher/diagnostic state) have plain extern declarations. ImGui is also static and publicly linked,
+with game code directly using its context. Those boundaries need explicit ownership/import rules.
+Root, engine, and both game CMake files currently force the static MSVC runtime, and both dependency
+recipes use `x64-windows-static`. Game code passes shared pointers and STL objects to the engine;
+all C++ DLL boundaries need an agreed ABI/runtime. The archive headers also contain `_DLL` undefines
+that must be audited before any runtime-library change. Do not enable game switching as a side effect
+of turning on MM compilation.
+
+The ROM-free MM asset input is present under `2ship/assets/custom` (840 files; 79 PNG conversions).
+A separate `GAME_STR=MM` host exporter must generate `2ship.o2r`, with `portVersion` matching the
+root project version. Its current exporter headers/CMake still point at obsolete `Shipwright/mm`
+paths. The documented `tools/build_mm_custom_archive.py` is absent. Use a checked `botr --norom`
+invocation in an empty staging directory, validate ZIP members/CRC/version, and preserve errors:
+the existing `extract_assets.py` wrapper does not propagate a failed exporter exit status. Neither
+N64 nor 3DS ROM data is needed to generate this port archive.
+
 The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
 activated. The new MM compile workflow does not replace main's pinned dispatcher or produce an MSIX.
 
@@ -113,6 +143,10 @@ truncation and invalid byte-order rejection, exact port version and major-only R
 both POSIX and disabled Windows FIFO compilation, and three generated CMake profiles (Xbox SDL2
 archive-only, desktop SDL2 archive-only, desktop SDL3 extraction). CMake uses stub dependency targets
 for these host checks; only the separate native workflow can establish actual Windows compilation.
+
+The changed-source size/no-growth checks pass; `BenPort.cpp` was reduced to 1,992 lines and its
+legacy ceiling reduced with it. The broader source-structure unit suite has one unchanged baseline
+failure (`SohRmlUi.cpp` is 1,228 lines against 1,200); it is not a regression from this port.
 
 `tools/codemap.py check` reports the same 23 missing external/pre-existing paths as the unmodified
 baseline (including optional decomp submodules); this change introduces zero missing references.

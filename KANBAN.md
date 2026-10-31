@@ -27,6 +27,7 @@ Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple increment
 
 - [#216] Zelda Fusion combined-game runtime — pair-aware Xbox loader groundwork implemented: only OoT+MM or OoT MQ+MM routes, exact core ID/ABI checks, and DLL-specific diagnostics. Host contracts 19/19 PASS (4 valid routes, 40 descriptor failures, 7 invalid selections). MM still needs its Xbox build port and shared engine ownership; no gameplay switch, pair-bound save, combined randomizer, or signed Fusion installer yet. [Scope, blockers, and evidence](docs/zelda-fusion-foundation.md).
   MM Xbox source/build adaptations now implemented; dedicated Windows compile workflow added. Host archive-policy/FIFO checks and three CMake profiles pass. Native compile/link, shared engine ownership, and Xbox runtime remain under validation.
+  Native [run 41219612617](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41219612617) passed host checks, dependencies, and Windows configuration, then found two undeclared `M_PI` uses in MM's optional scene-rotation path. Both now use MM's existing `M_PIf`; native compile/link rerun pending.
 
 - [#213] Xbox package exits immediately on its first physical boot and Device Portal captures no dump —
   user report 2026-09-06 after successful run-21 install and upload of `oot.o2r`, `oot-mq.o2r`, and

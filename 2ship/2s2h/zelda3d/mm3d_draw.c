@@ -305,9 +305,9 @@ int Zelda3D_TryDrawRoom(PlayState* play, Room* room) {
             rotMode = (e != NULL && e[0] != '\0') ? atoi(e) : 0;
         }
         if (rotMode == 1) {
-            Matrix_RotateXF(M_PI, MTXMODE_APPLY);
+            Matrix_RotateXF(M_PIf, MTXMODE_APPLY);
         } else if (rotMode == 2) {
-            Matrix_RotateZF(M_PI, MTXMODE_APPLY);
+            Matrix_RotateZF(M_PIf, MTXMODE_APPLY);
         } else if (rotMode == 3) {
             Matrix_Scale(1.0f, -1.0f, 1.0f, MTXMODE_APPLY);
         }

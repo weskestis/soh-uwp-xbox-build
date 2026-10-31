@@ -2,9 +2,6 @@
 #include "z64.h"
 #include <assert.h>
 #include <stdlib.h>
-#ifdef _MSC_VER
-#include <malloc.h>
-#endif
 #if defined(__unix__) || defined(__APPLE__)
 #include <sys/mman.h>
 #endif

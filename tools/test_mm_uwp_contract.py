@@ -8,11 +8,27 @@ separate Windows workflow is required evidence for MSVC compilation/linking.
 from __future__ import annotations
 
 import os
+from contextlib import contextmanager
 from pathlib import Path
 import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@contextmanager
+def preserve_generated_build_stamp():
+    # MM's existing configure writes this ignored source file. A synthetic
+    # configure must not leave its placeholder version in a developer's tree.
+    path = ROOT / "2ship/src/boot/build.c"
+    previous = path.read_bytes() if path.exists() else None
+    try:
+        yield
+    finally:
+        if previous is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_bytes(previous)
 
 
 def run(args: list[str]) -> None:
@@ -37,7 +53,7 @@ def check_profile(work: Path, name: str, *, xbox: bool, extraction: bool, sdl2: 
                               ("Ogg", "Vorbis", "Opus", "OpusFile", "SDL3"))
     (source / "CMakeLists.txt").write_text(f'''
 cmake_minimum_required(VERSION 3.26)
-project(MMProfileFixture LANGUAGES C CXX)
+project(MMProfileFixture VERSION 9.2.3 LANGUAGES C CXX)
 set(CMAKE_BUILD_TYPE Release)
 set(ZELDA3D_SHARED_DIR "{ROOT.as_posix()}/Shipwright/zelda3d_shared")
 set(ZELDA3D_ENGINE_ASSETS_DIR "{ROOT.as_posix()}/Shipwright/libultraship/assets")
@@ -86,7 +102,7 @@ file(WRITE "${{CMAKE_BINARY_DIR}}/report.txt"
 def main() -> int:
     scratch = ROOT / "scratch"
     scratch.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="mm-uwp-check-", dir=scratch) as temp:
+    with preserve_generated_build_stamp(), tempfile.TemporaryDirectory(prefix="mm-uwp-check-", dir=scratch) as temp:
         work = Path(temp)
         cxx = os.environ.get("CXX", "c++")
         version_test = work / "archive-version-test"
