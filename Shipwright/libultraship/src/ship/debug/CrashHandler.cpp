@@ -3,7 +3,7 @@
 #include "ship/debug/CrashHandler.h"
 #include "ship/Context.h"
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 #include <windows.h>
 #include <DbgHelp.h>
 #include <errhandlingapi.h>
@@ -255,7 +255,7 @@ static void ShutdownHandler(int sig, siginfo_t* sigInfo, void* data) {
     exit(1);
 }
 
-#elif _WIN32
+#elif defined(_WIN32) && !defined(ZELDA3D_UWP)
 
 #if defined(_WIN32) && !defined(_WIN64)
 #define WINDOWS_32_BIT
@@ -507,7 +507,7 @@ CrashHandler::CrashHandler() : mOutBuffer(std::make_unique<char[]>(gMaxBufferSiz
     sigaction(SIGTERM, &shutdownAction, nullptr);
     sigaction(SIGQUIT, &shutdownAction, nullptr);
     sigaction(SIGKILL, &shutdownAction, nullptr);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && !defined(ZELDA3D_UWP)
     SetUnhandledExceptionFilter(seh_filter);
 #endif
 }

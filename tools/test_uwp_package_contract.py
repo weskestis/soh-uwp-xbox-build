@@ -382,14 +382,17 @@ def main() -> int:
             raise AssertionError("AppX audit accepted an unapproved package icon")
         icon.write_bytes(approved_icon)
 
-        private_archive = unpacked / "oot.o2r"
-        private_archive.write_bytes(b"must-be-rejected")
-        try:
-            runtime_stage.audit_appx(unpacked, "CN=WesKestisZeldaFusion")
-        except RuntimeError:
-            pass
-        else:
-            raise AssertionError("AppX audit accepted a private owner archive")
+        for name in ("oot.o2r", "oot-mq.o2r", "mm.o2r", "assets/MM.O2R"):
+            private_archive = unpacked / name
+            private_archive.write_bytes(b"must-be-rejected")
+            try:
+                runtime_stage.audit_appx(unpacked, "CN=WesKestisZeldaFusion")
+            except RuntimeError:
+                pass
+            else:
+                raise AssertionError(f"AppX audit accepted private owner archive {name}")
+            finally:
+                private_archive.unlink()
     tests += 1
 
     install_text = (UWP / "ANDROID-INSTALL.txt").read_text(encoding="utf-8")

@@ -4,6 +4,7 @@
 #include <mutex>
 #include <cstring>
 #include <iostream>
+#include <stdexcept>
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
@@ -12,6 +13,7 @@
 #include "ship/controller/controldeck/ControlDeck.h"
 #include "ship/controller/scripted/ScriptedInputFifo.h"
 #include "ship/debug/CrashHandler.h"
+#include "ship/debug/ReleaseLogger.h"
 #include "ship/window/FileDropMgr.h"
 #include "ship/window/Window.h"
 #include "ship/window/gui/Gui.h"
@@ -316,7 +318,7 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         spdlog::init_thread_pool(8192, 1);
         std::vector<spdlog::sink_ptr> sinks;
 
-#if (!defined(_WIN32)) || defined(_DEBUG)
+#if !defined(ZELDA3D_UWP) && ((!defined(_WIN32)) || defined(_DEBUG))
 #if defined(_DEBUG) && defined(_WIN32)
         // LLVM on Windows allocs a hidden console in its entrypoint function.
         // We free that console here to create our own.
@@ -365,9 +367,7 @@ bool Context::InitLogging(spdlog::level::level_enum debugBuildLogLevel,
         GetLogger()->set_level(debugBuildLogLevel);
         GetLogger()->flush_on(spdlog::level::trace);
 #else
-        mLogThreadPool = std::make_shared<spdlog::details::thread_pool>(8192, 1);
-        mLogger = std::make_shared<spdlog::async_logger>(GetName(), sinks.begin(), sinks.end(), mLogThreadPool,
-                                                         spdlog::async_overflow_policy::block);
+        mLogger = CreateReleaseLogger(GetName(), sinks, mLogThreadPool);
         GetLogger()->set_level(releaseBuildLogLevel);
         GetLogger()->flush_on(spdlog::level::info);
 #endif
@@ -920,7 +920,15 @@ std::string Context::GetAppBundlePath() {
     return std::string(home) + "/Documents";
 #endif
 
-#ifdef NON_PORTABLE
+#if defined(ZELDA3D_UWP)
+    // WinRT's SDL implementation resolves Package::Current->InstalledLocation.
+    // NON_PORTABLE's build-machine install prefix is never an Xbox asset path.
+    std::unique_ptr<char, decltype(&SDL_free)> basePath(SDL_GetBasePath(), SDL_free);
+    if (!basePath || !basePath.get()[0]) {
+        throw std::runtime_error(std::string("Cannot locate installed package: ") + SDL_GetError());
+    }
+    return basePath.get();
+#elif defined(NON_PORTABLE)
     return CMAKE_INSTALL_PREFIX;
 #else
 #ifdef __APPLE__

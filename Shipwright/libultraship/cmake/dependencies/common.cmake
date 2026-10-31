@@ -18,8 +18,8 @@ endif()
 #
 # The DOCKING branch, not master: SoH's dev UI is built around DockSpace()/viewports, and the master
 # headers have neither. The tag below was verified byte-identical to the headers the shim vendored.
-# The sole UWP-only patch changes its Windows GL loader from LoadLibraryA to LoadPackagedLibrary;
-# desktop builds consume the upstream tag unchanged.
+# The UWP-only patch uses LoadPackagedLibrary for GL and excludes desktop HWND
+# docking callbacks. Desktop builds consume the upstream tag unchanged.
 set(imgui_patch_arguments)
 if(ZELDA3D_UWP)
     set(imgui_uwp_loader_patch_file

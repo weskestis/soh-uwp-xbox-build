@@ -403,6 +403,15 @@ FetchContent_MakeAvailable(dr_libs)
 # ENGINE — knows nothing about either game.
 ################################################################################
 add_subdirectory(${ZELDA3D_ENGINE_DIR} ${CMAKE_BINARY_DIR}/libultraship)
+
+if(ZELDA3D_UWP_CORE)
+    find_package(spdlog CONFIG REQUIRED)
+    add_executable(uwp_release_logger_test tools/uwp_release_logger_test.cpp)
+    target_include_directories(uwp_release_logger_test PRIVATE ${ZELDA3D_ENGINE_DIR}/include)
+    target_link_libraries(uwp_release_logger_test PRIVATE spdlog::spdlog)
+    set_target_properties(uwp_release_logger_test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/uwp-checks")
+endif()
 target_compile_options(libultraship PRIVATE "${WARNING_OVERRIDE}")
 if(INCLUDE_MPQ_SUPPORT)
     target_compile_definitions(libultraship PUBLIC INCLUDE_MPQ_SUPPORT)

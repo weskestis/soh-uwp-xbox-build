@@ -150,6 +150,40 @@ activated. The new MM compile workflow does not replace main's pinned dispatcher
 
 ## Validation
 
+### WinRT startup audit follow-up (2026-10-31)
+
+The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop
+subclassing is retained only after checking SDL's window-manager result and subsystem. UWP builds
+exclude desktop DbgHelp crash dialogs, file-drop symbol lookup, debug console allocation, and
+ImGui's default Win32 clipboard/IME/shell helpers. The pinned ImGui patch also excludes desktop
+SDL docking callbacks. The wrapper's existing SEH boot diagnostics remain responsible for the
+core boundary; the engine no longer installs the desktop exception filter in UWP.
+
+The installed asset directory now comes from WinRT SDL's `SDL_GetBasePath`, ahead of the
+`NON_PORTABLE` build-machine prefix, retaining explicit bundle overrides. SDL owns allocation
+and `SDL_free` releases it. MM creates its file logger before archive validation/window creation,
+so the existing boot-error catch can record missing/incompatible archives under LocalState.
+`ReleaseLogger.h` makes UWP logging synchronous; desktop Release keeps its asynchronous logger.
+The native logger test writes through this factory and exits immediately without destructors,
+requiring caller-thread delivery and the complete error on disk. Its native execution is pending.
+The package audit now rejects `mm.o2r`, including nested/case-varied names, alongside OoT data.
+
+`tools/test_uwp_core_imports.py` passes nine tests. The real `dumpbin /imports` gate rejects known
+desktop callback DLLs/symbols, requires SDL2's package path and packaged GL loading, and produces
+an explicitly limited report. It deliberately does not reject `GetSecurityInfo` just because the
+old DLL imports it from ADVAPI32: Microsoft includes that function in UWP's security API set.
+The strengthened audit rejects the previously built MM DLL. Native recompilation of these
+startup changes is pending; local host/profile/package checks and applying the patch to the
+exact pinned ImGui tag pass.
+
+**Newly confirmed delivery blocker:** the existing normal-Windows core and vcpkg profile use
+`/MT`. Microsoft's [UWP CRT guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/windows-store-apps-the-windows-runtime-and-the-c-run-time?view=msvc-170)
+excludes UWP apps and DLLs statically linked to the CRT. The supported migration requires a
+consistent dynamic CRT across both cores and dependencies, UWP-compatible dependency paths,
+appropriate API-set linkage, and packaged framework dependencies. `WindowsApp.lib` alone does
+not repair a desktop CRT or certify imports. The current compiler artifact must not be promoted
+to a usable Xbox installer. This is separate from the remaining shared-engine ownership work.
+
 `python3 tools/test_uwp_package_contract.py`: **19/19 PASS** on 2026-10-31. The tests populate the
 checked-in manifest from its CMake defaults, accept Fusion and later Fusion versions, reject four
 old package names, reject a matching legacy signing publisher, and reject a publisher mismatch.
@@ -167,7 +201,7 @@ both POSIX and disabled Windows FIFO compilation, and three generated CMake prof
 archive-only, desktop SDL2 archive-only, desktop SDL3 extraction). CMake uses stub dependency targets
 for these host checks; only the separate native workflow can establish actual Windows compilation.
 
-The changed-source size/no-growth checks pass; `BenPort.cpp` was reduced to 1,992 lines and its
+The changed-source size/no-growth checks pass; `BenPort.cpp` was reduced to 1,989 lines and its
 legacy ceiling reduced with it. The broader source-structure unit suite has one unchanged baseline
 failure (`SohRmlUi.cpp` is 1,228 lines against 1,200); it is not a regression from this port.
 

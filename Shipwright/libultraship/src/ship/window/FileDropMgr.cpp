@@ -4,6 +4,8 @@
 #include <spdlog/spdlog.h>
 #ifdef _MSC_VER
 #define strdup _strdup
+#endif
+#if defined(_MSC_VER) && !defined(ZELDA3D_UWP)
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <processthreadsapi.h>
@@ -66,7 +68,7 @@ static void PrintRegError(void* funcAddr) {
     if (demangledName != nullptr) {
         free(demangledName);
     }
-#elif _MSC_VER
+#elif defined(_MSC_VER) && !defined(ZELDA3D_UWP)
     char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME + sizeof(TCHAR)];
 
     PSYMBOL_INFO symbol = (PSYMBOL_INFO)buffer;
@@ -80,6 +82,8 @@ static void PrintRegError(void* funcAddr) {
     DWORD err = GetLastError();
     SPDLOG_WARN("Trying to register {}. Already registered.", symbol->Name);
     SymCleanup(hProcess);
+#else
+    SPDLOG_WARN("Trying to register {}. Already registered.", funcAddr);
 #endif
 }
 

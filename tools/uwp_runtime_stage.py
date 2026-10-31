@@ -66,7 +66,7 @@ PACKAGE_ICONS = {
         "9f364abc09920fa42a12a2fcd3617bdf022ae756ed6f4ac9cec56ef9b2dbaae0",
     ),
 }
-PRIVATE_NAMES = frozenset(("oot.o2r", "oot-mq.o2r"))
+PRIVATE_NAMES = frozenset(("oot.o2r", "oot-mq.o2r", "mm.o2r"))
 PRIVATE_SUFFIXES = frozenset((".3ds", ".cia", ".z64", ".n64", ".v64", ".otr", ".pfx", ".p12"))
 UNNEEDED_PACKAGE_SUFFIXES = frozenset((".lib", ".pdb", ".zip"))
 

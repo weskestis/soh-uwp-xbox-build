@@ -14,6 +14,9 @@ on:
       - 'tools/ci/fusion_mm_windows.ps1'
       - 'tools/test_mm_uwp_contract.py'
       - 'tools/mm_archive_version_test.cpp'
+      - 'tools/uwp_core_imports.py'
+      - 'tools/test_uwp_core_imports.py'
+      - 'tools/uwp_release_logger_test.cpp'
 
 permissions:
   contents: read
@@ -35,6 +38,7 @@ jobs:
           persist-credentials: false
       - run: python3 tools/test_uwp_package_contract.py
       - run: python3 tools/test_mm_uwp_contract.py
+      - run: python3 tools/test_uwp_core_imports.py
 
   mm-core:
     needs: host-contracts
@@ -67,6 +71,8 @@ jobs:
         with:
           path: scratch/vcpkg-cache
           key: fusion-mm-vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('tools/ci/fusion_mm_windows.ps1') }}
+          restore-keys: |
+            fusion-mm-vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT }}-
       - name: Install Windows dependencies
         run: ./tools/ci/fusion_mm_windows.ps1 Dependencies
       - name: Save dependencies before compiling experimental code

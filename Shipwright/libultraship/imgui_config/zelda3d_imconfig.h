@@ -23,3 +23,10 @@
 // ImU64 default compiles most of them and then fails scattered across unrelated files, which reads
 // like the call sites are wrong rather than the config. It is the config.
 #define ImTextureID void*
+
+// SDL's WinRT backend owns clipboard/IME; desktop HWND and shell APIs cannot be
+// used by the Xbox AppContainer. Keep ImGui's desktop defaults on other builds.
+#ifdef ZELDA3D_UWP
+#define IMGUI_DISABLE_WIN32_FUNCTIONS
+#define IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS
+#endif

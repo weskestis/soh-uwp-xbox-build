@@ -13,7 +13,7 @@
 #include "ship/utils/SDLCompat.h"
 #endif
 
-#if _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 #include <windows.h>
 #endif
 
@@ -80,7 +80,7 @@ class CrashHandler {
      * @param ctx Signal handler context containing the register state.
      */
     void PrintRegisters(ucontext_t* ctx);
-#elif _WIN32
+#elif defined(_WIN32) && !defined(ZELDA3D_UWP)
     /**
      * @brief Appends the values of the CPU registers from @p ctx to the crash report.
      * @param ctx Windows CONTEXT structure containing the register state.

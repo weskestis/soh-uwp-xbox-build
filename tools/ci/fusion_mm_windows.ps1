@@ -41,6 +41,14 @@ switch ($Command) {
         Assert-Exit "MM Xbox profile configure failed"
     }
     "Compile" {
+        cmake --build scratch/build-fusion-mm --config Release --target uwp_release_logger_test --parallel 2 2>&1 |
+            Tee-Object "$diagnostics/logger-build.log"
+        Assert-Exit "UWP logger regression test compilation failed"
+        & "$repoRoot/scratch/build-fusion-mm/uwp-checks/Release/uwp_release_logger_test.exe" "$diagnostics/early-error.log"
+        if ($LASTEXITCODE -ne 23) { throw "UWP logger did not deliver the error synchronously" }
+        if ((Get-Content "$diagnostics/early-error.log" -Raw) -notmatch '\[2ship\] cannot boot: missing archive') {
+            throw "UWP boot error was lost on immediate process exit"
+        }
         # Compile this revision. The old OoT runtime ZIP cannot prove MM builds.
         cmake --build scratch/build-fusion-mm --config Release --target mm_core --parallel 2 2>&1 |
             Tee-Object "$diagnostics/build.log"
@@ -70,9 +78,12 @@ switch ($Command) {
         }
         & $dumpbin.FullName /imports $core | Set-Content "$diagnostics/imports.txt"
         Assert-Exit "Cannot inspect MM imports"
+        python tools/uwp_core_imports.py "$diagnostics/imports.txt" --output "$diagnostics/import-audit.json"
+        Assert-Exit "MM DLL still contains known desktop callbacks"
         $sha = (git rev-parse HEAD).Trim()
         @("source_commit=$sha", "artifact=experimental MM core DLL", "xbox_runtime_verified=false", `
-          "shared_engine_handoff=false", "not_an_installable_package=true") |
+          "shared_engine_handoff=false", "not_an_installable_package=true", `
+          "uwp_api_certified=false", "crt_compatibility_verified=false") |
             Set-Content "$diagnostics/BUILD.txt"
         Get-FileHash $core -Algorithm SHA256 | Format-List | Out-String |
             Set-Content "$diagnostics/SHA256.txt"

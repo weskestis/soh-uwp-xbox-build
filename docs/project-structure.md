@@ -14,6 +14,13 @@ MM's archive boot setup lives in `2ship/2s2h/host/archive_boot.*`, with its vers
 from the Xbox archive-only core. `BenPort.cpp` composes those owners without implementing the
 extraction loop. The dedicated MM Xbox compile workflow emits experimental DLLs, not packages.
 
+`tools/uwp_core_imports.py` owns the dumpbin regression gate for known desktop window, shell,
+IME, and debug callbacks, exercised by `tools/test_uwp_core_imports.py` and the MM Windows job.
+It does not certify the complete UWP API surface, CRT, dependency closure, or Xbox runtime.
+`ship/debug/ReleaseLogger.h` owns Release logger construction: synchronous in UWP so an early
+boot error survives immediate exit, asynchronous on desktop. The native
+`tools/uwp_release_logger_test.cpp` exercises the same factory and exits without teardown.
+
 The project is two layers. **zelda** = the N64-asset PC-port engines (the Shipwright family, which
 render the game from N64 assets). **zelda3d** = the 3DS-asset render layer we build *on top of* those
 engines, substituting OoT3D / MM3D (Nintendo 3DS) models, world, animation, camera-math and lighting

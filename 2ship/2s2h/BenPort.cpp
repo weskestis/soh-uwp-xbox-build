@@ -148,10 +148,18 @@ Fast::Fast3dWindow* benFast3dWindow = nullptr;
 OTRGlobals::OTRGlobals() {
     context = Ship::Context::CreateUninitializedInstance("2 Ship 2 Harkinian", appShortName, "2ship2harkinian.json");
 
-    const auto portArchive = MmArchiveBoot::PreparePortArchive();
-
     context->InitConfiguration();
     context->InitConsoleVariables();
+#if (_DEBUG)
+    auto defaultLogLevel = spdlog::level::trace;
+#else
+    auto defaultLogLevel = spdlog::level::info;
+#endif
+    auto logLevel = static_cast<spdlog::level::level_enum>(CVarGetInteger("gDeveloperTools.LogLevel", defaultLogLevel));
+    context->InitLogging(logLevel, logLevel);
+    Ship::Context::GetRawInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
+    // Missing/corrupt archives must reach LocalState's log, even before window creation.
+    const auto portArchive = MmArchiveBoot::PreparePortArchive();
 
     auto controlDeck = std::make_shared<LUS::ControlDeck>(std::vector<CONTROLLERBUTTONS_T>({
         BTN_CUSTOM_MODIFIER1,
@@ -216,17 +224,6 @@ void OTRGlobals::Initialize() {
     }
 
     std::unordered_set<uint32_t> validHashes = { MM_NTSC_US_10, MM_NTSC_US_GC };
-
-#if (_DEBUG)
-    auto defaultLogLevel = spdlog::level::trace;
-#else
-    auto defaultLogLevel = spdlog::level::info;
-#endif
-    context->InitConfiguration();
-    context->InitConsoleVariables();
-    auto logLevel = static_cast<spdlog::level::level_enum>(CVarGetInteger("gDeveloperTools.LogLevel", defaultLogLevel));
-    context->InitLogging(logLevel, logLevel);
-    Ship::Context::GetRawInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
 
     // zelda3d's libultraship removed Context::InitGfxDebugger (no ImGui gfx debugger).
     context->InitFileDropMgr();

@@ -58,7 +58,7 @@
 #define GFX_BACKEND_NAME "SDL"
 #define _100NANOSECONDS_IN_SECOND 10000000
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 LONG_PTR SDL_WndProc;
 #endif
 
@@ -303,7 +303,7 @@ void GfxWindowBackendSDL2::Close() {
     mIsRunning = false;
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 static LRESULT CALLBACK gfx_sdl_wnd_proc(HWND h_wnd, UINT message, WPARAM w_param, LPARAM l_param) {
     switch (message) {
         case WM_GETDPISCALEDSIZE:
@@ -415,15 +415,17 @@ void GfxWindowBackendSDL2::Init(const char* gameName, const char* gfxApiName, bo
     }
 
     mWnd = SDL_CreateWindow(title, posX, posY, mWindowWidth, mWindowHeight, flags);
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
     // Get Windows window handle and use it to subclass the window procedure.
     // Needed to circumvent SDLs DPI scaling problems under windows (original does only scale *sometimes*).
-    SDL_SysWMinfo wmInfo;
+    // WinRT supplies a CoreWindow, not an HWND; SDL owns its event dispatch.
+    SDL_SysWMinfo wmInfo{};
     SDL_VERSION(&wmInfo.version);
-    SDL_GetWindowWMInfo(mWnd, &wmInfo);
-    HWND hwnd = wmInfo.info.win.window;
-    SDL_WndProc = SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)gfx_sdl_wnd_proc);
-    SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    if (SDL_GetWindowWMInfo(mWnd, &wmInfo) && wmInfo.subsystem == SDL_SYSWM_WINDOWS) {
+        HWND hwnd = wmInfo.info.win.window;
+        SDL_WndProc = SetWindowLongPtr(hwnd, GWLP_WNDPROC, (LONG_PTR)gfx_sdl_wnd_proc);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
+    }
 #endif
     Fast::GuiWindowInitData window_impl;
 
