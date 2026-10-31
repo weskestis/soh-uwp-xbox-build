@@ -5,6 +5,10 @@ doc, commit message, and instruction file should use these terms consistently.
 
 ## The two-tier taxonomy
 
+ROM-free MM port-archive publication lives in `tools/build_mm_custom_archive.py`, with validation
+and atomic-replacement tests in `tools/test_mm_custom_archive.py`. It consumes a separately built
+GAME_MM ZAPD exporter; `.github/workflows/fusion-mm-assets.yml` owns that build and its artifacts.
+
 MM's archive boot setup lives in `2ship/2s2h/host/archive_boot.*`, with its version-record policy in
 `archive_version.h`. The desktop extraction UI is owned by `host/rom_extraction.cpp` and excluded
 from the Xbox archive-only core. `BenPort.cpp` composes those owners without implementing the

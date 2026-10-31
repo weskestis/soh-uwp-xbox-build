@@ -115,12 +115,15 @@ that must be audited before any runtime-library change. Do not enable game switc
 of turning on MM compilation.
 
 The ROM-free MM asset input is present under `2ship/assets/custom` (840 files; 79 PNG conversions).
-A separate `GAME_STR=MM` host exporter must generate `2ship.o2r`, with `portVersion` matching the
-root project version. Its current exporter headers/CMake still point at obsolete `Shipwright/mm`
-paths. The documented `tools/build_mm_custom_archive.py` is absent. Use a checked `botr --norom`
-invocation in an empty staging directory, validate ZIP members/CRC/version, and preserve errors:
-the existing `extract_assets.py` wrapper does not propagate a failed exporter exit status. Neither
-N64 nor 3DS ROM data is needed to generate this port archive.
+A separate `GAME_STR=MM` host exporter generates `2ship.o2r`, with `portVersion` matching the
+root project version. The stale exporter includes now resolve the repo-root `2ship` tree.
+`tools/build_mm_custom_archive.py` runs checked `botr --norom` in an empty staging directory,
+validates the exact member set, CRCs, version, unchanged raw assets, and converted texture headers
+and dimensions, then atomically replaces the output. Twelve host tests cover malformed archives and
+preserving an existing output when generation fails. `.github/workflows/fusion-mm-assets.yml`
+builds the pinned GAME_MM exporter and publishes only the validated port archive plus diagnostics.
+Actual exporter generation remains pending at this checkpoint. Neither N64 nor 3DS ROM data is
+needed for this port archive; the user-provided `mm.o2r` remains a separate runtime requirement.
 
 The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
 activated. The new MM compile workflow does not replace main's pinned dispatcher or produce an MSIX.

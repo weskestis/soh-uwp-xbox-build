@@ -1,0 +1,97 @@
+name: Fusion MM port archive
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/zelda-fusion-isolation]
+    paths:
+      - '.github/workflows/fusion-mm-assets.yml'
+      - 'Shipwright/OTRExporter/**'
+      - '2ship/assets/custom/**'
+      - '2ship/2s2h/resource/type/2shResourceType.h'
+      - 'tools/build_mm_custom_archive.py'
+      - 'tools/test_mm_custom_archive.py'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fusion-mm-assets-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ZAPDTR_BASE_COMMIT: 7d1bdbc4e582ef48c34b28d5cea9602040d0971e
+  ZAPDTR_COMMIT: 5f37af814f4c558d20de3c21d5e336d8d1cc99bf
+  ZAPDTR_BUNDLE_SHA256: f2be655739afe616fd56fb4ac88ee0f4309beb9d7da54fe5345e1d6dcdd1adb6
+
+jobs:
+  mm-port-archive:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: false
+      - name: Test archive validation and publication
+        run: python3 tools/test_mm_custom_archive.py
+      - name: Prepare pinned exporter sources
+        run: |
+          git submodule update --init --depth 1 Shipwright/libultraship/extern/StormLib
+          git clone --depth 1 --branch zelda3d https://github.com/SomeoneIsWorking/ZAPDTR.git Shipwright/ZAPDTR
+          mkdir -p scratch/fusion-mm-assets
+          base64 --decode cmake/Zelda3DZAPDTR-5f37af8.bundle.b64 > scratch/ZAPDTR-5f37af8.bundle
+          echo "$ZAPDTR_BUNDLE_SHA256  scratch/ZAPDTR-5f37af8.bundle" | sha256sum --check --strict
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_BASE_COMMIT"
+          git -C Shipwright/ZAPDTR fetch "$GITHUB_WORKSPACE/scratch/ZAPDTR-5f37af8.bundle" HEAD
+          git -C Shipwright/ZAPDTR checkout --detach FETCH_HEAD
+          test "$(git -C Shipwright/ZAPDTR rev-parse HEAD)" = "$ZAPDTR_COMMIT"
+      - name: Install host build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build lsb-release zipcmp zipmerge ziptool \
+            libsdl2-dev libsdl2-net-dev libpng-dev \
+            libzip-dev nlohmann-json3-dev libtinyxml2-dev libspdlog-dev \
+            libopengl-dev libopusfile-dev libvorbis-dev libfreetype6-dev
+      - name: Configure the MM exporter
+        run: |
+          cmake -S . -B scratch/build-mm-assets -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DGAME_STR=MM \
+            -DZELDA3D_SDL2_OPENGL=ON -DZELDA3D_BUILD_MM=OFF \
+            -DZELDA3D_BUILD_LAUNCHER=OFF -DZELDA3D_ENABLE_ROM_EXTRACTION=ON \
+            -DLUS_BUILD_TESTS=OFF 2>&1 | tee scratch/fusion-mm-assets/configure.log
+      - name: Build the exporter
+        run: |
+          cmake --build scratch/build-mm-assets --target ZAPD --parallel 2 \
+            2>&1 | tee scratch/fusion-mm-assets/build.log
+      - name: Generate and validate the ROM-free MM port archive
+        run: |
+          python3 tools/build_mm_custom_archive.py \
+            --zapd scratch/build-mm-assets/ZAPD/ZAPD.out \
+            --output scratch/fusion-mm-assets/2ship.o2r
+          sha256sum scratch/fusion-mm-assets/2ship.o2r > scratch/fusion-mm-assets/SHA256.txt
+          git rev-parse HEAD > scratch/fusion-mm-assets/SOURCE_COMMIT.txt
+      - name: Preserve the validated port archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: INTERNAL-fusion-mm-port-archive-${{ github.sha }}
+          path: |
+            scratch/fusion-mm-assets/2ship.o2r
+            scratch/fusion-mm-assets/SHA256.txt
+            scratch/fusion-mm-assets/SOURCE_COMMIT.txt
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve asset build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-mm-assets-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scratch/fusion-mm-assets/*.log
+          if-no-files-found: warn
+          retention-days: 30
