@@ -25,6 +25,8 @@ Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple increment
 
 ## in-progress
 
+- [#216] Zelda Fusion combined-game runtime — pair-aware Xbox loader groundwork implemented: only OoT+MM or OoT MQ+MM routes, exact core ID/ABI checks, and DLL-specific diagnostics. Host contracts 19/19 PASS (4 valid routes, 40 descriptor failures, 7 invalid selections). MM still needs its Xbox build port and shared engine ownership; no gameplay switch, pair-bound save, combined randomizer, or signed Fusion installer yet. [Scope, blockers, and evidence](docs/zelda-fusion-foundation.md).
+
 - [#213] Xbox package exits immediately on its first physical boot and Device Portal captures no dump —
   user report 2026-09-06 after successful run-21 install and upload of `oot.o2r`, `oot-mq.o2r`, and
   decrypted `oot3d.3ds` to the correct `LocalState\soh` directory. The wrapper previously imported

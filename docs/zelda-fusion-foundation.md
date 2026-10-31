@@ -34,13 +34,52 @@ and the final unpacked-package audit requires the exact Fusion name and signing 
 
 ## Current checkpoint
 
-Implemented here: independent package identity, branding, signing defaults, and rejection of
-legacy identities. The inherited UWP wrapper still loads only `soh_core.dll` and requires
-pre-extracted archives. MM loading, Xbox ROM extraction, world travel, shared gameplay, and the
-combined randomizer remain future implementation. No signed Fusion MSIX or Xbox result is claimed.
+Implemented here: independent package identity, branding, signing defaults, rejection of legacy
+identities, and a pair-aware DLL routing/validation boundary. `uwp/core_bootstrap.*` now accepts only
+the following requested game routes:
 
-Next milestone: integrate the two-engine runtime, boot both selected games on Xbox, then test
-travel in both directions and save/reload with the selected pairing preserved.
+| Selected pair | Requested game | Packaged DLL | Required core ID |
+|---|---|---|---|
+| OoT + MM | OoT | `soh_core.dll` | `oot` |
+| OoT + MM | MM | `mm_core.dll` | `mm` |
+| OoT MQ + MM | OoT MQ | `soh_core.dll` | `oot` |
+| OoT MQ + MM | MM | `mm_core.dll` | `mm` |
+
+An excluded edition or unknown selection returns error 78 before calling a core. A loaded DLL must
+return the expected ID, current ABI, and a non-null runner. The Windows loader uses the matching
+allowlisted filename and logs the requested pair/game, engine, and missing DLL by name. MQ is a
+content/layout choice within the OoT engine, not a third engine.
+
+**This is loader groundwork, not completed pairing enforcement.** Startup still requests OoT in
+the OoT + MM pair. There is no pairing selector or persisted combined session yet; archive selection,
+MQ layout enforcement, save binding, and randomizer logic are not connected to this boundary.
+The package still builds only `soh_core.dll` and requires pre-extracted archives. No actual MM DLL
+load, signed Fusion MSIX, or Xbox result is claimed.
+
+### Next integration milestone
+
+Boot each game from the separate Fusion application, then establish a safe shared runtime before
+attempting world travel. The source survey found concrete prerequisites:
+
+1. **Port MM's build to the Xbox profile.** Root CMake forces MM off. `2ship/CMakeLists.txt` currently
+   requires SDL3, GNU compiler/linker flags, and ZAPD unconditionally. It needs the SDL2/OpenGL and
+   MSVC settings, archive-only boot path, and Windows core export definition; `BenPort.cpp` directly
+   includes SDL3, and `src/code/main.c` contains desktop console startup/shutdown calls.
+2. **Give both cores one engine owner.** The current Xbox build folds libultraship into the OoT DLL.
+   Linking that static library into MM too would create separate `Ship::Context` and switch-request
+   state. Desktop handoff depends on one shared engine. MM teardown retains its engine context, and
+   the existing lifecycle documents window teardown failures. Loading both DLLs alone does not fix
+   that. Do not add an in-process switch loop until ownership and run/teardown boundaries are tested.
+3. **Stage MM's distinct runtime assets.** MM needs `2ship.o2r` plus the user's `mm.o2r`. The former
+   belongs in the ROM-free package; the latter must be imported. Keep game-specific extraction
+   metadata separate so staging one game cannot overwrite the other's files.
+4. **Connect import, pair selection, and saves.** Build the on-Xbox ROM validation/extraction flow,
+   bind the selected OoT edition to the session, and enforce it in archive loading and actual
+   randomizer generation/load. The current loader tests are not evidence of combined-game logic.
+
+Acceptance after those prerequisites: both selected games reach gameplay on Xbox, travel works in
+both directions in one process, and save/reload retains the same pair and progression. The shared
+items, models, enemies, entrances, and logic are subsequent gameplay integration work.
 
 The native recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when activated.
 This branch does not replace the existing main branch's pinned dispatcher or start a native build.
@@ -51,6 +90,12 @@ This branch does not replace the existing main branch's pinned dispatcher or sta
 checked-in manifest from its CMake defaults, accept Fusion and later Fusion versions, reject four
 old package names, reject a matching legacy signing publisher, and reject a publisher mismatch.
 Inherited staging, icon, private-file, and compiled bootstrap checks remain covered.
+
+The compiled bootstrap test uses fake core descriptors/runners and passes **4 valid routes,
+40 descriptor failures, and 7 invalid selections**. It checks DLL names, exact engine IDs, ABI
+rejection, missing entry/descriptor/runner, argument forwarding, return values, and that invalid
+selections never call the entry point. These are host checks of the actual bootstrap source; they
+do not compile the Windows wrapper, load game DLLs, exercise MQ layouts, or run gameplay.
 
 `tools/codemap.py check` reports the same 23 missing external/pre-existing paths as the unmodified
 baseline (including optional decomp submodules); this change introduces zero missing references.

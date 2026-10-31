@@ -80,7 +80,8 @@ def main() -> int:
     for token in (
         'SDL_GetPrefPath(nullptr, "soh")',
         'kLogName[] = "uwp-boot.log"',
-        'LoadPackagedLibrary(L"soh_core.dll", 0)',
+        'Zelda3DUwp_FindCore(pair, game)',
+        'LoadPackagedLibrary(spec->filename, 0)',
         "GetProcAddress(coreModule, ZELDA3D_CORE_ENTRY_SYMBOL)",
         'runtime.module=%s state=failed win32=%lu',
         'L"opengl32.dll"',

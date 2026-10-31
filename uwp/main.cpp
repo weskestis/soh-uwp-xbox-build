@@ -9,16 +9,19 @@ extern "C" __declspec(dllimport) void* uwp_GetWindowReference();
 
 namespace {
 
-int RunOotCore(int argc, char** argv) {
+int RunFusionBootstrap(int argc, char** argv) {
     Zelda3DUwp_BootLogStart();
     Zelda3DUwp_BootLog("window-reference.begin");
     uwp_GetWindowReference();
     Zelda3DUwp_BootLog("window-reference.ok");
-    return Zelda3DUwp_RunPackagedCore(argc, argv);
+    // Keep the existing single-core entry path until MM's UWP build and shared
+    // engine ownership are implemented. The pair-aware loader does not itself
+    // enforce MQ layouts or provide the combined randomizer/session.
+    return Zelda3DUwp_RunPackagedCore(Zelda3DUwpPair::OotMm, Zelda3DUwpGame::Oot, argc, argv);
 }
 
 } // namespace
 
 int CALLBACK WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-    return SDL_WinRTRunApp(RunOotCore, nullptr);
+    return SDL_WinRTRunApp(RunFusionBootstrap, nullptr);
 }

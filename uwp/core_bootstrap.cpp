@@ -3,15 +3,48 @@
 #include <cstdio>
 #include <cstring>
 
-int Zelda3DUwp_RunCore(Zelda3DCoreEntryFn entry, int argc, char** argv) {
+namespace {
+
+constexpr Zelda3DUwpCoreSpec kOotCore{ "oot", L"soh_core.dll", "soh_core.dll" };
+constexpr Zelda3DUwpCoreSpec kMmCore{ "mm", L"mm_core.dll", "mm_core.dll" };
+
+} // namespace
+
+const Zelda3DUwpCoreSpec* Zelda3DUwp_FindCore(Zelda3DUwpPair pair, Zelda3DUwpGame game) {
+    // Keep the allowlist explicit: an invalid enum must never fall through to a
+    // default game, and uploading all three ROMs must not create a third pairing.
+    switch (pair) {
+        case Zelda3DUwpPair::OotMm:
+            if (game == Zelda3DUwpGame::Oot) {
+                return &kOotCore;
+            }
+            break;
+        case Zelda3DUwpPair::OotMqMm:
+            if (game == Zelda3DUwpGame::OotMq) {
+                return &kOotCore;
+            }
+            break;
+        default:
+            return nullptr;
+    }
+    return game == Zelda3DUwpGame::Mm ? &kMmCore : nullptr;
+}
+
+int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
+                     Zelda3DCoreEntryFn entry, int argc, char** argv) {
+    const Zelda3DUwpCoreSpec* expected = Zelda3DUwp_FindCore(pair, game);
+    if (expected == nullptr) {
+        std::fprintf(stderr, "ZELDA3D UWP: game is not in a supported Fusion pair.\n");
+        return ZELDA3D_UWP_INVALID_SELECTION;
+    }
     if (entry == nullptr) {
-        std::fprintf(stderr, "ZELDA3D UWP: the OoT core entry point is missing.\n");
+        std::fprintf(stderr, "ZELDA3D UWP: the %s core entry point is missing.\n", expected->id);
         return ZELDA3D_UWP_MISSING_ENTRY;
     }
 
     const Zelda3DCore* core = entry();
     if (core == nullptr) {
-        std::fprintf(stderr, "ZELDA3D UWP: the OoT core returned no descriptor.\n");
+        std::fprintf(stderr, "ZELDA3D UWP: the %s core returned no descriptor.\n", expected->id);
         return ZELDA3D_UWP_NULL_CORE;
     }
     if (core->abi != ZELDA3D_CORE_ABI) {
@@ -19,12 +52,13 @@ int Zelda3DUwp_RunCore(Zelda3DCoreEntryFn entry, int argc, char** argv) {
                      ZELDA3D_CORE_ABI);
         return ZELDA3D_UWP_ABI_MISMATCH;
     }
-    if (core->id == nullptr || std::strcmp(core->id, "oot") != 0) {
-        std::fprintf(stderr, "ZELDA3D UWP: the package accepts only the OoT core.\n");
+    if (core->id == nullptr || std::strcmp(core->id, expected->id) != 0) {
+        std::fprintf(stderr, "ZELDA3D UWP: expected %s core; loaded %s.\n", expected->id,
+                     core->id != nullptr ? core->id : "(null)");
         return ZELDA3D_UWP_WRONG_CORE;
     }
     if (core->run == nullptr) {
-        std::fprintf(stderr, "ZELDA3D UWP: the OoT core has no run function.\n");
+        std::fprintf(stderr, "ZELDA3D UWP: the %s core has no run function.\n", expected->id);
         return ZELDA3D_UWP_MISSING_RUNNER;
     }
 

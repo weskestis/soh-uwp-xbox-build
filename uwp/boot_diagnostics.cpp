@@ -1,7 +1,5 @@
 #include "boot_diagnostics.h"
 
-#include "core_bootstrap.h"
-
 #include <Windows.h>
 #include <SDL2/SDL.h>
 
@@ -88,10 +86,11 @@ void ProbePackagedRuntime() {
 
 // Keep this function free of C++ objects that require unwinding: MSVC rejects
 // __try in a function with destructors (C2712).
-int RunCoreProtected(Zelda3DCoreEntryFn entry, int argc, char** argv) {
+int RunCoreProtected(Zelda3DUwpPair pair, Zelda3DUwpGame game,
+                     Zelda3DCoreEntryFn entry, int argc, char** argv) {
     __try {
         Zelda3DUwp_BootLog("core.run.enter");
-        return Zelda3DUwp_RunCore(entry, argc, argv);
+        return Zelda3DUwp_RunCore(pair, game, entry, argc, argv);
     } __except (CoreExceptionFilter(GetExceptionInformation())) {
         return ZELDA3D_UWP_UNHANDLED_EXCEPTION;
     }
@@ -133,11 +132,22 @@ void Zelda3DUwp_BootLog(const char* stage) {
     WriteFormat("stage=%s", stage != nullptr ? stage : "(null)");
 }
 
-int Zelda3DUwp_RunPackagedCore(int argc, char** argv) {
+int Zelda3DUwp_RunPackagedCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
+                             int argc, char** argv) {
+    const Zelda3DUwpCoreSpec* spec = Zelda3DUwp_FindCore(pair, game);
+    if (spec == nullptr) {
+        Zelda3DUwp_BootLog("core.selection.invalid");
+        return ZELDA3D_UWP_INVALID_SELECTION;
+    }
+    WriteFormat("core.request pair=%s game=%s engine=%s file=%s",
+                pair == Zelda3DUwpPair::OotMm ? "oot+mm" : "oot-mq+mm",
+                game == Zelda3DUwpGame::Mm ? "mm" :
+                    (game == Zelda3DUwpGame::OotMq ? "oot-mq" : "oot"),
+                spec->id, spec->logName);
     Zelda3DUwp_BootLog("core.load.begin");
-    HMODULE coreModule = LoadPackagedLibrary(L"soh_core.dll", 0);
+    HMODULE coreModule = LoadPackagedLibrary(spec->filename, 0);
     if (coreModule == nullptr) {
-        WriteFormat("stage=core.load.failed win32=%lu", GetLastError());
+        WriteFormat("stage=core.load.failed file=%s win32=%lu", spec->logName, GetLastError());
         ProbePackagedRuntime();
         return ZELDA3D_UWP_CORE_LOAD_FAILED;
     }
@@ -145,15 +155,15 @@ int Zelda3DUwp_RunPackagedCore(int argc, char** argv) {
 
     FARPROC symbol = GetProcAddress(coreModule, ZELDA3D_CORE_ENTRY_SYMBOL);
     if (symbol == nullptr) {
-        WriteFormat("stage=core.symbol.failed name=%s win32=%lu", ZELDA3D_CORE_ENTRY_SYMBOL,
-                    GetLastError());
+        WriteFormat("stage=core.symbol.failed file=%s name=%s win32=%lu", spec->logName,
+                    ZELDA3D_CORE_ENTRY_SYMBOL, GetLastError());
         FreeLibrary(coreModule);
         return ZELDA3D_UWP_CORE_SYMBOL_FAILED;
     }
     Zelda3DUwp_BootLog("core.symbol.ok");
 
     const auto entry = reinterpret_cast<Zelda3DCoreEntryFn>(symbol);
-    const int result = RunCoreProtected(entry, argc, argv);
-    WriteFormat("stage=core.run.return result=%d", result);
+    const int result = RunCoreProtected(pair, game, entry, argc, argv);
+    WriteFormat("stage=core.run.return engine=%s result=%d", spec->id, result);
     return result;
 }
