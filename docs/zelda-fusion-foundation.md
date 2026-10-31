@@ -44,7 +44,9 @@ backgrounds without replacement assets. Commit `4bec8b52bdeb14f0a226c6fbea409fb6
 keeps the UWP scene, actor and skeleton draw paths original. Actual extracted UWP
 functions compiled and returned the N64 fallback without dereferencing deliberately
 invalid pointers; archive/version/FIFO tests and all three MM CMake profiles pass.
-Native follow-up run `41246667942` rebuilds this correction. OoT already defaults
+The MM job in native follow-up run `41246667942` passes this correction; its DLL
+SHA-256 is `27cc727fab543f68bcae5e9998a65fc277bee23b4909aa57b5008b816f3fd918`.
+OoT already defaults
 to Original SoH in a fresh profile; importing previous 3DS settings is outside this test.
 
 The new `Fusion Xbox test installer` workflow reuses the exact passed OoT artifact
@@ -64,9 +66,22 @@ SDL2/Mesa dependency DLLs and the exact Microsoft retail x64 Store framework.
 Checks cover identity/version/architecture, signatures, every staged payload hash,
 private-file exclusion, framework metadata and packaged import/export resolution.
 The 20 existing host package checks and four new behavioral/provenance test groups
-pass. Native wrapper signing/packaging is the current next gate; no installer or
-Xbox runtime success is claimed before those results exist. Mesa dynamic driver
-loading and operating-system imports still require physical Xbox testing.
+pass. [Installer run 41247694255](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41247694255),
+wrapper source `f7a886a3ab124f183181b30f8625f892855ba678`, passes all three jobs and
+produces the signed **1.0.1.1** diagnostic MSIX, Microsoft-signed retail dependency,
+public certificate, four startup selections and Android installation instructions.
+The unsigned and signed audits each verify 118 staged files plus the native wrapper
+and resolve 879 packaged/framework symbol references. Signature checks accept only
+the matching signer and the expected untrusted self-signed root on the clean runner.
+Artifact `13060137578` (`ZELDA-FUSION-XBOX-1.0.1.1`) has ZIP SHA-256
+`cfd6e8ac239e39a1f07d12832a046e6384ad5151e44ecb1c479a68767dd774a7`.
+The downloaded ZIP, extracted delivery hashes and all 119 MSIX payload files were
+independently verified. The MSIX SHA-256 is
+`e30c5e8e520bef7cab8e7b66c56c0c20ccb55b62fb6f469a4d47e79ae7c3457b`.
+The delivery includes `BUILD.json`, `PACKAGE-AUDIT.json`, and `SHA256SUMS.txt`.
+Physical Xbox installation, Mesa dynamic driver loading, operating-system imports,
+rendering, controller input, audio and saving remain unverified. This package is
+one original N64 game per launch; it does not close the combined-game scope above.
 
 ## Validation
 
