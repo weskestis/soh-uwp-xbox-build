@@ -73,6 +73,11 @@ reported two undeclared `M_PI` uses in MM's optional scene-rotation path. Both n
 MM `M_PIf` constant, matching the float rotation API. Native compile/link rerun is pending; no native
 link or Xbox runtime success is claimed. The build diagnostics are preserved in that run's artifact.
 
+Native rerun [41221349899](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41221349899),
+source `89b568d`, compiled the MM sources and reached linking. Its sole unresolved symbol was
+`bzero` in `CutsceneManager_ResetRunState`; both calls now use standard `memset` with `<string.h>`.
+The next native rerun must verify linking and the export/import audit.
+
 The follow-up also preserves desktop mod-directory search precedence, supplies the MSVC aligned
 allocator header through the build's precompiled header, and restores the generated build stamp
 after synthetic host configurations so those checks cannot overwrite a developer's engine version.
