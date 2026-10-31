@@ -50,8 +50,8 @@
 #include "fast/Fast3dGui.h"
 
 #ifdef _WIN32
-#include <WTypesbase.h>
 #include <Windows.h>
+#include <WTypesbase.h>
 #include <SDL_syswm.h>
 #endif
 

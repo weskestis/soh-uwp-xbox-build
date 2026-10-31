@@ -176,6 +176,12 @@ The strengthened audit rejects the previously built MM DLL. Native recompilation
 startup changes is pending; local host/profile/package checks and applying the patch to the
 exact pinned ImGui tag pass.
 
+Native startup run [41228266922](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41228266922),
+source `e6fd42d`, passed host checks and the real immediate-exit logger test: the full error remains
+in `early-error.log` after exit 23. MM compilation exposed `Context.cpp` including `libloaderapi.h`
+before `windows.h`, formerly masked by CrashHandler's transitive Windows include. The Windows SDK
+umbrella header now precedes its specialized headers in Context and SDL2; native rerun pending.
+
 **Newly confirmed delivery blocker:** the existing normal-Windows core and vcpkg profile use
 `/MT`. Microsoft's [UWP CRT guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/windows-store-apps-the-windows-runtime-and-the-c-run-time?view=msvc-170)
 excludes UWP apps and DLLs statically linked to the CRT. The supported migration requires a
@@ -195,7 +201,13 @@ evidence and explicitly leave execution/game migration unverified.
 The first native probe (run 41228533033, source `e04804b`) configured but exposed Store props
 automatically enabling `/ZW`, incompatible with C++20. It also showed CMake's newer SDK selection
 policy choosing 26100 despite `CMAKE_SYSTEM_VERSION=19041`. The probe now explicitly disables
-C++/CX per source and selects/verifies SDK 19041 through the generator platform; rerun pending.
+C++/CX per source and selects/verifies SDK 19041 through the generator platform. Native rerun
+[41228728878](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41228728878), source
+`a8d3859`, passed compilation/linking and the full probe audit. The downloaded diagnostics pass
+the audit again: Store CRT paths, `msvcp140_app.dll`, `vcruntime140_app.dll`,
+`vcruntime140_1_app.dll`, API-set imports, the C export, and AppContainer flag are present.
+Probe DLL SHA-256: `8b95ae70d79faa19a6a867e746477ca6d8fba2c67180c008b7c91bd845572227`.
+This establishes native link configuration, not execution or migration of the game dependencies.
 
 Migration still needs reviewed UWP dependency builds: pinned OpusFile and GLEW/OpenGL ports declare
 UWP unsupported; FreeType's existing UWP file mapping branch needs appropriate selection; libzip

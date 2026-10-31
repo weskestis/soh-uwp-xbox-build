@@ -29,9 +29,9 @@
 #endif
 
 #ifdef _WIN32
+#include <windows.h>
 #include <libloaderapi.h>
 #include <tchar.h>
-#include <windows.h>
 #include <stringapiset.h>
 #endif
 
