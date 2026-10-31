@@ -371,6 +371,18 @@ def main() -> int:
         manifest_path.write_text(fusion_manifest, encoding="utf-8")
         tests += 1
 
+        for name in ("glfw3.dll", "assets/GLFW3.DLL", "SDL3.dll"):
+            stale_dll = unpacked / name
+            stale_dll.write_bytes(b"unused desktop dependency")
+            try:
+                runtime_stage.audit_appx(unpacked, runtime_stage.FUSION_PUBLISHER)
+            except RuntimeError as error:
+                require("Unused desktop runtime" in str(error), str(error))
+            else:
+                raise AssertionError(f"AppX audit accepted {name}")
+            stale_dll.unlink()
+        tests += 1
+
         icon = unpacked / "Assets/Square150x150Logo.scale-200.png"
         approved_icon = icon.read_bytes()
         icon.write_bytes(b"stale-stock-icon")

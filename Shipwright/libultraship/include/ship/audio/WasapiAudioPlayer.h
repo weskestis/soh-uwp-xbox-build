@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 
 #include "AudioPlayer.h"
 #include <wrl/client.h>
@@ -18,7 +18,7 @@ namespace Ship {
  * IMMNotificationClient so it can detect when the default audio device changes at
  * runtime and seamlessly switch to the new device without requiring a restart.
  *
- * This backend is only compiled on Windows (`#ifdef _WIN32`).
+ * This backend is only compiled for desktop Windows; UWP uses SDL audio.
  */
 class WasapiAudioPlayer : public AudioPlayer, public IMMNotificationClient {
   public:

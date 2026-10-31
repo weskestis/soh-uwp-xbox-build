@@ -29,6 +29,18 @@ foreach ($group in @(
             & $dumpbin.FullName "/$kind" $dll.FullName | Set-Content "$destination/$($dll.Name).$kind.txt"
             if ($LASTEXITCODE -ne 0) { throw "Cannot inspect $($dll.Name) $kind" }
         }
+        if ($group.Name -eq "depot" -and $dll.Name -in @("libgallium_wgl.dll", "libuwp.dll", "SDL2.dll")) {
+            $bytes = [IO.File]::ReadAllBytes($dll.FullName)
+            $strings = @()
+            foreach ($encoding in @([Text.Encoding]::ASCII, [Text.Encoding]::Unicode)) {
+                $text = $encoding.GetString($bytes)
+                $matches = [regex]::Matches($text, '[ -~]{0,80}(?:\.dll|DxcCreateInstance|Mesa)[ -~]{0,100}', 'IgnoreCase')
+                foreach ($match in $matches) {
+                    $strings += [ordered]@{ encoding = $encoding.WebName; index = $match.Index; text = $match.Value }
+                }
+            }
+            $strings | ConvertTo-Json -Depth 3 | Set-Content "$destination/$($dll.Name).loader-strings.json"
+        }
         $inventory += [ordered]@{
             group = $group.Name
             name = $dll.Name

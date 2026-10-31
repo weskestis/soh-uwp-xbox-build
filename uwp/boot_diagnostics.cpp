@@ -66,7 +66,6 @@ void ProbePackagedRuntime() {
         { L"libuwp.dll", "libuwp.dll" },
         { L"z-1.dll", "z-1.dll" },
         { L"dxil.dll", "dxil.dll" },
-        { L"glfw3.dll", "glfw3.dll" },
         { L"libgallium_wgl.dll", "libgallium_wgl.dll" },
         { L"opengl32.dll", "opengl32.dll" },
     };

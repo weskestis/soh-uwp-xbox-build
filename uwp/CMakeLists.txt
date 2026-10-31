@@ -69,7 +69,6 @@ set(required_runtime_files
     "${ZELDA3D_UWP_RUNTIME_DIR}/soh_core.dll"
     "${ZELDA3D_UWP_RUNTIME_DIR}/soh.o2r"
     "${uwp_dep_arch}/bin/dxil.dll"
-    "${uwp_dep_arch}/bin/glfw3.dll"
     "${uwp_dep_arch}/bin/libgallium_wgl.dll"
     "${uwp_dep_arch}/bin/libuwp.dll"
     "${uwp_dep_arch}/bin/opengl32.dll"
