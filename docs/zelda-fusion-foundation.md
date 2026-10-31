@@ -70,13 +70,20 @@ so failures do not discard the dependency build. Native run
 [41219612617](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41219612617), source
 `ad347f9`, passed its host checks, dependency setup, and real Windows configuration. Compilation
 reported two undeclared `M_PI` uses in MM's optional scene-rotation path. Both now use the existing
-MM `M_PIf` constant, matching the float rotation API. Native compile/link rerun is pending; no native
-link or Xbox runtime success is claimed. The build diagnostics are preserved in that run's artifact.
+MM `M_PIf` constant, matching the float rotation API. The build diagnostics are preserved in
+that run's artifact; the successful follow-up is recorded below.
 
 Native rerun [41221349899](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41221349899),
 source `89b568d`, compiled the MM sources and reached linking. Its sole unresolved symbol was
 `bzero` in `CutsceneManager_ResetRunState`; both calls now use standard `memset` with `<string.h>`.
-The next native rerun must verify linking and the export/import audit.
+Native run [41222720845](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41222720845),
+source `17dcfa1`, passed the host tests, Windows compilation/linking, and DLL audit. `mm_core.dll`
+exports `Zelda3D_CoreEntry` and imports SDL2 without SDL3. Its SHA-256 is
+`47f60330964334cbd31209647f3e8c1b717e94f6da9b296369b46d04e94c5fe9`.
+The artifact is experimental compiler output, not an installable package or Xbox boot proof.
+The audit checks the entry export and SDL choice; it is not an AppContainer API-compatibility test.
+Its dependency report includes OPENGL32, ADVAPI32, bcrypt, SDL2, KERNEL32, USER32, SHELL32, dbghelp,
+and IMM32. Packaged dependency resolution and Xbox compatibility still need verification.
 
 The follow-up also preserves desktop mod-directory search precedence, supplies the MSVC aligned
 allocator header through the build's precompiled header, and restores the generated build stamp
@@ -87,9 +94,10 @@ after synthetic host configurations so those checks cannot overwrite a developer
 Boot each game from the separate Fusion application, then establish a safe shared runtime before
 attempting world travel. The source survey found concrete prerequisites:
 
-1. **Verify MM's Xbox compile/link.** The build and source adaptations above are implemented; the
-   dedicated Windows check must pass before enabling MM in the installable package. Root CMake
-   keeps MM off by default for existing UWP builds and permits an explicit `ZELDA3D_BUILD_MM=ON`.
+1. **Validate the packaged MM core on Xbox.** Windows compile/link and the entry/SDL audit now pass.
+   Audit the recorded system imports and stage the required dependencies before enabling MM in an
+   installer. Root CMake keeps MM off by default for existing UWP builds and permits an explicit
+   `ZELDA3D_BUILD_MM=ON`; no actual MM Xbox boot has been verified.
 2. **Give both cores one engine owner.** The current Xbox build folds libultraship into the OoT DLL.
    Linking that static library into MM too would create separate `Ship::Context` and switch-request
    state. Desktop handoff depends on one shared engine. MM teardown retains its engine context, and
@@ -132,7 +140,9 @@ Native asset run [41222454896](https://github.com/weskestis/soh-uwp-xbox-build/a
 source `98e2d85`, passed exporter compilation, generation, and validation. Its `2ship.o2r` contains
 841 members (840 custom assets plus `portVersion`), is 1,024,031 bytes, and has SHA-256
 `bc891ebc741019eadc900186d4e61b69c60947440525985eb0994284be382c59`. The downloaded artifact
-also passes the strengthened aligned-payload validator. Neither N64 nor 3DS ROM data was used;
+also passes the strengthened aligned-payload validator. The updated exporter/validation run
+[41223181631](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41223181631), source
+`8b6a2c3`, also passed all fourteen tests and real archive generation. Neither N64 nor 3DS ROM data was used;
 the user-provided `mm.o2r` remains a separate runtime requirement.
 
 The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
