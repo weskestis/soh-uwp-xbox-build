@@ -5,6 +5,11 @@ doc, commit message, and instruction file should use these terms consistently.
 
 ## The two-tier taxonomy
 
+MM's archive boot setup lives in `2ship/2s2h/host/archive_boot.*`, with its version-record policy in
+`archive_version.h`. The desktop extraction UI is owned by `host/rom_extraction.cpp` and excluded
+from the Xbox archive-only core. `BenPort.cpp` composes those owners without implementing the
+extraction loop. The dedicated MM Xbox compile workflow emits experimental DLLs, not packages.
+
 The project is two layers. **zelda** = the N64-asset PC-port engines (the Shipwright family, which
 render the game from N64 assets). **zelda3d** = the 3DS-asset render layer we build *on top of* those
 engines, substituting OoT3D / MM3D (Nintendo 3DS) models, world, animation, camera-math and lighting

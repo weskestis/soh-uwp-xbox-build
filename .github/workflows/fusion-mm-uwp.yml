@@ -1,0 +1,98 @@
+name: Fusion MM Xbox core compile
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/zelda-fusion-isolation]
+    paths:
+      - '.github/workflows/fusion-mm-uwp.yml'
+      - '2ship/**'
+      - 'CMakeLists.txt'
+      - 'cmake/**'
+      - 'Shipwright/libultraship/**'
+      - 'Shipwright/zelda3d_shared/**'
+      - 'tools/ci/fusion_mm_windows.ps1'
+      - 'tools/test_mm_uwp_contract.py'
+      - 'tools/mm_archive_version_test.cpp'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fusion-mm-compile-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
+  VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
+
+jobs:
+  host-contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - run: python3 tools/test_uwp_package_contract.py
+      - run: python3 tools/test_mm_uwp_contract.py
+
+  mm-core:
+    needs: host-contracts
+    runs-on: windows-2022
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check out pinned Xbox dependencies
+        uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: ${{ env.UWP_DEP_COMMIT }}
+          path: scratch/uwp-dep
+          persist-credentials: false
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_COMMIT }}
+          path: scratch/vcpkg
+          persist-credentials: false
+      - name: Restore dependency binaries
+        id: dependency-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: scratch/vcpkg-cache
+          key: fusion-mm-vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('tools/ci/fusion_mm_windows.ps1') }}
+      - name: Install Windows dependencies
+        run: ./tools/ci/fusion_mm_windows.ps1 Dependencies
+      - name: Save dependencies before compiling experimental code
+        if: steps.dependency-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: scratch/vcpkg-cache
+          key: ${{ steps.dependency-cache.outputs.cache-primary-key }}
+      - name: Configure MM Xbox profile
+        run: ./tools/ci/fusion_mm_windows.ps1 Configure
+      - name: Compile MM core
+        run: ./tools/ci/fusion_mm_windows.ps1 Compile
+      - name: Inspect MM DLL exports and imports
+        run: ./tools/ci/fusion_mm_windows.ps1 Audit
+      - name: Preserve experimental compiler output
+        uses: actions/upload-artifact@v4
+        with:
+          name: EXPERIMENTAL-fusion-mm-core-${{ github.sha }}
+          path: scratch/build-fusion-mm/mm/Release/mm_core.dll
+          if-no-files-found: error
+          retention-days: 14
+      - name: Preserve native diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-mm-build-diagnostics-${{ github.run_id }}-${{ github.run_attempt }}
+          path: scratch/fusion-mm-diagnostics/
+          if-no-files-found: warn
+          retention-days: 30

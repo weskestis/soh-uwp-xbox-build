@@ -1,14 +1,14 @@
 # Majora's Mask game module for Zelda3D / zelda3d.
 #
-# Second executable in the monorepo (sibling to `soh`), linking the SAME in-tree
-# `libultraship` STATIC lib. Mirrors soh/CMakeLists.txt but with the MM decomp layout:
+# Loadable game core (sibling to `soh`), using the in-tree libultraship engine.
+# Mirrors soh/CMakeLists.txt but with the MM decomp layout:
 #   mm/2s2h  = the port shell (BenPort/GameInteractor/Enhancements/BenGui/... — analogous to soh/soh)
 #   mm/src   = the MM decomp game core (analogous to soh/src)
 # Globs + libultra prune follow 2 Ship 2 Harkinian's mm build (exclude ALL src/libultra; the PC
 # replacements mixer.c / framebuffer_effects.c live in 2s2h, and gu_pc.c is shared with OoT from
 # Shipwright/zelda3d_shared/port/). SDL3 + link
-# environment follow zelda3d. Windows/Switch/CafeOS branches are intentionally dropped — this
-# is a PC (Linux/macOS) port.
+# environment follow zelda3d. The opt-in Xbox profile uses SDL2 and MSVC; desktop
+# continues to use SDL3. Compiling both Xbox DLLs does not establish shared engine ownership.
 
 cmake_minimum_required(VERSION 3.26.0 FATAL_ERROR)
 
@@ -25,6 +25,7 @@ endif()
 set(BUILD_SHARED_LIBS OFF CACHE STRING "install/link shared instead of static libs")
 
 include(FetchContent)
+option(ZELDA3D_ENABLE_ROM_EXTRACTION "Build the desktop ROM extraction path" ON)
 
 ################################################################################
 # Where the engine lives.
@@ -55,9 +56,11 @@ file(GLOB ZELDA3D_SHARED_PORT_SOURCES CONFIGURE_DEPENDS
 # version, so it belongs in the game target rather than the zelda3d_shared static library. The
 # per-game half is the ROM version table in 2s2h/Extractor/RomVersions.cpp, which the 2s2h glob
 # below already picks up.
-file(GLOB ZELDA3D_SHARED_EXTRACTOR_SOURCES CONFIGURE_DEPENDS
-    "${ZELDA3D_SHARED_DIR}/extractor/*.c" "${ZELDA3D_SHARED_DIR}/extractor/*.cpp"
-    "${ZELDA3D_SHARED_DIR}/extractor/*.h")
+if(ZELDA3D_ENABLE_ROM_EXTRACTION)
+    file(GLOB ZELDA3D_SHARED_EXTRACTOR_SOURCES CONFIGURE_DEPENDS
+        "${ZELDA3D_SHARED_DIR}/extractor/*.c" "${ZELDA3D_SHARED_DIR}/extractor/*.cpp"
+        "${ZELDA3D_SHARED_DIR}/extractor/*.h")
+endif()
 
 # Shared GUI code. Compiled per game like port/ above -- see zelda3d_shared/gui/ui_theming.cpp for
 # the one per-game value that keeps it out of the static library.
@@ -71,7 +74,7 @@ file(GLOB ZELDA3D_SHARED_GUI_SOURCES CONFIGURE_DEPENDS
 if (NOT TARGET libultraship)
     add_subdirectory(${ZELDA3D_ENGINE_DIR} ${CMAKE_BINARY_DIR}/libultraship)
 endif()
-if (NOT TARGET ZAPDLib)
+if (ZELDA3D_ENABLE_ROM_EXTRACTION AND NOT TARGET ZAPDLib)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../Shipwright/ZAPDTR/ZAPD ${CMAKE_BINARY_DIR}/ZAPD)
 endif()
 
@@ -94,6 +97,10 @@ list(REMOVE_ITEM Header_Files__include ${CMAKE_CURRENT_SOURCE_DIR}/include/ultra
 # port shell (2s2h) — includes Extractor (desktop needs it for the in-app extract flow)
 file(GLOB_RECURSE ship__ RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS
     "2s2h/*.c" "2s2h/*.cpp" "2s2h/*.h" "2s2h/*.hpp")
+if(NOT ZELDA3D_ENABLE_ROM_EXTRACTION)
+    list(FILTER ship__ EXCLUDE REGEX "^2s2h/Extractor/")
+    list(FILTER ship__ EXCLUDE REGEX "^2s2h/host/rom_extraction\\.cpp$")
+endif()
 # NOTE: an early N2 attempt excluded the UI/feature shell (BenGui/DeveloperTools/Rando/
 # Trackers) to shrink the port, but the "shell" is woven into the game CORE and kept
 # enhancements (z_kaleido_mask.c calls HudEditor_*, enhancements call UIWidgets::*/Rando::*,
@@ -162,8 +169,17 @@ endif()
 
 # The game engine. It carries no int main(): the process entry point belongs to the launcher, and
 # MM is only ever loaded as the core below.
-add_library(mm_lib STATIC ${ALL_FILES})
+if(ZELDA3D_UWP_CORE)
+    # Feed the DLL directly, avoiding the MSVC static archive size limit.
+    add_library(mm_lib OBJECT ${ALL_FILES})
+else()
+    add_library(mm_lib STATIC ${ALL_FILES})
+endif()
 target_link_libraries(mm_lib PUBLIC mm_settings)
+target_compile_definitions(mm_lib PRIVATE ZELDA3D_CORE_BUILD)
+if(NOT ZELDA3D_ENABLE_ROM_EXTRACTION)
+    target_compile_definitions(mm_settings INTERFACE ZELDA3D_MM_NO_ROM_EXTRACTION=1)
+endif()
 
 # MM as a loadable game core: the same objects as a shared object the launcher dlopen's with
 # RTLD_LOCAL, keeping MM's and OoT's colliding decomp symbols private (claim C050). TARGET_OBJECTS
@@ -171,6 +187,16 @@ target_link_libraries(mm_lib PUBLIC mm_settings)
 # REFERENCED and the decomp reaches its actors and overlays through tables, not from the entry point.
 add_library(mm_core SHARED $<TARGET_OBJECTS:mm_lib>)
 target_link_libraries(mm_core PRIVATE mm_settings)
+if(ZELDA3D_UWP_CORE)
+    # Preserve a separate asset/output directory: OoT's Visual Studio property
+    # sheet writes to <source>/x64/Release and must not be overwritten by MM.
+    set_target_properties(mm_lib mm_core PROPERTIES
+        INTERPROCEDURAL_OPTIMIZATION FALSE
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    set_target_properties(mm_core PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+        ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>")
+endif()
 
 # There is NO mm executable, for the same reason OoT has none: the project builds exactly one
 # program, the zelda3d launcher, which dlopens whichever game was chosen. MM ships as the core
@@ -194,7 +220,18 @@ set_target_properties(mm_lib ${PROJECT_NAME} PROPERTIES C_STANDARD 17 C_EXTENSIO
 ################################################################################
 # Include directories
 ################################################################################
-find_package(SDL3 REQUIRED)
+if(ZELDA3D_SDL2_OPENGL)
+    if(NOT TARGET SDL2::SDL2)
+        find_package(SDL2 CONFIG REQUIRED)
+    endif()
+    set(MM_SDL_TARGET SDL2::SDL2)
+    set(MM_SDL_INCLUDE_DIRS ${SDL2_INCLUDE_DIRS})
+    target_compile_definitions(mm_settings INTERFACE ZELDA3D_USE_SDL2=1)
+else()
+    find_package(SDL3 REQUIRED)
+    set(MM_SDL_TARGET SDL3::SDL3)
+    set(MM_SDL_INCLUDE_DIRS ${SDL3_INCLUDE_DIRS})
+endif()
 
 target_include_directories(mm_settings INTERFACE assets
     ${ZELDA3D_SHARED_DIR}/port
@@ -205,7 +242,7 @@ target_include_directories(mm_settings INTERFACE assets
     ${CMAKE_CURRENT_SOURCE_DIR}/../Shipwright/ZAPDTR/ZAPD/resource/type
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/2s2h/
-    ${SDL3_INCLUDE_DIRS}
+    ${MM_SDL_INCLUDE_DIRS}
     ${CMAKE_CURRENT_SOURCE_DIR}/assets/
     ${dr_libs_SOURCE_DIR}
     .
@@ -232,6 +269,14 @@ target_compile_definitions(mm_settings INTERFACE
 ################################################################################
 # Compile / link options
 ################################################################################
+if(MSVC)
+    target_compile_options(mm_settings INTERFACE
+        /bigobj /MP /W3 /sdl- /permissive-
+        $<$<COMPILE_LANGUAGE:CXX>:/EHsc>
+        $<$<CONFIG:Release>:/O2;/Oi;/Gy>)
+    target_link_options(mm_settings INTERFACE
+        $<$<CONFIG:Release>:/INCREMENTAL:NO;/OPT:REF;/OPT:ICF>)
+else()
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64")
     set(CPU_OPTION -msse2 -mfpmath=sse)
 endif()
@@ -267,6 +312,7 @@ target_link_options(mm_settings INTERFACE
     -pthread
     -Wl,-export-dynamic
 )
+endif()
 
 # mixer.c has SIMD helpers that are far slower unoptimized.
 #
@@ -276,7 +322,13 @@ target_link_options(mm_settings INTERFACE
 # -O2 and the levels happen to agree -- and it is a hard build failure the moment they do not, which
 # is exactly what a sanitizer build does (-fsanitize=address forces -O1 tree-wide). A file that opts
 # out of the target's optimization level has opted out of its precompiled header too.
-set_source_files_properties(2s2h/mixer.c PROPERTIES COMPILE_FLAGS "-O2" SKIP_PRECOMPILE_HEADERS ON)
+if(MSVC)
+    set(mm_mixer_optimization /O2)
+else()
+    set(mm_mixer_optimization -O2)
+endif()
+set_source_files_properties(2s2h/mixer.c PROPERTIES
+    COMPILE_OPTIONS "${mm_mixer_optimization}" SKIP_PRECOMPILE_HEADERS ON)
 
 ################################################################################
 # Precompiled headers.
@@ -320,31 +372,45 @@ target_precompile_headers(mm_settings INTERFACE
 ################################################################################
 # Dependencies + link
 ################################################################################
-add_dependencies(mm_lib libultraship ZAPDLib)
+add_dependencies(mm_lib libultraship)
+if(ZELDA3D_ENABLE_ROM_EXTRACTION)
+    add_dependencies(mm_lib ZAPDLib)
+endif()
 
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
-find_package(Ogg REQUIRED)
-find_package(Vorbis REQUIRED)
-find_package(Opus REQUIRED)
-find_package(OpusFile REQUIRED)
+if(ZELDA3D_UWP)
+    find_package(Ogg CONFIG REQUIRED)
+    find_package(Vorbis CONFIG REQUIRED)
+    find_package(Opus CONFIG REQUIRED)
+    find_package(OpusFile CONFIG REQUIRED)
+    set(MM_OPUSFILE_TARGET OpusFile::opusfile)
+else()
+    find_package(Ogg REQUIRED)
+    find_package(Vorbis REQUIRED)
+    find_package(Opus REQUIRED)
+    find_package(OpusFile REQUIRED)
+    set(MM_OPUSFILE_TARGET Opusfile::Opusfile)
+endif()
 
 set(ADDITIONAL_LIBRARY_DEPENDENCIES
     "libultraship;"
-    "ZAPDLib;"
     "cmb3d;"
     "zelda3d_shared;"
     "stb;"
-    SDL3::SDL3
+    ${MM_SDL_TARGET}
     "Ogg::ogg"
     "Vorbis::vorbis"
     "Vorbis::vorbisenc"
     "Vorbis::vorbisfile"
     "Opus::opus"
-    "Opusfile::Opusfile"
+    ${MM_OPUSFILE_TARGET}
     ${CMAKE_DL_LIBS}
     Threads::Threads
 )
+if(ZELDA3D_ENABLE_ROM_EXTRACTION)
+    list(APPEND ADDITIONAL_LIBRARY_DEPENDENCIES ZAPDLib)
+endif()
 
 target_link_libraries(mm_settings INTERFACE "${ADDITIONAL_LIBRARY_DEPENDENCIES}")
 

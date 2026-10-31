@@ -1,5 +1,19 @@
 #include "2s2h/zelda3d/repl/mm3d_repl_transport.h"
 
+#ifdef _WIN32
+
+// The developer FIFO transport is POSIX-only. The Xbox runtime uses durable
+// boot diagnostics; it must not import named-pipe filesystem APIs from here.
+void Zelda3D_MmReplTransportReset(void) {
+}
+
+void Zelda3D_MmReplTransportPoll(Zelda3DMmReplCommandHandler handler, void* user) {
+    (void)handler;
+    (void)user;
+}
+
+#else
+
 #include <fcntl.h>
 #include <libultraship/bridge/fifo_rpc.h>
 #include <stdio.h>
@@ -128,3 +142,5 @@ void Zelda3D_MmReplTransportPoll(Zelda3DMmReplCommandHandler handler, void* user
     sInputLength = strlen(start);
     memmove(sInputBuffer, start, sInputLength + 1);
 }
+
+#endif

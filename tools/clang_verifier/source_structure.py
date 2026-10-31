@@ -23,7 +23,7 @@ SOURCE_LINE_LIMIT = 1_200
 LEGACY_LINE_LIMITS = {
     "2ship/2s2h/BenGui/BenMenu.cpp": 2303,
     "2ship/2s2h/BenGui/CosmeticEditor.cpp": 1445,
-    "2ship/2s2h/BenPort.cpp": 2476,
+    "2ship/2s2h/BenPort.cpp": 1992,
     "2ship/2s2h/DeveloperTools/SaveEditor.cpp": 2394,
     "2ship/2s2h/GameInteractor/GameInteractor_VanillaBehavior.h": 2462,
     "2ship/2s2h/Rando/DrawFuncs.cpp": 1339,

@@ -48,7 +48,12 @@ project(Ship VERSION 9.2.3 LANGUAGES C CXX)
 # Xbox/UWP runtime, whose SDL2/libuwp/Mesa stack cannot provide SDL3's GPU API.  Keeping this a
 # build-time choice prevents the platform port from changing the already-verified desktop path.
 option(ZELDA3D_SDL2_OPENGL "Build libultraship and game cores with SDL2 + OpenGL" OFF)
-option(ZELDA3D_BUILD_MM "Build the Majora's Mask core" ON)
+if(ZELDA3D_UWP_CORE)
+    set(zelda3d_mm_default OFF)
+else()
+    set(zelda3d_mm_default ON)
+endif()
+option(ZELDA3D_BUILD_MM "Build the Majora's Mask core" ${zelda3d_mm_default})
 option(ZELDA3D_BUILD_LAUNCHER "Build the desktop multi-game launcher" ON)
 option(ZELDA3D_ENABLE_ROM_EXTRACTION "Build the desktop ROM extraction tools and runtime path" ON)
 
@@ -68,11 +73,10 @@ if(ZELDA3D_UWP_CORE)
     endif()
     set(ZELDA3D_UWP ON)
     set(ZELDA3D_SDL2_OPENGL ON CACHE BOOL "UWP uses the SDL2/Mesa OpenGL backend" FORCE)
-    set(ZELDA3D_BUILD_MM OFF CACHE BOOL "The Xbox package contains only the OoT core" FORCE)
     set(ZELDA3D_BUILD_LAUNCHER OFF CACHE BOOL "The UWP wrapper is the package entry point" FORCE)
     set(ZELDA3D_ENABLE_ROM_EXTRACTION OFF CACHE BOOL "Private archives are imported through LocalState" FORCE)
     set(NON_PORTABLE ON CACHE BOOL "Use the package LocalState directory" FORCE)
-    set(DISABLE_DLL_LOADER ON CACHE BOOL "The UWP wrapper links the one core directly" FORCE)
+    set(DISABLE_DLL_LOADER ON CACHE BOOL "Only the UWP wrapper loads packaged game cores" FORCE)
     set(ENABLE_SCRIPTING OFF CACHE BOOL "Disable desktop runtime compilation on UWP" FORCE)
     # The pinned x64-windows-static triplet uses /MT.  Apply the same runtime to
     # every first-party and FetchContent target before any subdirectory creates

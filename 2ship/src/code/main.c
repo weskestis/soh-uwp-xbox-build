@@ -1,4 +1,4 @@
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
 #include <Windows.h>
 #include <stdio.h>
 #include <locale.h>
@@ -68,7 +68,7 @@ int Zelda3D_CoreRun(int argc, char* argv[] /* void* arg*/) {
     s16* msg;
 
 // Attach console for windows so we can conditionally display it when running the extractor
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
     AllocConsole();
     (void)freopen("CONIN$", "r", stdin);
     (void)freopen("CONOUT$", "w", stdout);
@@ -164,7 +164,7 @@ int Zelda3D_CoreRun(int argc, char* argv[] /* void* arg*/) {
 
     DeinitOTR();
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(ZELDA3D_UWP)
     FreeConsole();
 #endif
     // Before the heaps go: check this run left nothing pointing into them. A core that hands back
@@ -183,6 +183,6 @@ static const Zelda3DCore sCore = {
     .run = Zelda3D_CoreRun,
 };
 
-const Zelda3DCore* Zelda3D_CoreEntry(void) {
+ZELDA3D_CORE_API const Zelda3DCore* Zelda3D_CoreEntry(void) {
     return &sCore;
 }

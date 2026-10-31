@@ -56,15 +56,26 @@ MQ layout enforcement, save binding, and randomizer logic are not connected to t
 The package still builds only `soh_core.dll` and requires pre-extracted archives. No actual MM DLL
 load, signed Fusion MSIX, or Xbox result is claimed.
 
+The opt-in MM Xbox compile profile now selects SDL2/OpenGL, MSVC options, direct object aggregation,
+the Windows core export, and archive-only startup. MM's desktop extraction UI moved out of
+`BenPort.cpp` into `2ship/2s2h/host/rom_extraction.cpp`; `host/archive_boot.*` validates archives
+before window setup in the Xbox profile. Missing, corrupt, or incompatible archives return through
+the core's existing boot-error boundary. The Xbox profile excludes desktop console setup and the
+POSIX developer FIFO. MM output stays in its own build directory so its assets cannot overwrite OoT.
+
+`.github/workflows/fusion-mm-uwp.yml` is a separate branch-scoped compile check. It builds current
+`mm_core` source on Windows, inspects exports/imports, and preserves diagnostics. Its DLL artifact is
+experimental compiler output, not an installer. Dependency binaries are cached before the compile
+so failures do not discard the dependency build. Native compilation is pending at this checkpoint.
+
 ### Next integration milestone
 
 Boot each game from the separate Fusion application, then establish a safe shared runtime before
 attempting world travel. The source survey found concrete prerequisites:
 
-1. **Port MM's build to the Xbox profile.** Root CMake forces MM off. `2ship/CMakeLists.txt` currently
-   requires SDL3, GNU compiler/linker flags, and ZAPD unconditionally. It needs the SDL2/OpenGL and
-   MSVC settings, archive-only boot path, and Windows core export definition; `BenPort.cpp` directly
-   includes SDL3, and `src/code/main.c` contains desktop console startup/shutdown calls.
+1. **Verify MM's Xbox compile/link.** The build and source adaptations above are implemented; the
+   dedicated Windows check must pass before enabling MM in the installable package. Root CMake
+   keeps MM off by default for existing UWP builds and permits an explicit `ZELDA3D_BUILD_MM=ON`.
 2. **Give both cores one engine owner.** The current Xbox build folds libultraship into the OoT DLL.
    Linking that static library into MM too would create separate `Ship::Context` and switch-request
    state. Desktop handoff depends on one shared engine. MM teardown retains its engine context, and
@@ -81,8 +92,8 @@ Acceptance after those prerequisites: both selected games reach gameplay on Xbox
 both directions in one process, and save/reload retains the same pair and progression. The shared
 items, models, enemies, entrances, and logic are subsequent gameplay integration work.
 
-The native recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when activated.
-This branch does not replace the existing main branch's pinned dispatcher or start a native build.
+The original packaging recipe remains in `.source-workflow/build-xbox-uwp.yml`, manual-only when
+activated. The new MM compile workflow does not replace main's pinned dispatcher or produce an MSIX.
 
 ## Validation
 
@@ -96,6 +107,12 @@ The compiled bootstrap test uses fake core descriptors/runners and passes **4 va
 rejection, missing entry/descriptor/runner, argument forwarding, return values, and that invalid
 selections never call the entry point. These are host checks of the actual bootstrap source; they
 do not compile the Windows wrapper, load game DLLs, exercise MQ layouts, or run gameplay.
+
+`python3 tools/test_mm_uwp_contract.py`: PASS for archive version decoding (both byte orders,
+truncation and invalid byte-order rejection, exact port version and major-only ROM compatibility),
+both POSIX and disabled Windows FIFO compilation, and three generated CMake profiles (Xbox SDL2
+archive-only, desktop SDL2 archive-only, desktop SDL3 extraction). CMake uses stub dependency targets
+for these host checks; only the separate native workflow can establish actual Windows compilation.
 
 `tools/codemap.py check` reports the same 23 missing external/pre-existing paths as the unmodified
 baseline (including optional decomp submodules); this change introduces zero missing references.
