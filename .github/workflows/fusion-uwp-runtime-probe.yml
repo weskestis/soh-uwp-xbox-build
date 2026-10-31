@@ -8,6 +8,9 @@ on:
       - '.github/workflows/fusion-uwp-runtime-probe.yml'
       - 'tools/uwp_runtime_probe/**'
       - 'tools/uwp_dependency_probe/**'
+      - 'cmake/vcpkg-uwp-ports/**'
+      - 'tools/uwp_store_build.py'
+      - 'tools/uwp_core_imports.py'
 
 permissions:
   contents: read
@@ -15,6 +18,9 @@ permissions:
 concurrency:
   group: fusion-runtime-probe-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  VCPKG_COMMIT: 9e593bb18ea69cc5095e012465dcd675a822ed0d
 
 jobs:
   store-runtime:
@@ -39,11 +45,47 @@ jobs:
           New-Item -ItemType Directory -Force scratch | Out-Null
           python tools/uwp_runtime_probe/test_audit.py
           if ($LASTEXITCODE -ne 0) { throw "Runtime audit tests failed" }
+      - name: Check out pinned vcpkg
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/vcpkg
+          ref: ${{ env.VCPKG_COMMIT }}
+          path: scratch/vcpkg
+          persist-credentials: false
+      - name: Restore Store dependencies
+        id: dependency-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: scratch/vcpkg-cache
+          key: fusion-store-vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('cmake/vcpkg-uwp-ports/**') }}
+          restore-keys: |
+            fusion-store-vcpkg-${{ runner.os }}-${{ env.VCPKG_COMMIT }}-
+      - name: Build pinned Store FreeType with the production overlay
+        run: |
+          New-Item -ItemType Directory -Force scratch/runtime-probe-diagnostics,scratch/vcpkg-cache | Out-Null
+          ./scratch/vcpkg/bootstrap-vcpkg.bat -disableMetrics
+          if ($LASTEXITCODE -ne 0) { throw "vcpkg bootstrap failed" }
+          ./scratch/vcpkg/vcpkg.exe install freetype:x64-uwp-static-md `
+            "--overlay-ports=$env:GITHUB_WORKSPACE/cmake/vcpkg-uwp-ports" `
+            "--binarysource=clear;files,$env:GITHUB_WORKSPACE/scratch/vcpkg-cache,readwrite" 2>&1 |
+            Tee-Object scratch/runtime-probe-diagnostics/freetype-dependencies.log
+          if ($LASTEXITCODE -ne 0) { throw "Store FreeType build failed" }
+          Copy-Item scratch/vcpkg/installed/x64-uwp-static-md/include/freetype/config/ftoption.h `
+            scratch/runtime-probe-diagnostics/freetype-options.h
+      - name: Preserve the rebuilt dependency cache
+        if: steps.dependency-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: scratch/vcpkg-cache
+          key: ${{ steps.dependency-cache.outputs.cache-primary-key }}
       - name: Configure isolated normal-Windows DLL with Store runtime
         run: |
           New-Item -ItemType Directory -Force scratch/runtime-probe-diagnostics | Out-Null
           cmake -S tools/uwp_runtime_probe -B scratch/build-runtime-probe -G "Visual Studio 17 2022" -A "x64,version=10.0.19041.0" `
-            -DCMAKE_SYSTEM_VERSION=10.0.19041.0 2>&1 | Tee-Object scratch/runtime-probe-diagnostics/configure.log
+            -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_VERSION=10.0.19041.0 `
+            "-DCMAKE_TOOLCHAIN_FILE=$env:GITHUB_WORKSPACE/scratch/vcpkg/scripts/buildsystems/vcpkg.cmake" `
+            -DVCPKG_TARGET_TRIPLET=x64-uwp-static-md -DVCPKG_APPLOCAL_DEPS=OFF -DFUSION_PROBE_FREETYPE=ON 2>&1 |
+            Tee-Object scratch/runtime-probe-diagnostics/configure.log
           if ($LASTEXITCODE -ne 0) { throw "Runtime probe configure failed" }
       - name: Build with verbose library selection
         run: |
@@ -62,7 +104,7 @@ jobs:
             & $dumpbin.FullName "/$kind" $dll | Set-Content "scratch/runtime-probe-diagnostics/$kind.txt"
             if ($LASTEXITCODE -ne 0) { throw "dumpbin $kind failed" }
           }
-          python tools/uwp_runtime_probe/audit.py scratch/runtime-probe-diagnostics
+          python tools/uwp_runtime_probe/audit.py scratch/runtime-probe-diagnostics --freetype
           if ($LASTEXITCODE -ne 0) { throw "Store runtime selection not established" }
           Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String |
             Set-Content scratch/runtime-probe-diagnostics/SHA256.txt
@@ -78,5 +120,7 @@ jobs:
           path: |
             scratch/runtime-probe-diagnostics/
             scratch/build-runtime-probe/fusion_uwp_runtime_probe.vcxproj
+            scratch/build-runtime-probe/Release/fusion_uwp_runtime_probe.dll
+            scratch/vcpkg/buildtrees/freetype/*.log
           if-no-files-found: error
           retention-days: 30

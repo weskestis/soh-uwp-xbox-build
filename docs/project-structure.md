@@ -23,6 +23,11 @@ boot error survives immediate exit, asynchronous on desktop. The native
 UWP-only patches under `Shipwright/libultraship/cmake/dependencies/patches/` adapt pinned ImGui
 and RmlUi loading/window/dialog code; `common.cmake` applies them only for the Xbox profile.
 
+`tools/uwp_runtime_probe/` optionally links the production Store FreeType overlay and keeps real
+font initialization/property calls in a separate exported entry. The native audit checks that entry,
+the actual UWP FreeType library path, generated options, and absence of unsupported environment
+imports. Its workflow also records the exact pinned dependency/framework inventories.
+
 `tools/uwp_runtime_probe/` is an isolated normal-Windows DLL configured with Store project
 properties, dynamic CRT and WindowsApp linkage. Its separate workflow preserves verbose library
 selection, imports, exports, and AppContainer headers. It does not alter either game's build.

@@ -9,9 +9,10 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from uwp_core_imports import parse_imports
+from uwp_store_build import UNSUPPORTED_CRT_ENVIRONMENT
 
 
-def audit(directory: Path) -> dict:
+def audit(directory: Path, *, freetype: bool = False) -> dict:
     imports = parse_imports((directory / "imports.txt").read_text(encoding="utf-8-sig"))
     modules = set(imports)
     expected = {"msvcp140_app.dll", "vcruntime140_app.dll"}
@@ -22,6 +23,10 @@ def audit(directory: Path) -> dict:
         re.fullmatch(r"(?:msvcp|vcruntime)140(?:_\d+)?_app\.dll", name))}
     if unexpected:
         raise ValueError(f"Unexpected non-Store import modules: {sorted(unexpected)}")
+    unsupported = sorted(f"{module}!{symbol}" for module, symbols in imports.items()
+                         for symbol in symbols & UNSUPPORTED_CRT_ENVIRONMENT)
+    if unsupported:
+        raise ValueError(f"Unsupported UWP CRT environment imports: {unsupported}")
     exports = (directory / "exports.txt").read_text(encoding="utf-8-sig")
     if "FusionUwpRuntimeProbe" not in exports:
         raise ValueError("Probe C entry is missing")
@@ -31,8 +36,20 @@ def audit(directory: Path) -> dict:
     build = (directory / "build.log").read_text(encoding="utf-8-sig")
     if not re.search(r"[\\/]store[\\/].*(?:msvcprt|msvcrt|vcruntime)\.lib", build, re.I):
         raise ValueError("Verbose link did not demonstrate Store CRT library selection")
+    if freetype:
+        if not re.search(r"\bFusionUwpFreeTypeProbe\b", exports):
+            raise ValueError("Font initialization entry is missing")
+        if not re.search(r"[\\/]x64-uwp-static-md[\\/]lib[\\/]freetype\.lib", build, re.I):
+            raise ValueError("Verbose link lacks the actual Store FreeType library")
+        options = (directory / "freetype-options.h").read_text(encoding="utf-8-sig")
+        if re.search(r"^\s*#\s*define\s+FT_CONFIG_OPTION_ENVIRONMENT_PROPERTIES\b", options, re.M):
+            raise ValueError("FreeType installed options still enable CRT environment properties")
+        if "FT_CONFIG_OPTION_ENVIRONMENT_PROPERTIES" not in options:
+            raise ValueError("FreeType options evidence is incomplete")
     return {
         "store_crt_link_verified": True,
+        "freetype_store_link_verified": freetype,
+        "unsupported_crt_environment_absent": True,
         "windows_runtime_execution_verified": False,
         "xbox_runtime_verified": False,
         "game_dependencies_migrated": False,
@@ -43,9 +60,10 @@ def audit(directory: Path) -> dict:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("diagnostics", type=Path)
+    parser.add_argument("--freetype", action="store_true")
     args = parser.parse_args()
     try:
-        result = audit(args.diagnostics)
+        result = audit(args.diagnostics, freetype=args.freetype)
     except ValueError as error:
         parser.exit(1, f"Runtime probe audit failed: {error}\n")
     (args.diagnostics / "audit.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
