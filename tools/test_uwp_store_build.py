@@ -102,13 +102,21 @@ class StoreBuildTests(unittest.TestCase):
         self.assertTrue(result["store_crt_link_verified"])
         self.assertFalse(result["xbox_runtime_verified"])
         self.assertFalse(result["shared_engine_handoff"])
+        self.assertTrue(result["unsupported_crt_environment_absent"])
         (self.path / "imports.txt").write_text(IMPORTS + report(("bcrypt.dll", ["BCryptGenRandom"])))
         self.assertTrue(audit_core(self.path)["store_crt_link_verified"])
+        (self.path / "imports.txt").write_text(IMPORTS + report(
+            ("api-ms-win-core-processenvironment-l1-1-0.dll", ["GetEnvironmentVariableA"]),
+            ("api-ms-win-crt-time-l1-1-0.dll", ["_tzset"])))
+        self.assertTrue(audit_core(self.path)["unsupported_crt_environment_absent"])
         (self.path / "imports.txt").write_text(IMPORTS)
         cases = [("imports.txt", IMPORTS.replace("MSVCP140_APP.dll", "MSVCP140.dll")),
                  ("imports.txt", IMPORTS.replace("glGetString", "glAbsentFromMesa")),
                  ("imports.txt", IMPORTS + report(("KERNEL32.dll", ["GetModuleHandleExA"]))),
                  ("imports.txt", IMPORTS + report(("bcrypt.dll", ["UnreviewedApi"]))),
+                 ("imports.txt", IMPORTS + report(("api-ms-win-crt-environment-l1-1-0.dll", ["getenv"]))),
+                 ("imports.txt", IMPORTS + report(("api-ms-win-crt-environment-l1-1-0.dll", ["_dupenv_s"]))),
+                 ("imports.txt", IMPORTS + report(("api-ms-win-crt-runtime-l1-1-0.dll", ["_wgetenv_s"]))),
                  ("headers.txt", "DLL"), ("exports.txt", "OtherEntry"),
                  ("build.log", files["build.log"].replace("store", "desktop")),
                  ("build.log", files["build.log"].replace("fusion-mesa-opengl32.lib", "opengl32.lib")),

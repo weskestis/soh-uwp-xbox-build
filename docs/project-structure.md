@@ -35,7 +35,11 @@ first-party/FetchContent target overrides. The UWP core now requires `x64-uwp-st
 SDK 19041. `cmake/vcpkg-uwp-ports/` holds the pinned FreeType API guard and memory-only OpusFile
 overlays. `Zelda3DUwpGlew.cmake` builds GLEW against an import library generated from the
 pinned Mesa DLL; `tools/uwp_store_build.py` checks generated projects and final link evidence.
-The existing Fusion workflow builds both game cores independently; native validation is pending.
+The Fusion workflow builds both game cores independently and preserves an active compile when a
+new candidate queues. MM Store linking passed in run 41236909295; OoT and the subsequent FreeType
+environment correction remain under validation. The FreeType overlay selects the upstream no-op
+environment-properties implementation only for WindowsStore; the import audit rejects unsupported
+CRT environment functions even behind API-set DLL names.
 `tools/uwp_logger_host/` keeps the immediate-exit logger test in a separate desktop process.
 `ship/utils/Environment.h` supplies unchanged desktop environment reads and unset UWP defaults;
 `SohRmlUiDensity.cpp` owns display scaling and its optional desktop override.

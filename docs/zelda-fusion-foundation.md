@@ -34,17 +34,36 @@ and the final unpacked-package audit requires the exact Fusion name and signing 
 
 ## Current checkpoint
 
-The next native candidate migrates **both** cores from desktop `/MT` to dynamic Store CRT.
-`cmake/Zelda3DUwpRuntime.cmake` applies the previously proven native C++20 Store properties to
-all compiled targets after legacy overrides, selects SDK 19041, disables C++/CX per source, and
-replaces desktop default libraries with WindowsApp. Dependencies use genuine
-`x64-uwp-static-md` builds. FreeType's API-family guard and OpusFile's memory-only surface have
-reviewed pinned overlays; GLEW uses the exact bundled Mesa exports. The four `_DLL` header hacks
-are removed, desktop SAPI/install-directory probes are excluded, and UWP environment overrides
-use existing unset defaults. Host contracts pass. **Native Store core compilation/link validation
-is still pending**; the old `/MT` DLL and isolated probe results below are historical evidence,
-not a validation of this migration. The old OoT-only package retry scripts remain unmigrated and
-must not be used to package this candidate or reuse its obsolete preserved core.
+Both cores now select dynamic Store CRT, native C++20, SDK 19041, WindowsApp, and genuine
+`x64-uwp-static-md` dependencies. `cmake/Zelda3DUwpRuntime.cmake` applies those properties after
+legacy overrides; its property sheet also keeps generated PCH units native and prevents nonexistent
+WinRT metadata references. FreeType and OpusFile use reviewed pinned overlays; GLEW links against
+the packaged Mesa exports. Desktop SAPI, WASAPI, install-directory probes, and environment overrides
+are excluded from the UWP path. The old OoT-only package retry scripts remain unmigrated and must
+not package this candidate or reuse an obsolete preserved core.
+
+Native run [41236909295](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41236909295),
+source `71f57b817393a07b8c4aeb6d2acb906933f5676d`, **compiled and linked MM with Store CRT**.
+Its 18 generated projects, immediate-exit host logger, Store library/import audit, AppContainer flag,
+and pinned Mesa import ABI passed. `mm_core.dll` SHA-256:
+`b32091c09d32aa419428c1a5391d4f5fada8ef13d0778a8738a978ee4e2d4eb8`.
+**OoT is still compiling in that run.** This is native compile/link evidence, not Xbox execution.
+
+A subsequent review found `getenv` in the actual MM DLL despite the successful link. The single
+import call passes `FREETYPE_PROPERTIES`, matching upstream FreeType's `FT_Set_Default_Properties`
+called by `FT_Init_FreeType`. The new WindowsStore-only overlay disables
+`FT_CONFIG_OPTION_ENVIRONMENT_PROPERTIES` in the generated header and selects FreeType's upstream
+no-op implementation. Host builds of exact FreeType 2.14.3 confirmed that desktop environment
+settings still apply, the Store configuration has no `getenv` reference, initialization works, and
+`FT_Property_Set` remains functional. The stricter core audit now rejects the original MM DLL.
+**Native Windows validation of this correction is pending.**
+
+The actual MM binary has 172 direct Store-runtime imports and 137 direct SDL2/Mesa imports; all
+resolve against the collected framework/depot exports. This does not establish complete loader or
+API compatibility. The pinned Mesa library still imports unsupported `LoadLibraryA`,
+`GetModuleHandleA`, and `getenv`; `libuwp.dll` imports `LoadLibraryW`. DXIL is dynamically referenced
+and cannot be removed based only on static import reports. GLFW and SDL3 are excluded from Fusion
+staging. No Fusion installer, MM Xbox boot, or safe in-process core handoff is claimed.
 
 
 Implemented here: independent package identity, branding, signing defaults, rejection of legacy
@@ -77,7 +96,7 @@ the core's existing boot-error boundary. The Xbox profile excludes desktop conso
 POSIX developer FIFO. MM output stays in its own build directory so its assets cannot overwrite OoT.
 
 `.github/workflows/fusion-mm-uwp.yml` is a separate branch-scoped compile check. It builds current
-`mm_core` source on Windows, inspects exports/imports, and preserves diagnostics. Its DLL artifact is
+`mm_core` and `soh_core` sources independently on Windows, inspects exports/imports, and preserves diagnostics. Its DLL artifact is
 experimental compiler output, not an installer. Dependency binaries are cached before the compile
 so failures do not discard the dependency build. Native run
 [41219612617](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41219612617), source

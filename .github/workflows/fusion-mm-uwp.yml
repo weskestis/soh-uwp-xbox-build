@@ -28,7 +28,9 @@ permissions:
 
 concurrency:
   group: fusion-mm-compile-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve completed compiler/link evidence from the long OoT job while a
+  # follow-up fix waits. Only the newest pending candidate needs to run.
+  cancel-in-progress: false
 
 env:
   UWP_DEP_COMMIT: f5dbd58ee06a4b439bf260d641585dbc8bef3b86

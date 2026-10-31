@@ -25,7 +25,7 @@ Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple increment
 
 ## in-progress
 
-- [#216] Zelda Fusion combined-game runtime — pair-aware Xbox loader groundwork implemented: only OoT+MM or OoT MQ+MM routes, exact core ID/ABI checks, and DLL-specific diagnostics. Host contracts 19/19 PASS (4 valid routes, 40 descriptor failures, 7 invalid selections). [Scope, remaining integration, and evidence](docs/zelda-fusion-foundation.md).
+- [#216] Zelda Fusion combined-game runtime — pair-aware Xbox loader groundwork implemented: only OoT+MM or OoT MQ+MM routes, exact core ID/ABI checks, and DLL-specific diagnostics. Host contracts 20/20 PASS (4 valid routes, 40 descriptor failures, 7 invalid selections). [Scope, remaining integration, and evidence](docs/zelda-fusion-foundation.md).
   WinRT startup follow-up removes desktop callbacks, fixes the installed asset directory, starts MM logging before archive validation, and rejects private MM archives from packages. Nine new import-gate tests pass. Native [run 41230510373](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41230510373), source `8114e73`, passes MM compilation/linking, immediate-exit logging, and the strict desktop-callback import gate; User32/Shell32/Imm32/DbgHelp are absent. The audit also confirms /MT CRT linkage as a separate UWP delivery blocker requiring consistent runtime/dependency migration before an installer. The isolated Store CRT probe passes native run [41228728878](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41228728878); both full game dependency graphs still need migration.
   Native [Windows run 41222720845](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41222720845), source `17dcfa1`, compiles/links MM and passes the entry-export/SDL2 audit after fixing the math constant and cutscene zeroing calls. The experimental DLL is preserved; Xbox API/dependency compatibility and runtime remain unverified.
   Native [asset run 41223181631](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41223181631), source `8b6a2c3`, passes all fourteen archive tests plus real GAME_MM exporter compilation/generation. The ROM-free archive contains 841 validated members. Shared engine ownership, packaging, import/pair-bound saves, cross-game gameplay/randomization, and physical Xbox validation remain open; no signed Fusion installer yet.
@@ -137,7 +137,7 @@ Card format: `- [#N] <title> — <notes / evidence link>`  (N = simple increment
 
 ## in-review
 
-- [#215] Separate Zelda Fusion Xbox installation — dedicated package family and signing subject implemented on `feature/zelda-fusion-isolation`; host packaging contracts 19/19 PASS, including legacy-identity rejection. [Scope and evidence](docs/zelda-fusion-foundation.md). Physical side-by-side installation remains pending; the combined game is not built yet.
+- [#215] Separate Zelda Fusion Xbox installation — dedicated package family and signing subject implemented on `feature/zelda-fusion-isolation`; host packaging contracts 20/20 PASS, including legacy-identity and unused desktop-DLL rejection. [Scope and evidence](docs/zelda-fusion-foundation.md). Physical side-by-side installation remains pending; the combined game is not built yet.
 
 _(empty)_
 

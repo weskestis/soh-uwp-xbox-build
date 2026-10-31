@@ -40,6 +40,11 @@ switch ($Command) {
             libogg libvorbis opus opusfile zlib bzip2 spdlog:x64-windows-static-md 2>&1 |
             Tee-Object "$diagnostics/dependencies.log"
         Assert-Exit "Store dependency installation failed"
+        $fontOptions = "$repoRoot/scratch/vcpkg/installed/x64-uwp-static-md/include/freetype/config/ftoption.h"
+        if (!(Test-Path $fontOptions) -or
+            (Get-Content $fontOptions | Select-String '^\s*#\s*define\s+FT_CONFIG_OPTION_ENVIRONMENT_PROPERTIES\b')) {
+            throw "FreeType Store configuration still enables unsupported CRT environment access"
+        }
         $dumpbin = Find-MsvcTool "dumpbin"
         $lib = Find-MsvcTool "lib"
         & $dumpbin /exports "$repoRoot/scratch/uwp-dep/x64/bin/opengl32.dll" |

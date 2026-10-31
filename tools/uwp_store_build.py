@@ -22,6 +22,17 @@ CNG_IMPORTS = frozenset({
     "BCryptGenRandom", "BCryptDeriveKeyPBKDF2", "BCryptOpenAlgorithmProvider",
 })
 
+# These CRT environment functions are explicitly unavailable to UWP. Match the
+# symbols regardless of which API-set DLL exposes them; an api-ms-win-* name
+# alone does not establish API compatibility. This is a focused regression gate.
+# https://learn.microsoft.com/en-us/cpp/cppcx/crt-functions-not-supported-in-universal-windows-platform-apps
+UNSUPPORTED_CRT_ENVIRONMENT = frozenset({
+    "getenv", "getenv_s", "_wgetenv", "_wgetenv_s", "_dupenv_s", "_wdupenv_s",
+    "putenv", "_putenv", "_putenv_s", "_wputenv", "_wputenv_s",
+    "_environ", "_wenviron",
+    "_searchenv", "_searchenv_s", "_wsearchenv", "_wsearchenv_s", "tzset",
+})
+
 
 def mesa_exports(report: str) -> set[str]:
     names = set()
@@ -86,6 +97,10 @@ def audit_core(directory: Path) -> dict:
     read = lambda name: (directory / name).read_text(encoding="utf-8-sig")
     regression = audit_imports(read("imports.txt"))
     imports = parse_imports(read("imports.txt"))
+    unsupported = sorted(f"{module}!{symbol}" for module, symbols in imports.items()
+                         for symbol in symbols & UNSUPPORTED_CRT_ENVIRONMENT)
+    if unsupported:
+        raise ValueError(f"Unsupported UWP CRT environment imports: {unsupported}")
     required = {"msvcp140_app.dll", "vcruntime140_app.dll"}
     if not required <= imports.keys():
         raise ValueError("Core does not import the dynamic Store C++ runtime")
@@ -115,6 +130,7 @@ def audit_core(directory: Path) -> dict:
         **regression,
         "store_crt_link_verified": True,
         "mesa_import_abi_verified": True,
+        "unsupported_crt_environment_absent": True,
         "dependency_runtime_execution_verified": False,
         "shared_engine_handoff": False,
     }

@@ -14,6 +14,7 @@ vcpkg_from_gitlab(
     PATCHES
         0003-Fix-UWP.patch
         native-store-io.patch
+        native-store-environment.patch
         brotli-static.patch
         bzip2.patch
         fix-exports.patch
