@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/fusion-uwp-runtime-probe.yml'
       - 'tools/uwp_runtime_probe/**'
+      - 'tools/uwp_dependency_probe/**'
 
 permissions:
   contents: read
@@ -25,6 +26,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
+      - name: Check out pinned Xbox dependency binaries
+        uses: actions/checkout@v4
+        with:
+          repository: SternXD/uwp-dep
+          ref: f5dbd58ee06a4b439bf260d641585dbc8bef3b86
+          path: scratch/uwp-dep
           persist-credentials: false
       - name: Test runtime evidence rejection
         run: |
@@ -60,6 +68,8 @@ jobs:
             Set-Content scratch/runtime-probe-diagnostics/SHA256.txt
           "source_commit=$env:GITHUB_SHA`nnot_a_game_build=true`nxbox_runtime_verified=false" |
             Set-Content scratch/runtime-probe-diagnostics/BUILD.txt
+      - name: Collect bundled DLL and Store framework evidence
+        run: ./tools/uwp_dependency_probe/collect.ps1
       - name: Preserve probe diagnostics
         if: always()
         uses: actions/upload-artifact@v4

@@ -26,6 +26,9 @@ and RmlUi loading/window/dialog code; `common.cmake` applies them only for the X
 `tools/uwp_runtime_probe/` is an isolated normal-Windows DLL configured with Store project
 properties, dynamic CRT and WindowsApp linkage. Its separate workflow preserves verbose library
 selection, imports, exports, and AppContainer headers. It does not alter either game's build.
+`tools/uwp_dependency_probe/collect.ps1` extends that independent job with the actual pinned
+SDL/Mesa dependency DLLs and installed retail x64 VCLibs framework: hashes, versions, PE reports,
+and framework manifests. It collects evidence without executing or packaging those binaries.
 
 `cmake/Zelda3DUwpRuntime.cmake` owns native C++20 Store properties and applies them after all
 first-party/FetchContent target overrides. The UWP core now requires `x64-uwp-static-md` and
