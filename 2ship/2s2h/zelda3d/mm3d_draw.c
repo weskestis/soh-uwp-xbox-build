@@ -118,6 +118,15 @@ static float Zelda3D_MM_SkelBoneLenSum(void** skeleton, int limbCap) {
 int gZelda3dMmColliderPass = 0;
 
 int Zelda3D_MM_InterceptSkelAnime(PlayState* play, Actor* actor, void** skeleton, Vec3s* jointTable) {
+#if defined(ZELDA3D_UWP)
+    // Fusion uses the original N64 models; do not traverse or divert their
+    // skeletons through the abandoned MM3D replacement path.
+    (void)play;
+    (void)actor;
+    (void)skeleton;
+    (void)jointTable;
+    return 0;
+#else
     if (skeleton == NULL || jointTable == NULL)
         return 0;
     // #107 collider re-walk: caller has already emitted the MM3D replacement and is
@@ -180,9 +189,15 @@ int Zelda3D_MM_InterceptSkelAnime(PlayState* play, Actor* actor, void** skeleton
         }
     }
     return Zelda3D_MM_SkelAnimeDrawRaw(play, skeleton, jointTable, limbCount);
+#endif
 }
 
 int Zelda3D_TryDrawActor(PlayState* play, Actor* actor) {
+#if defined(ZELDA3D_UWP)
+    (void)play;
+    (void)actor;
+    return 0;
+#else
     int modelId = -1;
     float worldScale = 1.0f;
     float groundOffset = 0.0f;
@@ -212,6 +227,7 @@ int Zelda3D_TryDrawActor(PlayState* play, Actor* actor) {
     }
     Zelda3D_EmitModelDraw(play, actor, modelId, worldScale, groundOffset);
     return 1;
+#endif
 }
 
 // MM3D scene-room divert. MM3D ships /scenes/<name>_<room>_info.zsi in the same ZSI format OoT3D
@@ -240,12 +256,18 @@ int Zelda3D_TryDrawActor(PlayState* play, Actor* actor) {
 // South Clock Town, East Clock Town and Termina Field were each verified rendering complete in a live
 // run, ground included.
 static int mmSceneDivertEnabled(void) {
+#if defined(ZELDA3D_UWP)
+    // Scene mapping alone must never hide the N64 skybox. Fusion does not
+    // provide MM3D rooms or replacement backgrounds.
+    return 0;
+#else
     static int v = -1;
     if (v < 0) {
         const char* e = ShipGetEnvironmentVariable("ZELDA3D_MM_SCENE");
         v = (e != NULL && e[0] != '\0') ? atoi(e) : 1; // 0=off, 1=draw, 2=skip-only
     }
     return v;
+#endif
 }
 
 const char* Zelda3D_MM_SceneName(PlayState* play) {

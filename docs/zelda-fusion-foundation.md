@@ -34,6 +34,15 @@ and the final unpacked-package audit requires the exact Fusion name and signing 
 
 ## Current checkpoint
 
+Native Store run `41239071818`, engine source `3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa`,
+has now passed for **both** OoT and MM, including the FreeType environment-import correction.
+Its artifacts are game DLLs, not an installer. Packaging review found MM's inherited 3DS
+scene diversion default could suppress an original N64 skybox without replacement assets.
+The UWP path now keeps N64 room, actor, and skeleton drawing; desktop 3DS behavior is unchanged.
+This needs a fresh MM native build and physical Xbox rendering verification. OoT already
+defaults to Original SoH in a fresh Fusion profile; do not import old 3DS settings.
+
+
 Both cores now select dynamic Store CRT, native C++20, SDK 19041, WindowsApp, and genuine
 `x64-uwp-static-md` dependencies. `cmake/Zelda3DUwpRuntime.cmake` applies those properties after
 legacy overrides; its property sheet also keeps generated PCH units native and prevents nonexistent
