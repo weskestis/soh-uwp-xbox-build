@@ -192,6 +192,11 @@ imports, exports and PE headers; its audit requires actual Store CRT library pat
 imports. Native results are pending. The two host audit tests reject six forms of missing/desktop
 evidence and explicitly leave execution/game migration unverified.
 
+The first native probe (run 41228533033, source `e04804b`) configured but exposed Store props
+automatically enabling `/ZW`, incompatible with C++20. It also showed CMake's newer SDK selection
+policy choosing 26100 despite `CMAKE_SYSTEM_VERSION=19041`. The probe now explicitly disables
+C++/CX per source and selects/verifies SDK 19041 through the generator platform; rerun pending.
+
 Migration still needs reviewed UWP dependency builds: pinned OpusFile and GLEW/OpenGL ports declare
 UWP unsupported; FreeType's existing UWP file mapping branch needs appropriate selection; libzip
 must use its WindowsStore `CreateFile2` path. The shared texture interpreter also has a desktop-only
