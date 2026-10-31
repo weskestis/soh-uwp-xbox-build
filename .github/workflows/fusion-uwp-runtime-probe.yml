@@ -1,0 +1,72 @@
+name: Fusion UWP runtime probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/zelda-fusion-isolation]
+    paths:
+      - '.github/workflows/fusion-uwp-runtime-probe.yml'
+      - 'tools/uwp_runtime_probe/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fusion-runtime-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  store-runtime:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Test runtime evidence rejection
+        run: |
+          New-Item -ItemType Directory -Force scratch | Out-Null
+          python tools/uwp_runtime_probe/test_audit.py
+          if ($LASTEXITCODE -ne 0) { throw "Runtime audit tests failed" }
+      - name: Configure isolated normal-Windows DLL with Store runtime
+        run: |
+          New-Item -ItemType Directory -Force scratch/runtime-probe-diagnostics | Out-Null
+          cmake -S tools/uwp_runtime_probe -B scratch/build-runtime-probe -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_SYSTEM_VERSION=10.0.19041.0 2>&1 | Tee-Object scratch/runtime-probe-diagnostics/configure.log
+          if ($LASTEXITCODE -ne 0) { throw "Runtime probe configure failed" }
+      - name: Build with verbose library selection
+        run: |
+          cmake --build scratch/build-runtime-probe --config Release --target fusion_uwp_runtime_probe -- /v:normal 2>&1 |
+            Tee-Object scratch/runtime-probe-diagnostics/build.log
+          if ($LASTEXITCODE -ne 0) { throw "Runtime probe build failed" }
+      - name: Verify actual CRT imports and AppContainer flag
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}/Microsoft Visual Studio/Installer/vswhere.exe"
+          $vs = & $vswhere -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $dumpbin = Get-ChildItem "$vs/VC/Tools/MSVC/*/bin/Hostx64/x64/dumpbin.exe" |
+            Sort-Object FullName -Descending | Select-Object -First 1
+          if ($null -eq $dumpbin) { throw "dumpbin missing" }
+          $dll = "scratch/build-runtime-probe/Release/fusion_uwp_runtime_probe.dll"
+          foreach ($kind in @("imports", "exports", "headers")) {
+            & $dumpbin.FullName "/$kind" $dll | Set-Content "scratch/runtime-probe-diagnostics/$kind.txt"
+            if ($LASTEXITCODE -ne 0) { throw "dumpbin $kind failed" }
+          }
+          python tools/uwp_runtime_probe/audit.py scratch/runtime-probe-diagnostics
+          if ($LASTEXITCODE -ne 0) { throw "Store runtime selection not established" }
+          Get-FileHash $dll -Algorithm SHA256 | Format-List | Out-String |
+            Set-Content scratch/runtime-probe-diagnostics/SHA256.txt
+          "source_commit=$env:GITHUB_SHA`nnot_a_game_build=true`nxbox_runtime_verified=false" |
+            Set-Content scratch/runtime-probe-diagnostics/BUILD.txt
+      - name: Preserve probe diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-runtime-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            scratch/runtime-probe-diagnostics/
+            scratch/build-runtime-probe/fusion_uwp_runtime_probe.vcxproj
+          if-no-files-found: error
+          retention-days: 30

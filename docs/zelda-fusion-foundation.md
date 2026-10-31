@@ -184,6 +184,19 @@ appropriate API-set linkage, and packaged framework dependencies. `WindowsApp.li
 not repair a desktop CRT or certify imports. The current compiler artifact must not be promoted
 to a usable Xbox installer. This is separate from the remaining shared-engine ownership work.
 
+The isolated `tools/uwp_runtime_probe/` checks the proposed runtime configuration before migration:
+normal-Windows CMake, MSBuild Store project properties, `/MD`, `WINAPI_FAMILY_APP`, WindowsApp,
+`/APPCONTAINER`, and `/WINMD:NO`. Its DLL exercises strings, exceptions, threading and absolute-path
+filesystem/stream code. The separate `fusion-uwp-runtime-probe.yml` preserves verbose library paths,
+imports, exports and PE headers; its audit requires actual Store CRT library paths and `_app` CRT
+imports. Native results are pending. The two host audit tests reject six forms of missing/desktop
+evidence and explicitly leave execution/game migration unverified.
+
+Migration still needs reviewed UWP dependency builds: pinned OpusFile and GLEW/OpenGL ports declare
+UWP unsupported; FreeType's existing UWP file mapping branch needs appropriate selection; libzip
+must use its WindowsStore `CreateFile2` path. The shared texture interpreter also has a desktop-only
+`GetModuleHandleExA` image-address check. Replacing `/MT` alone would leave those API issues intact.
+
 `python3 tools/test_uwp_package_contract.py`: **19/19 PASS** on 2026-10-31. The tests populate the
 checked-in manifest from its CMake defaults, accept Fusion and later Fusion versions, reject four
 old package names, reject a matching legacy signing publisher, and reject a publisher mismatch.

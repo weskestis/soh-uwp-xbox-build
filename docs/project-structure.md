@@ -21,6 +21,10 @@ It does not certify the complete UWP API surface, CRT, dependency closure, or Xb
 boot error survives immediate exit, asynchronous on desktop. The native
 `tools/uwp_release_logger_test.cpp` exercises the same factory and exits without teardown.
 
+`tools/uwp_runtime_probe/` is an isolated normal-Windows DLL configured with Store project
+properties, dynamic CRT and WindowsApp linkage. Its separate workflow preserves verbose library
+selection, imports, exports, and AppContainer headers. It does not alter either game's build.
+
 The project is two layers. **zelda** = the N64-asset PC-port engines (the Shipwright family, which
 render the game from N64 assets). **zelda3d** = the 3DS-asset render layer we build *on top of* those
 engines, substituting OoT3D / MM3D (Nintendo 3DS) models, world, animation, camera-math and lighting
