@@ -62,13 +62,13 @@ switch ($Command) {
             -DZELDA3D_ENABLE_ROM_EXTRACTION=OFF -DNON_PORTABLE=ON `
             -DLUS_BUILD_TESTS=OFF 2>&1 | Tee-Object "$diagnostics/configure.log"
         Assert-Exit "Fusion Store core configure failed"
-        python tools/uwp_store_build.py projects $build 2>&1 | Tee-Object "$diagnostics/project-audit.txt"
-        Assert-Exit "Generated projects did not consistently select the native Store runtime"
         Copy-Item "$build/uwp-store-targets.txt" "$diagnostics/"
         # Preserve small generated project files, not private assets or objects.
         foreach ($project in Get-Content "$build/uwp-store-targets.txt") {
             Copy-Item $project "$diagnostics/"
         }
+        python tools/uwp_store_build.py projects $build 2>&1 | Tee-Object "$diagnostics/project-audit.txt"
+        Assert-Exit "Generated projects did not consistently select the native Store runtime"
     }
     "Compile" {
         cmake -S tools/uwp_logger_host -B scratch/build-logger-host -G "Visual Studio 17 2022" -A x64 `

@@ -12,12 +12,23 @@ import xml.etree.ElementTree as ET
 from uwp_core_imports import audit_imports, parse_imports
 
 
+# libzip links the public CNG provider directly. These APIs are in Microsoft's
+# universal-device inventory (all moved to bcrypt.dll by Windows 10 14393):
+# https://learn.microsoft.com/en-us/uwp/win32-and-com/win32-apis
+CNG_IMPORTS = frozenset({
+    "BCryptGetProperty", "BCryptSetProperty", "BCryptCloseAlgorithmProvider",
+    "BCryptGenerateSymmetricKey", "BCryptEncrypt", "BCryptDestroyKey",
+    "BCryptCreateHash", "BCryptHashData", "BCryptFinishHash", "BCryptDestroyHash",
+    "BCryptGenRandom", "BCryptDeriveKeyPBKDF2", "BCryptOpenAlgorithmProvider",
+})
+
+
 def mesa_exports(report: str) -> set[str]:
     names = set()
     for line in report.splitlines():
         match = re.fullmatch(
             r"\s+\d+\s+[0-9A-Fa-f]+\s+(?:[0-9A-Fa-f]+\s+)?"
-            r"((?:gl|wgl)[A-Za-z0-9_]+)(?:\s+=\s+\S+)?\s*", line)
+            r"((?:gl|wgl)[A-Za-z0-9_]+)(?:\s+=\s+\S+|\s+\(forwarded to [^)]+\))?\s*", line)
         if match:
             names.add(match[1])
     if not {"glGetString", "wglGetProcAddress", "wglGetCurrentDC"} <= names:
@@ -43,10 +54,21 @@ def audit_projects(build: Path) -> int:
         runtimes = values("RuntimeLibrary")
         if not runtimes or set(runtimes) - {"MultiThreadedDLL", "MultiThreadedDebugDLL"}:
             raise ValueError(f"{name}: not consistently compiled with /MD[d]")
+        if any(node.text != "false" for node in project.findall(
+                "m:ItemDefinitionGroup/m:ClCompile/m:CompileAsWinRT", namespace)):
+            raise ValueError(f"{name}: project configuration re-enables C++/CX")
+        native_defaults = False
+        for item in project.findall(".//m:Import", namespace):
+            path = item.attrib.get("Project", "")
+            if path.replace("\\", "/").endswith("/UwpNativeCpp.props"):
+                props = ET.parse(path).getroot()
+                native_defaults = props.findtext(
+                    "m:ItemDefinitionGroup/m:ClCompile/m:CompileAsWinRT", namespaces=namespace) == "false"
         for item in project.findall(".//m:ClCompile[@Include]", namespace):
             if Path(item.attrib["Include"]).suffix.lower() not in {".c", ".cc", ".cpp", ".cxx"}:
                 continue
-            if item.findtext("m:CompileAsWinRT", namespaces=namespace) != "false":
+            winrt = item.findtext("m:CompileAsWinRT", namespaces=namespace)
+            if winrt != "false" and not (winrt is None and native_defaults):
                 raise ValueError(f"{name}: C++/CX remains enabled for {item.attrib['Include']}")
         if any(re.search(r"(?:^|\s)/(?:MTd?|ZW)(?:\s|$)", value or "")
                for value in values("AdditionalOptions")):
@@ -64,9 +86,11 @@ def audit_core(directory: Path) -> dict:
     unexpected = {name for name in imports if not (
         name.startswith(("api-ms-win-", "ext-ms-win-")) or
         re.fullmatch(r"(?:msvcp|vcruntime)140(?:_\d+)?_app\.dll", name) or
-        name in {"sdl2.dll", "opengl32.dll"})}
+        name in {"sdl2.dll", "opengl32.dll", "bcrypt.dll"})}
     if unexpected:
         raise ValueError(f"Unexpected non-Store core imports: {sorted(unexpected)}")
+    if imports.get("bcrypt.dll", set()) - CNG_IMPORTS:
+        raise ValueError("Core imports an unreviewed CNG function")
     if "App Container" not in read("headers.txt"):
         raise ValueError("Core lacks the PE AppContainer flag")
     if not re.search(r"\bZelda3D_CoreEntry\b", read("exports.txt")):

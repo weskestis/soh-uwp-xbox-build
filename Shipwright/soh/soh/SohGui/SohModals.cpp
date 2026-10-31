@@ -1,5 +1,5 @@
 #include "SohModals.h"
-#include <cstdlib> // ShipGetEnvironmentVariable(unattended-run popup auto-resolve)
+#include "ship/utils/Environment.h"
 #include <imgui.h>
 #include <vector>
 #include <string>

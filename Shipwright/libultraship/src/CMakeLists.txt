@@ -1,10 +1,9 @@
 include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/cvars.cmake)
 
 if(ZELDA3D_UWP)
-    # Xbox ships one OoT core.  Fold the engine into that DLL so all static
-    # x64-windows dependencies and the game share one CRT/heap boundary, as in
-    # the established SoH UWP port.  Desktop's two-core launcher still needs a
-    # single shared libultraship instance and keeps the normal SHARED target.
+    # Xbox currently runs one core per process launch. Fold the engine into
+    # each DLL with consistent Store CRT settings. Cross-core handoff still
+    # needs shared engine ownership; desktop retains its shared instance.
     add_library(libultraship STATIC)
 else()
     add_library(libultraship SHARED)

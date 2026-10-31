@@ -35,6 +35,7 @@ function(zelda3d_uwp_runtime_targets directory)
         file(APPEND "${CMAKE_BINARY_DIR}/uwp-store-targets.txt" "${binary_dir}/${target}.vcxproj\n")
         set_target_properties("${target}" PROPERTIES
             MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+            VS_USER_PROPS "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/UwpNativeCpp.props"
             VS_GLOBAL_AppContainerApplication "true"
             VS_GLOBAL_ApplicationType "Windows Store"
             VS_GLOBAL_ApplicationTypeRevision "10.0"

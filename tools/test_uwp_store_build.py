@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 from test_uwp_core_imports import report
 from uwp_store_build import audit_core, audit_projects, mesa_exports
@@ -47,6 +48,9 @@ class StoreBuildTests(unittest.TestCase):
 
     def test_mesa_names_exclude_forwarding_module(self):
         self.assertEqual(mesa_exports(MESA), {"glGetString", "wglGetProcAddress", "wglGetCurrentDC"})
+        forwarded = MESA.replace("= libgallium_wgl.wglGetProcAddress",
+                                 "(forwarded to libgallium_wgl.wglGetProcAddress)")
+        self.assertEqual(mesa_exports(forwarded), mesa_exports(MESA))
         for invalid in (MESA.split("Summary")[0], MESA.replace("wglGetProcAddress", "badName"), ""):
             with self.assertRaises(ValueError):
                 mesa_exports(invalid)
@@ -64,6 +68,27 @@ class StoreBuildTests(unittest.TestCase):
                 project.write_text(PROJECT.replace(old, new))
                 audit_projects(self.path)
 
+    def test_generated_pch_requires_native_defaults_without_later_override(self):
+        props = self.path / "UwpNativeCpp.props"
+        props.write_bytes((ROOT / "cmake/UwpNativeCpp.props").read_bytes())
+        project = self.path / "core.vcxproj"
+        (self.path / "uwp-store-targets.txt").write_text(str(project) + "\n")
+        xml = ET.fromstring(PROJECT)
+        ET.SubElement(xml, f"{{{NS}}}Import", Project=str(props))
+        group = ET.SubElement(xml, f"{{{NS}}}ItemGroup")
+        ET.SubElement(group, f"{{{NS}}}ClCompile", Include="cmake_pch.hxx.cxx")
+        ET.ElementTree(xml).write(project)
+        self.assertEqual(audit_projects(self.path), 1)
+        props.write_text(props.read_text().replace("false", "true"))
+        with self.assertRaisesRegex(ValueError, r"C\+\+/CX"):
+            audit_projects(self.path)
+        props.write_text(props.read_text().replace("true", "false"))
+        compile_group = xml.find(f"{{{NS}}}ItemDefinitionGroup/{{{NS}}}ClCompile")
+        ET.SubElement(compile_group, f"{{{NS}}}CompileAsWinRT").text = "true"
+        ET.ElementTree(xml).write(project)
+        with self.assertRaisesRegex(ValueError, "re-enables"):
+            audit_projects(self.path)
+
     def test_core_requires_independent_link_and_import_evidence(self):
         files = {"imports.txt": IMPORTS, "exports.txt": "1 0 1000 Zelda3D_CoreEntry",
                  "headers.txt": "App Container", "mesa-exports.txt": MESA,
@@ -75,9 +100,13 @@ class StoreBuildTests(unittest.TestCase):
         self.assertTrue(result["store_crt_link_verified"])
         self.assertFalse(result["xbox_runtime_verified"])
         self.assertFalse(result["shared_engine_handoff"])
+        (self.path / "imports.txt").write_text(IMPORTS + report(("bcrypt.dll", ["BCryptGenRandom"])))
+        self.assertTrue(audit_core(self.path)["store_crt_link_verified"])
+        (self.path / "imports.txt").write_text(IMPORTS)
         cases = [("imports.txt", IMPORTS.replace("MSVCP140_APP.dll", "MSVCP140.dll")),
                  ("imports.txt", IMPORTS.replace("glGetString", "glAbsentFromMesa")),
                  ("imports.txt", IMPORTS + report(("KERNEL32.dll", ["GetModuleHandleExA"]))),
+                 ("imports.txt", IMPORTS + report(("bcrypt.dll", ["UnreviewedApi"]))),
                  ("headers.txt", "DLL"), ("exports.txt", "OtherEntry"),
                  ("build.log", files["build.log"].replace("store", "desktop")),
                  ("build.log", files["build.log"].replace("fusion-mesa-opengl32.lib", "opengl32.lib")),
