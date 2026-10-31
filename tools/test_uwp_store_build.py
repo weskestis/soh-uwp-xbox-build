@@ -34,7 +34,8 @@ PROJECT = f"""<Project xmlns="{NS}">
     <AppContainerApplication>true</AppContainerApplication><ApplicationType>Windows Store</ApplicationType>
   </PropertyGroup>
   <ItemDefinitionGroup><ClCompile><RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
-    <AdditionalOptions>/EHsc</AdditionalOptions></ClCompile></ItemDefinitionGroup>
+    <AdditionalOptions>/EHsc</AdditionalOptions></ClCompile>
+    <Link><GenerateWindowsMetadata>false</GenerateWindowsMetadata></Link></ItemDefinitionGroup>
   <ItemGroup><ClCompile Include="core.cpp"><CompileAsWinRT>false</CompileAsWinRT></ClCompile></ItemGroup>
 </Project>"""
 
@@ -63,6 +64,7 @@ class StoreBuildTests(unittest.TestCase):
         for old, new in (("MultiThreadedDLL", "MultiThreaded"),
                          ("CompileAsWinRT>false", "CompileAsWinRT>true"),
                          ("10.0.19041.0", "10.0.26100.0"),
+                         ("GenerateWindowsMetadata>false", "GenerateWindowsMetadata>true"),
                          ("/EHsc", "/EHsc /MT"), ("Windows Store", "Desktop")):
             with self.subTest(new=new), self.assertRaises(ValueError):
                 project.write_text(PROJECT.replace(old, new))

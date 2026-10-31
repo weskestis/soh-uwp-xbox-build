@@ -6,5 +6,9 @@
     <ClCompile>
       <CompileAsWinRT>false</CompileAsWinRT>
     </ClCompile>
+    <!-- Native static-library references do not produce WinRT metadata. -->
+    <Link>
+      <GenerateWindowsMetadata>false</GenerateWindowsMetadata>
+    </Link>
   </ItemDefinitionGroup>
 </Project>

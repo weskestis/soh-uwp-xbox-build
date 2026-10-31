@@ -232,10 +232,10 @@ class AssetFallbackContracts(unittest.TestCase):
         model = source(SOH / "src" / "zelda3d" / "model" / "zelda3d_model.cpp")
         self.assertIn("hostPath", ctr_header)
         self.assertIn("std::filesystem::is_directory", ctr_source)
-        self.assertIn('getenv("ZELDA3D_OOT3D_ROMFS")', model)
+        self.assertIn('ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROMFS")', model)
         self.assertLess(
-            model.index('getenv("ZELDA3D_OOT3D_ROMFS")'),
-            model.index('getenv("ZELDA3D_OOT3D_ROM")'),
+            model.index('ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROMFS")'),
+            model.index('ShipGetEnvironmentVariable("ZELDA3D_OOT3D_ROM")'),
         )
         for anchor in (
             '"/kankyo/BlueSky.zar"',

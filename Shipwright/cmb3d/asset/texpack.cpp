@@ -344,9 +344,10 @@ bool scanArchive(const fs::path& archivePath, std::string& manifest, bool& sawOo
     int zipError = 0;
     g_pack.zipArchive = zip_open(archivePath.string().c_str(), ZIP_RDONLY, &zipError);
     if (g_pack.zipArchive == nullptr) {
-        char buffer[160];
-        zip_error_to_str(buffer, sizeof(buffer), zipError, errno);
-        g_pack.error = std::string("cannot open texture-pack ZIP: ") + buffer;
+        zip_error_t error;
+        zip_error_init_with_code(&error, zipError);
+        g_pack.error = std::string("cannot open texture-pack ZIP: ") + zip_error_strerror(&error);
+        zip_error_fini(&error);
         return false;
     }
     const zip_int64_t count = zip_get_num_entries(g_pack.zipArchive, ZIP_FL_UNCHANGED);

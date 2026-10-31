@@ -58,12 +58,18 @@ def audit_projects(build: Path) -> int:
                 "m:ItemDefinitionGroup/m:ClCompile/m:CompileAsWinRT", namespace)):
             raise ValueError(f"{name}: project configuration re-enables C++/CX")
         native_defaults = False
+        metadata_disabled = False
         for item in project.findall(".//m:Import", namespace):
             path = item.attrib.get("Project", "")
             if path.replace("\\", "/").endswith("/UwpNativeCpp.props"):
                 props = ET.parse(path).getroot()
                 native_defaults = props.findtext(
                     "m:ItemDefinitionGroup/m:ClCompile/m:CompileAsWinRT", namespaces=namespace) == "false"
+                metadata_disabled = props.findtext(
+                    "m:ItemDefinitionGroup/m:Link/m:GenerateWindowsMetadata", namespaces=namespace) == "false"
+        explicit_metadata = project.findall("m:ItemDefinitionGroup/m:Link/m:GenerateWindowsMetadata", namespace)
+        if any(node.text != "false" for node in explicit_metadata) or not (metadata_disabled or explicit_metadata):
+            raise ValueError(f"{name}: native library still expects WinRT metadata")
         for item in project.findall(".//m:ClCompile[@Include]", namespace):
             if Path(item.attrib["Include"]).suffix.lower() not in {".c", ".cc", ".cpp", ".cxx"}:
                 continue

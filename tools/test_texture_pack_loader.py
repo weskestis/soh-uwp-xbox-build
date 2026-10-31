@@ -120,6 +120,8 @@ class TexturePackLoaderTest(unittest.TestCase):
                 "-I",
                 str(REPO / "Shipwright" / "cmb3d"),
                 "-I",
+                str(REPO / "Shipwright" / "libultraship" / "include"),
+                "-I",
                 str(find_stb_include()),
                 "-lzip",
                 "-pthread",
