@@ -20,6 +20,8 @@ It does not certify the complete UWP API surface, CRT, dependency closure, or Xb
 `ship/debug/ReleaseLogger.h` owns Release logger construction: synchronous in UWP so an early
 boot error survives immediate exit, asynchronous on desktop. The native
 `tools/uwp_release_logger_test.cpp` exercises the same factory and exits without teardown.
+UWP-only patches under `Shipwright/libultraship/cmake/dependencies/patches/` adapt pinned ImGui
+and RmlUi loading/window/dialog code; `common.cmake` applies them only for the Xbox profile.
 
 `tools/uwp_runtime_probe/` is an isolated normal-Windows DLL configured with Store project
 properties, dynamic CRT and WindowsApp linkage. Its separate workflow preserves verbose library

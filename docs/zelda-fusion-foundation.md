@@ -173,21 +173,32 @@ The package audit now rejects `mm.o2r`, including nested/case-varied names, alon
 desktop callback DLLs/symbols, requires SDL2's package path and packaged GL loading, and produces
 an explicitly limited report. It deliberately does not reject `GetSecurityInfo` just because the
 old DLL imports it from ADVAPI32: Microsoft includes that function in UWP's security API set.
-The strengthened audit rejects the previously built MM DLL. Native recompilation of these
-startup changes is pending; local host/profile/package checks and applying the patch to the
-exact pinned ImGui tag pass.
+The strengthened audit rejects the previously built MM DLL. Native recompilation and the
+strengthened audit pass in the final run below. Local host/profile/package checks and applying
+the patches to the exact pinned ImGui and RmlUi tags also pass.
 
 Native startup run [41228266922](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41228266922),
 source `e6fd42d`, passed host checks and the real immediate-exit logger test: the full error remains
 in `early-error.log` after exit 23. MM compilation exposed `Context.cpp` including `libloaderapi.h`
 before `windows.h`, formerly masked by CrashHandler's transitive Windows include. The Windows SDK
-umbrella header now precedes its specialized headers in Context and SDL2; native rerun pending.
+umbrella header now precedes its specialized headers in Context and SDL2; the next run compiles.
 
 Run [41229086328](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41229086328), source
 `20ff1fe`, passes the full MM compile/link and immediate-exit logger test. The stricter import audit
 correctly fails on one remaining desktop function: `USER32!MessageBoxA`, in RmlUi 6.2's default
-assertion logger. Its new UWP-only patch keeps `OutputDebugStringA` and excludes the dialog;
-native follow-up pending. DbgHelp, Shell32 and Imm32 are already absent in this DLL.
+assertion logger. Its new UWP-only patch keeps `OutputDebugStringA` and excludes the dialog.
+DbgHelp, Shell32 and Imm32 were already absent in that DLL.
+
+Final native run [41230510373](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41230510373),
+source `8114e73`, passes all host checks, Windows compilation/linking, the immediate-exit logger
+test, and the stricter import audit. The downloaded reports also pass the audit locally.
+MM now imports only `opengl32.dll`, `advapi32.dll`, `bcrypt.dll`, `SDL2.dll`, and `kernel32.dll`;
+User32, Shell32, Imm32 and DbgHelp are absent. The entry export, SDL2 base-path resolver and
+packaged GL loader are present. MM DLL SHA-256:
+`e0f3f5876a378afc32906077ef0818e485cd7ae37aea2a8a0c0b68ee9fa181b0`.
+Diagnostics artifact: `13054066399`; experimental DLL artifact: `13053688670`.
+The report explicitly leaves CRT/API certification, shared-engine handoff and Xbox execution
+unverified. ROM-free asset regeneration also passed run 41228266926 at source `e6fd42d`.
 
 **Newly confirmed delivery blocker:** the existing normal-Windows core and vcpkg profile use
 `/MT`. Microsoft's [UWP CRT guidance](https://learn.microsoft.com/en-us/cpp/c-runtime-library/windows-store-apps-the-windows-runtime-and-the-c-run-time?view=msvc-170)
