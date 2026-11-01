@@ -104,10 +104,10 @@ The wrapper opens both the boot log and `oot.o2r` under the same
 `SDL_GetPrefPath(nullptr, "soh")` directory. Disassembly of the exact shipped SDL2 DLL
 (`d364f6d4bec5f7a82998ffebb75578c502001e1a20c1c257120bdd41f34cedbd`)
 confirms that `SDL_GetPrefPath` appends its app argument and creates the subfolder;
-it does not ignore `soh`. The next device step is to upload the exact `oot.o2r`
+it does not ignore `soh`. The initial device instruction was to upload the exact `oot.o2r`
 alongside the existing `uwp-boot.log`, checking the filename and completed transfer.
 The delivered file is 33,140,948 bytes. The next launch overwrites the boot log.
-Successful preflight, engine loading, and Xbox rendering remain unconfirmed (#217).
+At that point, successful preflight, engine loading, and Xbox rendering were unconfirmed (#217).
 
 The subsequent `uwp-boot.log (1).txt` passes the readable-file preflight, loads
 `soh_core.dll`, resolves the entry symbol, and reaches `core.run.enter`. It then
@@ -131,7 +131,7 @@ fake core as Store-CRT DLLs in a native host. The new package gate exercises
 normal return, read/write/execute faults, a descriptor fault, and recursion, then verifies
 durable shared stdio/Win32-handle output, real module RVAs, caller frames, and
 stage ordering. Local packaging contracts (20/20) and four package test groups
-pass; native execution and the updated signed installer are pending.
+pass. All six native cases pass in the signed **1.0.4.1** package run below.
 
 The first native diagnostic attempt compiled the production driver but rejected
 the fake core's inconsistent export declaration. The fixture now uses
@@ -141,6 +141,26 @@ packaging also reuses original OoT port artifact 13059977713 from passed run
 and exact `soh.o2r` hash against the signed 1.0.1.1 payload. This avoids rebuilding
 unchanged assets. Superseded wrapper builds cancel; full-core workflows retain
 their independent compilation policy.
+
+[Diagnostic installer run 41257417814](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41257417814),
+wrapper source `7a955169d05d4f7d9ee91eaee4b2823dc08a5f75`, passes all four jobs:
+contracts, retained OoT asset verification, six native Store-CRT diagnostic cases,
+and signed packaging. Both package audits resolve 879 packaged/framework symbols.
+The downloaded test artifact `13063688538` has SHA-256
+`b161671bd371842850183e352ffa1b61cb383ec5fa6c329a3f52a4d2c40c0092`;
+its result records six passes and explicitly leaves Xbox execution unverified.
+
+Installer artifact `13063364241` (`ZELDA-FUSION-XBOX-1.0.4.1`) has ZIP SHA-256
+`e54d5f5d5d113d659dca3c98a2cc050351eef4a913cd51365dc8733fd01a238c`.
+The signed MSIX has SHA-256
+`b5b6f01323b48ffdf64c33a626269aa6dc54545770eae45a8ac672e2818111c9`.
+Independent download checks verify all 16 delivery-file hashes, 119 audited payloads,
+121 block-map entries, the new diagnostic markers/imports, and unchanged core,
+port-archive and SDL bytes. The package family and publisher match 1.0.1.1 so the
+owner can update the existing Fusion installation and retain its LocalState.
+The next device evidence is one launch followed by all three logs from
+`LocalState/soh`: `uwp-boot.log`, `uwp-stdout.log`, and `uwp-stderr.log`.
+The underlying engine crash remains open; no successful Xbox render is claimed.
 
 ### WinRT startup audit follow-up (2026-10-31)
 
