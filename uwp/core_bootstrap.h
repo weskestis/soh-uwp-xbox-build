@@ -34,4 +34,5 @@ enum Zelda3DUwpBootstrapResult {
 };
 
 int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
-                     Zelda3DCoreEntryFn entry, int argc, char** argv);
+                     Zelda3DCoreEntryFn entry, int argc, char** argv,
+                     void (*trace)(const char*) = nullptr);

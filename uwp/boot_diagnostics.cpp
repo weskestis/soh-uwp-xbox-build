@@ -1,9 +1,11 @@
 #include "boot_diagnostics.h"
+#include "boot_exception_report.h"
 
 #include <Windows.h>
 #include <SDL2/SDL.h>
 
 #include <cstdarg>
+#include <cstdint>
 #include <cstdio>
 #include <cstring>
 
@@ -45,6 +47,30 @@ void WriteFormat(const char* format, ...) {
     WriteLine(line);
 }
 
+void WriteReportLine(const char* line) {
+    WriteLine(line);
+}
+
+void CaptureStream(FILE* stream, const char* directory, const char* filename) {
+    char path[4096] = {};
+    const size_t length = std::strlen(directory);
+    const char* separator = length > 0 && directory[length - 1] != '/' &&
+                            directory[length - 1] != '\\' ? "/" : "";
+    const int count = std::snprintf(path, sizeof(path), "%s%s%s", directory, separator, filename);
+    if (count < 0 || static_cast<size_t>(count) >= sizeof(path)) {
+        WriteFormat("stream.file=%s state=path-too-long", filename);
+        return;
+    }
+    FILE* redirected = nullptr;
+    const int error = freopen_s(&redirected, path, "wb", stream);
+    if (error != 0 || redirected == nullptr) {
+        WriteFormat("stream.file=%s state=failed errno=%d", filename, error);
+        return;
+    }
+    const int buffering = std::setvbuf(redirected, nullptr, _IONBF, 0);
+    WriteFormat("stream.file=%s state=open unbuffered=%s", filename, buffering == 0 ? "true" : "false");
+}
+
 LONG CoreExceptionFilter(EXCEPTION_POINTERS* exception) {
     const DWORD code = exception != nullptr && exception->ExceptionRecord != nullptr
                            ? exception->ExceptionRecord->ExceptionCode
@@ -53,6 +79,7 @@ LONG CoreExceptionFilter(EXCEPTION_POINTERS* exception) {
                               ? exception->ExceptionRecord->ExceptionAddress
                               : nullptr;
     WriteFormat("stage=core.exception code=0x%08lX address=%p", code, address);
+    Zelda3DUwp_WriteExceptionReport(exception, WriteReportLine);
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -82,19 +109,19 @@ void ProbePackagedRuntime() {
     Zelda3DUwp_BootLog("runtime-probe.end");
 }
 
+} // namespace
+
 // Keep this function free of C++ objects that require unwinding: MSVC rejects
 // __try in a function with destructors (C2712).
-int RunCoreProtected(Zelda3DUwpPair pair, Zelda3DUwpGame game,
-                     Zelda3DCoreEntryFn entry, int argc, char** argv) {
+int Zelda3DUwp_RunCoreProtected(Zelda3DUwpPair pair, Zelda3DUwpGame game,
+                              Zelda3DCoreEntryFn entry, int argc, char** argv) {
     __try {
         Zelda3DUwp_BootLog("core.run.enter");
-        return Zelda3DUwp_RunCore(pair, game, entry, argc, argv);
+        return Zelda3DUwp_RunCore(pair, game, entry, argc, argv, Zelda3DUwp_BootLog);
     } __except (CoreExceptionFilter(GetExceptionInformation())) {
         return ZELDA3D_UWP_UNHANDLED_EXCEPTION;
     }
 }
-
-} // namespace
 
 void Zelda3DUwp_BootLogStart() {
     gLogPath[0] = '\0';
@@ -119,11 +146,12 @@ void Zelda3DUwp_BootLogStart() {
         gLogPath[filenameOffset++] = '/';
     }
     std::memcpy(gLogPath + filenameOffset, kLogName, sizeof(kLogName));
-    SDL_free(directory);
-
     WriteLine("Zelda Fusion Xbox boot report", "wb");
     WriteFormat("package.version=%s", ZELDA3D_UWP_PACKAGE_VERSION);
     Zelda3DUwp_BootLog("callback.enter");
+    CaptureStream(stdout, directory, "uwp-stdout.log");
+    CaptureStream(stderr, directory, "uwp-stderr.log");
+    SDL_free(directory);
 }
 
 void Zelda3DUwp_BootLog(const char* stage) {
@@ -150,6 +178,7 @@ int Zelda3DUwp_RunPackagedCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
         return ZELDA3D_UWP_CORE_LOAD_FAILED;
     }
     Zelda3DUwp_BootLog("core.load.ok");
+    WriteFormat("core.module=%s base=%p", spec->logName, static_cast<void*>(coreModule));
 
     FARPROC symbol = GetProcAddress(coreModule, ZELDA3D_CORE_ENTRY_SYMBOL);
     if (symbol == nullptr) {
@@ -159,9 +188,12 @@ int Zelda3DUwp_RunPackagedCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
         return ZELDA3D_UWP_CORE_SYMBOL_FAILED;
     }
     Zelda3DUwp_BootLog("core.symbol.ok");
+    WriteFormat("core.entry address=%p rva=0x%llX", reinterpret_cast<void*>(symbol),
+                static_cast<unsigned long long>(reinterpret_cast<std::uintptr_t>(symbol) -
+                                                reinterpret_cast<std::uintptr_t>(coreModule)));
 
     const auto entry = reinterpret_cast<Zelda3DCoreEntryFn>(symbol);
-    const int result = RunCoreProtected(pair, game, entry, argc, argv);
+    const int result = Zelda3DUwp_RunCoreProtected(pair, game, entry, argc, argv);
     WriteFormat("stage=core.run.return engine=%s result=%d", spec->id, result);
     return result;
 }

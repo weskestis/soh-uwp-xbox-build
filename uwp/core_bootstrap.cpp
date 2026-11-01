@@ -31,7 +31,8 @@ const Zelda3DUwpCoreSpec* Zelda3DUwp_FindCore(Zelda3DUwpPair pair, Zelda3DUwpGam
 }
 
 int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
-                     Zelda3DCoreEntryFn entry, int argc, char** argv) {
+                     Zelda3DCoreEntryFn entry, int argc, char** argv,
+                     void (*trace)(const char*)) {
     const Zelda3DUwpCoreSpec* expected = Zelda3DUwp_FindCore(pair, game);
     if (expected == nullptr) {
         std::fprintf(stderr, "ZELDA3D UWP: game is not in a supported Fusion pair.\n");
@@ -42,7 +43,9 @@ int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
         return ZELDA3D_UWP_MISSING_ENTRY;
     }
 
+    if (trace != nullptr) trace("core.descriptor.enter");
     const Zelda3DCore* core = entry();
+    if (trace != nullptr) trace("core.descriptor.return");
     if (core == nullptr) {
         std::fprintf(stderr, "ZELDA3D UWP: the %s core returned no descriptor.\n", expected->id);
         return ZELDA3D_UWP_NULL_CORE;
@@ -62,5 +65,9 @@ int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,
         return ZELDA3D_UWP_MISSING_RUNNER;
     }
 
-    return core->run(argc, argv);
+    if (trace != nullptr) trace("core.descriptor.valid");
+    if (trace != nullptr) trace("core.runner.enter");
+    const int result = core->run(argc, argv);
+    if (trace != nullptr) trace("core.runner.return");
+    return result;
 }

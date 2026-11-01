@@ -36,9 +36,13 @@ The installed soh.o2r and 2ship.o2r port files are included; do not upload them.
 No 3DS game image is needed. Use the default Original SoH graphics setting.
 
 If the app closes at launch, retrieve LocalState\soh\uwp-boot.log before launching
-again. The log is replaced each launch, even when MM is selected. Missing archives
+again, along with uwp-stdout.log and uwp-stderr.log in that same folder. These
+three logs are replaced each launch, even when MM is selected. Missing archives
 are reported there before loading an engine. A failure before SDL startup may
 produce no boot log; retain the Device Portal error or crash report in that case.
+The boot log records descriptor/runner boundaries and, for a caught crash, the
+module-relative fault address, memory operation, and fault-context call stack.
+The stdout/stderr logs preserve early engine messages before its file logger starts.
 
 Report the chosen game, last boot-log line, and whether picture, controller input,
 audio and saving work. This test does not replace any previous installed app.

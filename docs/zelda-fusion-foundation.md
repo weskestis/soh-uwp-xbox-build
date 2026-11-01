@@ -85,6 +85,54 @@ one original N64 game per launch; it does not close the combined-game scope abov
 
 ## Validation
 
+### First Xbox launch report (2026-10-31)
+
+The owner reports that Fusion closes at launch after uploading the converted game archives.
+The supplied `uwp-boot.log.txt` identifies package 1.0.1.1, `callback.enter`,
+`startup.selection.default-oot`, and `archive.missing.LocalState-soh-oot.o2r`.
+This is the wrapper's intentional archive-preflight exit, before loading any game core.
+The file is missing, unreadable, or empty at the path opened by that check; the log does
+not distinguish those three causes or establish an engine/graphics failure.
+
+Read-only checks of the delivered 1.0.1.1 MSIX confirm the audited wrapper/core/dependency
+hashes and expected diagnostic markers. Its `soh.o2r` and the converted `oot.o2r` both carry
+port version 9.2.3; the ROM identity is supported US OoT 1.0 (`EC7011B7`), and the packaged
+port archive includes the five fonts loaded during OoT initialization. These checks do
+not prove that the uploads are complete on the Xbox or that the app can render there.
+
+The wrapper opens both the boot log and `oot.o2r` under the same
+`SDL_GetPrefPath(nullptr, "soh")` directory. Disassembly of the exact shipped SDL2 DLL
+(`d364f6d4bec5f7a82998ffebb75578c502001e1a20c1c257120bdd41f34cedbd`)
+confirms that `SDL_GetPrefPath` appends its app argument and creates the subfolder;
+it does not ignore `soh`. The next device step is to upload the exact `oot.o2r`
+alongside the existing `uwp-boot.log`, checking the filename and completed transfer.
+The delivered file is 33,140,948 bytes. The next launch overwrites the boot log.
+Successful preflight, engine loading, and Xbox rendering remain unconfirmed (#217).
+
+The subsequent `uwp-boot.log (1).txt` passes the readable-file preflight, loads
+`soh_core.dll`, resolves the entry symbol, and reaches `core.run.enter`. It then
+records `0xC0000005` at `00007FFFAA25CE77` and returns the caught-exception code 77.
+This supersedes the missing-file gate above. `core.run.enter` precedes descriptor
+acquisition, so it does not by itself prove that OoT's runner began. The old log
+lacks the loaded module base, and the exact retained core has no PDB/CodeView
+record; the absolute ASLR address cannot be assigned a reliable source location.
+
+The wrapper-only follow-up keeps the same cores and adds descriptor/runner stage
+markers, unbuffered `uwp-stdout.log` and `uwp-stderr.log` beside the boot log,
+module/base/RVA and access-operation reporting, registers, and a bounded 24-frame
+walk of the copied fault context. `uwp/boot_exception_report.cpp` owns protected
+fault inspection. It uses UWP-supported `VirtualQuery`, `GetModuleFileNameW`,
+`RtlLookupFunctionEntry`, and `RtlVirtualUnwind`; no DbgHelp or PSAPI is added.
+Nested SEH contains a failed context/stack read while preserving the original
+exception line. This is diagnostic instrumentation, not a claimed engine fix.
+
+`tools/uwp_boot_diagnostics_host/` loads production diagnostics and a separate
+fake core as Store-CRT DLLs in a native host. The new package gate exercises
+normal return, read/write/execute faults, a descriptor fault, and recursion, then verifies
+durable shared stdio/Win32-handle output, real module RVAs, caller frames, and
+stage ordering. Local packaging contracts (20/20) and four package test groups
+pass; native execution and the updated signed installer are pending.
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop

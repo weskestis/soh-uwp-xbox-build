@@ -5,6 +5,11 @@ doc, commit message, and instruction file should use these terms consistently.
 
 ## The two-tier taxonomy
 
+Fusion's wrapper boot log and early stdout/stderr capture live in
+`uwp/boot_diagnostics.cpp`; protected Windows fault-context/module/stack reporting
+lives in `uwp/boot_exception_report.cpp`. `tools/uwp_boot_diagnostics_host/` tests
+the real diagnostic code across two Store-CRT DLLs before installer packaging.
+
 ROM-free MM port-archive publication lives in `tools/build_mm_custom_archive.py`, with validation
 and atomic-replacement tests in `tools/test_mm_custom_archive.py`. It consumes a separately built
 GAME_MM ZAPD exporter; `.github/workflows/fusion-mm-assets.yml` owns that build and its artifacts.
