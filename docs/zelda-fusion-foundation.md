@@ -133,6 +133,15 @@ durable shared stdio/Win32-handle output, real module RVAs, caller frames, and
 stage ordering. Local packaging contracts (20/20) and four package test groups
 pass; native execution and the updated signed installer are pending.
 
+The first native diagnostic attempt compiled the production driver but rejected
+the fake core's inconsistent export declaration. The fixture now uses
+`ZELDA3D_CORE_BUILD` and the shared `ZELDA3D_CORE_API` declaration. Diagnostic
+packaging also reuses original OoT port artifact 13059977713 from passed run
+41247694255, verifying its wrapper/source provenance, ZIP hash, port version,
+and exact `soh.o2r` hash against the signed 1.0.1.1 payload. This avoids rebuilding
+unchanged assets. Superseded wrapper builds cancel; full-core workflows retain
+their independent compilation policy.
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop

@@ -143,6 +143,24 @@ def verify_port_archive(path: Path):
                 "Port archive does not match the selected game-core version")
 
 
+def reuse_oot_port():
+    """Reuse the exact source/hash-verified archive from the signed 1.0.1.1 run."""
+    source = "f7a886a3ab124f183181b30f8625f892855ba678"
+    require_job(41247694255, source, "oot-port")
+    destination = ROOT / "scratch/oot-port"
+    record = download_artifact(41247694255, f"INTERNAL-fusion-oot-port-{source}", source, destination)
+    require(record["id"] == 13059977713 and record["zip_sha256"] ==
+            "b1404559f255f1c89497aba967991b152abb1118fdeb4a61d4d19876ad1c849d",
+            "OoT port artifact differs from the audited installer input")
+    require((destination / "SOURCE_COMMIT.txt").read_text().strip() == ASSET_SOURCE,
+            "Reused OoT archive has a different asset source")
+    require(sha256(destination / "soh.o2r") ==
+            "4d0ebb4a7e20068dd68721dd1bae619f5812beb38c56af97593979a105e6b0b4",
+            "Reused OoT archive differs from the signed 1.0.1.1 payload")
+    verify_port_archive(destination / "soh.o2r")
+    print("Exact OoT port source, artifact and signed-payload hashes verified")
+
+
 def copy_assets(source: Path, runtime: Path):
     roots = {"Shipwright/libultraship/assets/rml": "assets/rml",
              "Shipwright/soh/assets/extractor": "assets",
