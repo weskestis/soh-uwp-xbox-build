@@ -311,7 +311,9 @@ void OTRGlobals::Initialize() {
     context->InitConsoleVariables();
     auto logLevel =
         static_cast<spdlog::level::level_enum>(CVarGetInteger(CVAR_DEVELOPER_TOOLS("LogLevel"), defaultLogLevel));
-    context->InitLogging(logLevel, logLevel);
+    if (!context->InitLogging(logLevel, logLevel)) {
+        throw Zelda3D::CoreBootError("could not open the engine log; check the app's writable logs directory");
+    }
     Ship::Context::GetRawInstance()->GetLogger()->set_pattern("[%H:%M:%S.%e] [%s:%#] [%l] %v");
 
     InitGfxDebugger();

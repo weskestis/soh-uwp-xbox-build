@@ -272,8 +272,9 @@ static const std::map<Ship::AudioBackend, const char*> audioBackendsMap = {
     { Ship::AudioBackend::NUL, "Null" },
 };
 
-// SDL3 GPU is the only renderer (P4); it is the sole selectable window backend.
+// The menu filters these labels through the backends compiled into this build.
 static const std::map<Fast::WindowBackend, const char*> windowBackendsMap = {
+    { Fast::WindowBackend::FAST3D_SDL_OPENGL, "OpenGL" },
     { Fast::WindowBackend::FAST3D_SDL_GPU, "SDL3 GPU" },
 };
 

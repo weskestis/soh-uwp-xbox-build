@@ -196,6 +196,30 @@ keep the game archives in place, and launch 1.0.4.1 again. An existing visible
 log directory bypasses that ancestor-creation branch. This test needs no new MSIX;
 successful startup/rendering and a permanent code correction remain open (#217).
 
+### Next Xbox trace: menu backend lookup (2026-10-31)
+
+After the owner created `LocalState/soh/logs`, `Ship of Harkinian.log.txt` confirms
+successful logging, SDL audio initialization, and completion of `OTRGlobals::Initialize`.
+The new `uwp-boot.log (3).txt` catches C++ exception `0xE06D7363` during menu setup.
+The previous null-logger fault is no longer present.
+
+The same exact retained core maps RVA `0xABB29E` to the missing-map-key branch in
+`Menu::UpdateWindowBackendObjects`, throwing `std::out_of_range` with the literal
+`invalid map<K, T> key`. Returns `0xAC5BC3`, `0xF1EAE5`, and `0xA791D9` map to
+`SohMenu::InitElement`, `GuiElement::Init`, and `InitOTR` after `SetupMenuElements`.
+SDL2 builds advertise `FAST3D_SDL_OPENGL` (2), but the menu label map retained only
+`FAST3D_SDL_GPU` (5). Its unconditional `map::at` therefore throws during boot.
+
+The correction adds the OpenGL label while preserving SDL3 GPU; available-backend
+filtering still determines what the user sees. A native C++ check compiled from the
+actual enum and production map reproduces the old out-of-range result (exit 77)
+and passes both labels after the change (exit 0). OoT now also checks `InitLogging`
+and reports a controlled `CoreBootError` if file logging fails, instead of dereferencing
+its null logger. Host packaging contracts (20/20) and four package test groups pass.
+A corrected native core build and installer are still pending; Xbox rendering is
+not yet confirmed. The wrapper follow-up prepares the selected game's log directory
+before core entry and diagnoses a blocked path without overwriting existing files.
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop
