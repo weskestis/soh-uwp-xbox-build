@@ -216,14 +216,42 @@ actual enum and production map reproduces the old out-of-range result (exit 77)
 and passes both labels after the change (exit 0). OoT now also checks `InitLogging`
 and reports a controlled `CoreBootError` if file logging fails, instead of dereferencing
 its null logger. Host packaging contracts (20/20) and four package test groups pass.
-A corrected native core build and installer are still pending; Xbox rendering is
-not yet confirmed. The wrapper follow-up prepares the selected game's log directory
+The corrected native core and signed 1.0.5.1 installer pass as recorded below;
+Xbox rendering is not yet confirmed. The wrapper prepares the selected game's log directory
 before core entry and diagnoses a blocked path without overwriting existing files. Native Store-CRT tests now exercise
 new-directory creation, preservation of existing logs, and a conflicting file that
 must return storage error 79 before any core call. The installer pins OoT run
 [41260862534](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41260862534),
 source `db701c752a7bcbe923416395c52f5cefe668810c`, and waits for that exact core
 to pass; the previous MM core, assets and dependency depot remain pinned.
+
+### Signed startup correction 1.0.5.1 (2026-10-31)
+
+[Core run 41260862534](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41260862534)
+passes both native builds and the Store CRT/Mesa import audit. The corrected OoT
+core source is `db701c752a7bcbe923416395c52f5cefe668810c`; its DLL SHA-256 is
+`98f20b10847d4433a98926b63388663ed0e934018924422342f6b063de0756c5`.
+The installer retains the previously verified MM core and both original port archives.
+
+[Installer run 41261060489](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41261060489),
+wrapper source `51c8c57954a33b7403ceb24e8bc9f04e17d400a2`, passes all four jobs.
+Seven native diagnostic cases pass, including fresh log-directory creation,
+existing-log preservation and blocked-path rejection before core entry. Native
+artifact `13064748043` has ZIP SHA-256
+`3f7ddfb7fde6976bbc3b27d699035387d27310ec937fcac6b3762aa4a9a4cf8d`.
+The package audits resolve 879 packaged/framework symbol references and verify
+signing against Fusion's expected publisher.
+
+Installer artifact `13066648138` (`ZELDA-FUSION-XBOX-1.0.5.1`) has ZIP SHA-256
+`41d8f81889ec8e6297a48ba4027d0ef1055879ad8648b01f6ee88750dcf6616c`.
+The signed MSIX has SHA-256
+`1ba53c384c630cbc0043cf88ddc3fb74b5f7a298258362219bb98f427e8ca1da`.
+Independent download verification passes all 16 delivery hashes, 119 payload hashes
+and 121 block-map entries, confirms the newly compiled OoT source/hash and logger
+failure message, and checks the wrapper's storage markers and Windows imports.
+MM, port archives, SDL and package identity match the prior delivery. Install as an
+update to existing Fusion and retain LocalState. #217 remains in progress until
+physical Xbox launch/render evidence confirms the user-facing startup correction.
 
 ### WinRT startup audit follow-up (2026-10-31)
 
