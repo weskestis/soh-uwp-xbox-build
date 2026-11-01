@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from fusion_package_inputs import DEPOT_DLLS, ROOT, json_read, require, sha256
+from fusion_package_renderer import verify_renderer_archive
 from uwp_runtime_stage import FUSION_PACKAGE_NAME, FUSION_PUBLISHER, PACKAGE_ICONS, audit_appx
 
 NS = {"f": "http://schemas.microsoft.com/appx/manifest/foundation/windows10"}
@@ -168,6 +169,7 @@ def native_closure(unpacked: Path):
 def audit(unpacked: Path, version: str):
     audit_appx(unpacked, FUSION_PUBLISHER)
     verify_manifest(ET.parse(unpacked / "AppxManifest.xml").getroot(), version)
+    renderer = {name: verify_renderer_archive(unpacked / name) for name in ("soh.o2r", "2ship.o2r")}
     expected = payload_hashes()
     for name in ("mm_core.dll", "2ship.o2r", "soh_core.dll", "soh.o2r"):
         require(name in expected, f"Missing expected Fusion payload: {name}")
@@ -194,6 +196,7 @@ def audit(unpacked: Path, version: str):
                 f"Unexpected packaged file: {name}")
     report = native_closure(unpacked)
     report["package_version"] = version
+    report["opengl_resources"] = renderer
     report["payload_sha256"] = {**expected, "zelda-fusion.exe": sha256(unpacked / "zelda-fusion.exe")}
     target = ROOT / "scratch/fusion-package-audit.json"
     target.write_text(json.dumps(report, indent=2) + "\n")

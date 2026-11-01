@@ -11,6 +11,12 @@ lives in `uwp/boot_exception_report.cpp`. Selected-game writable log-directory p
 `uwp/startup_storage.cpp`; it creates only the private directory child and rejects blocked paths before core entry. `tools/uwp_boot_diagnostics_host/` tests
 the real diagnostic code across two Store-CRT DLLs before installer packaging.
 
+`tools/fusion_package_renderer.py` owns the Fusion package's OpenGL resources from
+`uwp/renderer-assets/`. It preserves every member of the verified port archives while adding
+the raw combined shader required by the pinned cores. `fusion_package_audit.py` checks that
+exact path and content in both signed and unsigned installers. Renderer provenance, base archive
+hashes and resulting archive hashes are recorded by `fusion_package_inputs.py`.
+
 ROM-free MM port-archive publication lives in `tools/build_mm_custom_archive.py`, with validation
 and atomic-replacement tests in `tools/test_mm_custom_archive.py`. It consumes a separately built
 GAME_MM ZAPD exporter; `.github/workflows/fusion-mm-assets.yml` owns that build and its artifacts.

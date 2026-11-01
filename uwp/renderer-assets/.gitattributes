@@ -1,0 +1,3 @@
+* text eol=lf
+# Preserve the pinned upstream shader's existing trailing whitespace.
+*.glsl whitespace=-blank-at-eol

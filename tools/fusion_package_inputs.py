@@ -16,6 +16,7 @@ import urllib.request
 import zipfile
 
 from uwp_runtime_stage import reject_private_files
+from fusion_package_renderer import SOURCE as RENDERER_SOURCE, prepare_renderer_archive
 
 REPO = "weskestis/soh-uwp-xbox-build"
 ASSET_SOURCE = "3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa"
@@ -215,8 +216,10 @@ def main():
         digest = sha256(directory / name)
         require((directory / "SHA256.txt").read_text().split()[0].lower() == digest, "Port asset hash mismatch")
         verify_port_archive(directory / name)
-        shutil.copy2(directory / name, runtime / name)
-        record["assets"][name] = {"source": ASSET_SOURCE, "sha256": digest}
+        renderer = prepare_renderer_archive(directory / name, runtime / name)
+        record["assets"][name] = {"source": ASSET_SOURCE, "base_sha256": digest,
+            "sha256": sha256(runtime / name), "renderer_source": RENDERER_SOURCE,
+            "renderer_members": renderer}
     depot = ROOT / "scratch/uwp-dep"
     require(subprocess.check_output(["git", "-C", str(depot), "rev-parse", "HEAD"], text=True).strip() == DEPOT_SOURCE,
             "Unexpected Xbox dependency depot")

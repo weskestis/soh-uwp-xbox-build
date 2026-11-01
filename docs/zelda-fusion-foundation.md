@@ -253,6 +253,39 @@ MM, port archives, SDL and package identity match the prior delivery. Install as
 update to existing Fusion and retain LocalState. #217 remains in progress until
 physical Xbox launch/render evidence confirms the user-facing startup correction.
 
+### Start game abort: missing OpenGL template (2026-11-01)
+
+The user's next trace confirms package **1.0.5.1** and OoT core **db701c7**. The launcher
+renders on Xbox, stderr records OpenGL 4.6/Mesa 25.1.1 and `SOH3D LAUNCHER: choice=1`.
+The engine log then records `gfx_opengl.cpp:336`: failure to load the default fragment
+shader. The next source statement calls `abort()`, explaining the absence of a normal
+core return or a wrapper exception record. This is beyond the corrected logger/menu failures.
+
+The downloaded 1.0.5.1 delivery ZIP matches SHA-256
+`41d8f81889ec8e6297a48ba4027d0ef1055879ad8648b01f6ee88750dcf6616c`.
+Its `soh.o2r` has 1,276 members and no shaders. Its 841-member `2ship.o2r` contains
+old `.fs`/`.vs` templates, but both cores require `shaders/opengl/default.shader.glsl`.
+The retained asset generator assumed SDL3 runtime shader generation even when producing
+archives for the SDL2/OpenGL Xbox profile.
+
+`tools/fusion_package_renderer.py` now augments both verified port archives with the matching
+raw combined OpenGL template and MIT notices from `uwp/renderer-assets/`. Its recorded source
+predates upstream's later combiner-wrap behavior change. Every original archive member remains
+byte-identical, and both core DLLs remain pinned to their previously audited builds.
+The new package gate reproduces rejection of the exact old archives and accepts the repaired
+ones; it also rejects wrong-case paths, legacy binary headers and altered templates.
+Signed/unsigned package audits independently require the runtime resource in both archives.
+
+Local verification passes all 20 host package contracts and six packaging test groups.
+The production OpenGL formula helpers and vertex/fragment context builders, exercised with
+the pinned Prism processor, generate 32 feature combinations; all 32 vertex/fragment pairs
+compile and link with Khronos glslang. This establishes template compatibility, not Xbox
+rendering or gameplay completion.
+
+The photo also shows overlapping launcher typography and the old Zelda3D branding. Those
+layout issues remain open. A corrected shader package still requires a physical Xbox test;
+launcher rendering alone does not establish title-screen or gameplay success.
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop

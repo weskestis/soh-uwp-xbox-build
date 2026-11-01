@@ -8,14 +8,58 @@ import subprocess
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+import zipfile
 import fusion_package_audit as audit
 import fusion_package_inputs as inputs
+import fusion_package_renderer as renderer
 
 
 class PackageTests(unittest.TestCase):
     def setUp(self):
         self.scratch = inputs.ROOT / "scratch"
         self.scratch.mkdir(exist_ok=True)
+
+    def test_renderer_assets_restore_the_actual_runtime_path(self):
+        with tempfile.TemporaryDirectory(dir=self.scratch, prefix="fusion-shader-") as temp:
+            root = Path(temp)
+            for name in ("soh.o2r", "2ship.o2r"):
+                old = root / ("base-" + name)
+                fixed = root / name
+                members = {"portVersion": b"\x00\x09\x00\x02\x00\x03\x00", "objects/retained": b"unchanged"}
+                if name == "2ship.o2r":
+                    members["shaders/opengl/default.shader.fs"] = b"legacy fragment template"
+                    members["shaders/opengl/default.shader.vs"] = b"legacy vertex template"
+                with zipfile.ZipFile(old, "w") as archive:
+                    for key, value in members.items():
+                        archive.writestr(key, value)
+                before = old.read_bytes()
+                with self.assertRaisesRegex(RuntimeError, "Missing or incompatible OpenGL resource"):
+                    renderer.verify_renderer_archive(old)
+                renderer.prepare_renderer_archive(old, fixed)
+                self.assertEqual(old.read_bytes(), before)
+                self.assertEqual(renderer.verify_renderer_archive(fixed)[renderer.SHADER], renderer.SHADER_SHA256)
+                with zipfile.ZipFile(fixed) as archive:
+                    self.assertEqual(set(archive.namelist()), set(members) | set(renderer.renderer_members()))
+                    for key, value in members.items():
+                        self.assertEqual(archive.read(key), value)
+                    self.assertTrue(archive.read(renderer.SHADER).startswith(b"@prism("))
+                with self.assertRaises(RuntimeError):
+                    renderer.prepare_renderer_archive(fixed, root / "duplicate.o2r")
+                with self.assertRaises(RuntimeError):
+                    renderer.prepare_renderer_archive(old, old)
+
+    def test_renderer_rejects_wrong_case_and_legacy_header(self):
+        with tempfile.TemporaryDirectory(dir=self.scratch, prefix="fusion-shader-bad-") as temp:
+            path = Path(temp) / "bad.o2r"
+            members = renderer.renderer_members()
+            for path_name, content in ((renderer.SHADER.upper(), members[renderer.SHADER]),
+                                       (renderer.SHADER, bytes(64) + members[renderer.SHADER]),
+                                       (renderer.SHADER, b"wrong template")):
+                with zipfile.ZipFile(path, "w") as archive:
+                    archive.writestr(path_name, content)
+                    archive.writestr(renderer.NOTICE, members[renderer.NOTICE])
+                with self.assertRaises(RuntimeError):
+                    renderer.verify_renderer_archive(path)
 
     def test_real_startup_selection(self):
         with tempfile.TemporaryDirectory(dir=self.scratch, prefix="fusion-selection-") as temp:
