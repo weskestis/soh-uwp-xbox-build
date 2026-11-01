@@ -14,6 +14,7 @@ add_library(diagnostics_driver SHARED driver.cpp
     "${root}/uwp/boot_diagnostics.cpp" "${root}/uwp/boot_exception_report.cpp"
     "${root}/uwp/core_bootstrap.cpp")
 add_library(diagnostics_fixture SHARED fixture.cpp)
+target_compile_definitions(diagnostics_fixture PRIVATE ZELDA3D_CORE_BUILD=1)
 foreach(target diagnostics_driver diagnostics_fixture)
     target_compile_features(${target} PRIVATE cxx_std_20)
     target_include_directories(${target} PRIVATE

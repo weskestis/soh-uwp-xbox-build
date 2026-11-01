@@ -58,7 +58,7 @@ extern "C" __declspec(dllexport) void FusionSetFixtureMode(int mode) {
     }
 }
 
-extern "C" __declspec(dllexport) const Zelda3DCore* Zelda3D_CoreEntry() {
+extern "C" ZELDA3D_CORE_API const Zelda3DCore* Zelda3D_CoreEntry() {
     std::fputs("fixture.descriptor.entered\n", stderr);
     if (gMode == 4) FusionFaultRead();
     return &gCore;
