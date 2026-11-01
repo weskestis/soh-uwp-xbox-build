@@ -1,4 +1,5 @@
 #include "boot_diagnostics.h"
+#include "startup_storage.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -27,6 +28,7 @@ extern "C" __declspec(dllexport) int FusionRunDiagnosticTest(
     Zelda3DUwp_BootLogStart();
     std::fputs("driver.stdout.shared-crt\n", stdout);
     std::fputs("driver.stderr.shared-crt\n", stderr);
+    if (!Zelda3DUwp_PrepareLogDirectory(directory, Zelda3DUwp_BootLog)) return ZELDA3D_UWP_STORAGE_FAILED;
     const int result = Zelda3DUwp_RunCoreProtected(Zelda3DUwpPair::OotMm, Zelda3DUwpGame::Oot,
                                                 entry, mode, nullptr);
     Zelda3DUwp_BootLog("native-test.returned");

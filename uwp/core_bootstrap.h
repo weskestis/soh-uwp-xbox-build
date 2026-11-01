@@ -31,6 +31,7 @@ enum Zelda3DUwpBootstrapResult {
     ZELDA3D_UWP_CORE_SYMBOL_FAILED = 76,
     ZELDA3D_UWP_UNHANDLED_EXCEPTION = 77,
     ZELDA3D_UWP_INVALID_SELECTION = 78,
+    ZELDA3D_UWP_STORAGE_FAILED = 79,
 };
 
 int Zelda3DUwp_RunCore(Zelda3DUwpPair pair, Zelda3DUwpGame game,

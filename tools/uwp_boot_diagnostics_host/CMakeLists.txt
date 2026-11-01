@@ -12,7 +12,7 @@ get_filename_component(root "../.." ABSOLUTE)
 add_executable(diagnostics_host host.cpp)
 add_library(diagnostics_driver SHARED driver.cpp
     "${root}/uwp/boot_diagnostics.cpp" "${root}/uwp/boot_exception_report.cpp"
-    "${root}/uwp/core_bootstrap.cpp")
+    "${root}/uwp/core_bootstrap.cpp" "${root}/uwp/startup_storage.cpp")
 add_library(diagnostics_fixture SHARED fixture.cpp)
 target_compile_definitions(diagnostics_fixture PRIVATE ZELDA3D_CORE_BUILD=1)
 foreach(target diagnostics_driver diagnostics_fixture)

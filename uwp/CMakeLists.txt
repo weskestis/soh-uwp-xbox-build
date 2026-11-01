@@ -101,8 +101,10 @@ add_executable(zelda3d-uwp WIN32
     core_bootstrap.h
     startup_selection.cpp
     startup_selection.h
+    startup_storage.cpp
+    startup_storage.h
     "${CMAKE_CURRENT_BINARY_DIR}/Package.appxmanifest")
-set_source_files_properties(main.cpp boot_diagnostics.cpp boot_exception_report.cpp core_bootstrap.cpp startup_selection.cpp
+set_source_files_properties(main.cpp boot_diagnostics.cpp boot_exception_report.cpp core_bootstrap.cpp startup_selection.cpp startup_storage.cpp
     PROPERTIES VS_SETTINGS "CompileAsWinRT=false")
 target_compile_features(zelda3d-uwp PRIVATE cxx_std_20)
 target_compile_definitions(zelda3d-uwp PRIVATE

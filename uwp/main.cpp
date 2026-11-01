@@ -1,5 +1,6 @@
 #include "boot_diagnostics.h"
 #include "startup_selection.h"
+#include "startup_storage.h"
 
 #include <Windows.h>
 #include <SDL2/SDL.h>
@@ -22,6 +23,7 @@ int RunFusionBootstrap(int argc, char** argv) {
         ? "startup.selection.default-oot" : "startup.selection.loaded");
     char* archiveDirectory = SDL_GetPrefPath(nullptr, selection.game == Zelda3DUwpGame::Mm ? "2ship" : "soh");
     const bool readable = Zelda3DUwp_PrivateArchiveReadable(archiveDirectory, selection.game);
+    const bool storageReady = readable && Zelda3DUwp_PrepareLogDirectory(archiveDirectory, Zelda3DUwp_BootLog);
     SDL_free(archiveDirectory);
     if (!readable) {
         Zelda3DUwp_BootLog(selection.game == Zelda3DUwpGame::Mm ? "archive.missing.LocalState-2ship-mm.o2r" :
@@ -29,6 +31,7 @@ int RunFusionBootstrap(int argc, char** argv) {
                                                     "archive.missing.LocalState-soh-oot.o2r"));
         return ZELDA3D_UWP_INVALID_SELECTION;
     }
+    if (!storageReady) return ZELDA3D_UWP_STORAGE_FAILED;
     // One core per process launch. Routing is not MQ layout or seed enforcement.
     Zelda3DUwp_BootLog("diagnostic.quest-layout-enforced=false.handoff=false");
     return Zelda3DUwp_RunPackagedCore(selection.pair, selection.game, argc, argv);

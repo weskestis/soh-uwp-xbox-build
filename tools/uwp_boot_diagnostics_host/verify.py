@@ -34,12 +34,18 @@ def main():
         require(not imports & {'dbghelp.dll', 'psapi.dll'}, name + ': desktop diagnostic dependency')
         reports.append({'binary': name, 'imports': sorted(imports), 'store_crt_verified': True})
     evidence.mkdir(parents=True, exist_ok=True)
-    for mode, operation in ((0, None), (1, 'read'), (2, 'write'), (3, 'execute'), (4, 'read'), (5, 'read')):
+    for mode, operation in ((0, None), (1, 'read'), (2, 'write'), (3, 'execute'), (4, 'read'), (5, 'read'),
+                            (6, 'storage blocked')):
         destination = evidence / f'case-{mode}'
         destination.mkdir(exist_ok=False)
+        if mode == 1:
+            (destination / 'logs').mkdir()
+            (destination / 'logs' / 'existing.log').write_text('preserve existing engine logs\n')
+        if mode == 6:
+            (destination / 'logs').write_text('preserve conflicting user file\n')
         run = subprocess.run([str(executable), str(destination), str(mode)], cwd=executable.parent,
                              capture_output=True, timeout=30)
-        require(run.returncode == (23 if mode == 0 else 77),
+        require(run.returncode == (79 if mode == 6 else (23 if mode == 0 else 77)),
                 f'case {mode}: exit {run.returncode}: {run.stderr.decode(errors="replace")}')
         boot = (destination / 'uwp-boot.log').read_text()
         out = (destination / 'uwp-stdout.log').read_text()
@@ -48,6 +54,18 @@ def main():
         require('state=open unbuffered=true' in boot, f'case {mode}: streams not captured')
         require('driver.stdout.shared-crt' in out and 'driver.stderr.shared-crt' in err,
                 f'case {mode}: driver streams missing')
+        if mode == 6:
+            require('stage=storage.logs.failed win32=267' in boot and 'stage=core.descriptor.enter' not in boot,
+                    'storage failure entered the core or was not diagnosed')
+            require((destination / 'logs').read_text() == 'preserve conflicting user file\n',
+                    'storage preflight overwrote a user file')
+            print('native case 6: storage blocked PASS', flush=True)
+            continue
+        require((destination / 'logs').is_dir() and 'stage=storage.logs.ready' in boot,
+                f'case {mode}: engine log directory not prepared')
+        if mode == 1:
+            require((destination / 'logs' / 'existing.log').read_text() == 'preserve existing engine logs\n',
+                    'storage preflight overwrote an existing log')
         require('fixture.descriptor.entered' in err, f'case {mode}: separate Store DLL stderr missing')
         require('stage=core.descriptor.enter' in boot, f'case {mode}: no descriptor marker')
         require('stage=native-test.returned' in boot, f'case {mode}: filter did not return')
@@ -86,7 +104,8 @@ def main():
                 start = addresses['write_rva' if mode == 2 else 'read_rva']
                 require(start <= int(fault[1], 16) < start + 128, 'fault does not map to actual fixture function')
         print(f'native case {mode}: {operation or "normal return"} PASS', flush=True)
-    (evidence / 'RESULT.json').write_text(json.dumps({'native_cases_passed': 6, 'binaries': reports,
+    (evidence / 'RESULT.json').write_text(json.dumps({'native_cases_passed': 7, 'storage_cases_passed': 3,
+        'binaries': reports,
         'xbox_execution_verified': False}, indent=2) + '\n')
 
 

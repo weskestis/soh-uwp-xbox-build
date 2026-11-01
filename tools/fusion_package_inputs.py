@@ -21,7 +21,7 @@ REPO = "weskestis/soh-uwp-xbox-build"
 ASSET_SOURCE = "3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa"
 DEPOT_SOURCE = "f5dbd58ee06a4b439bf260d641585dbc8bef3b86"
 CORE_INPUTS = {
-    "soh": (41239071818, ASSET_SOURCE),
+    "soh": (41260862534, "db701c752a7bcbe923416395c52f5cefe668810c"),
     "mm": (41246667942, "4bec8b52bdeb14f0a226c6fbea409fb6521f8e25"),
 }
 DEPOT_DLLS = ("SDL2.dll", "opengl32.dll", "libgallium_wgl.dll", "dxil.dll", "z-1.dll")
@@ -196,7 +196,7 @@ def main():
               "package_run": os.environ["GITHUB_RUN_ID"], "cores": {}, "assets": {},
               "depot_source": DEPOT_SOURCE}
     for core, (run_id, core_source) in CORE_INPUTS.items():
-        require_job(run_id, core_source, f"game-core ({core})", wait_seconds=1800)
+        require_job(run_id, core_source, f"game-core ({core})", wait_seconds=5400)
         normal = work / f"{core}-core"
         normal_meta = download_artifact(run_id, f"EXPERIMENTAL-fusion-{core}-store-core-{core_source}", core_source, normal)
         diagnostics = work / f"{core}-diagnostics"

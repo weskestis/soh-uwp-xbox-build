@@ -218,7 +218,12 @@ and reports a controlled `CoreBootError` if file logging fails, instead of deref
 its null logger. Host packaging contracts (20/20) and four package test groups pass.
 A corrected native core build and installer are still pending; Xbox rendering is
 not yet confirmed. The wrapper follow-up prepares the selected game's log directory
-before core entry and diagnoses a blocked path without overwriting existing files.
+before core entry and diagnoses a blocked path without overwriting existing files. Native Store-CRT tests now exercise
+new-directory creation, preservation of existing logs, and a conflicting file that
+must return storage error 79 before any core call. The installer pins OoT run
+[41260862534](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41260862534),
+source `db701c752a7bcbe923416395c52f5cefe668810c`, and waits for that exact core
+to pass; the previous MM core, assets and dependency depot remain pinned.
 
 ### WinRT startup audit follow-up (2026-10-31)
 

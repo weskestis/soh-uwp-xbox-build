@@ -80,7 +80,9 @@ jobs:
   package:
     needs: [contracts, oot-port, diagnostics]
     runs-on: windows-2022
-    timeout-minutes: 50
+    # A pinned full-core rebuild can still be running when the short wrapper
+    # tests finish. Wait for that exact audited input before creating the MSIX.
+    timeout-minutes: 110
     defaults:
       run:
         shell: pwsh

@@ -7,7 +7,8 @@ doc, commit message, and instruction file should use these terms consistently.
 
 Fusion's wrapper boot log and early stdout/stderr capture live in
 `uwp/boot_diagnostics.cpp`; protected Windows fault-context/module/stack reporting
-lives in `uwp/boot_exception_report.cpp`. `tools/uwp_boot_diagnostics_host/` tests
+lives in `uwp/boot_exception_report.cpp`. Selected-game writable log-directory preparation lives in
+`uwp/startup_storage.cpp`; it creates only the private directory child and rejects blocked paths before core entry. `tools/uwp_boot_diagnostics_host/` tests
 the real diagnostic code across two Store-CRT DLLs before installer packaging.
 
 ROM-free MM port-archive publication lives in `tools/build_mm_custom_archive.py`, with validation
