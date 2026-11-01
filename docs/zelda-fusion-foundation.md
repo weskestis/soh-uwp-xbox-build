@@ -162,6 +162,40 @@ The next device evidence is one launch followed by all three logs from
 `LocalState/soh`: `uwp-boot.log`, `uwp-stdout.log`, and `uwp-stderr.log`.
 The underlying engine crash remains open; no successful Xbox render is claimed.
 
+### Updated Xbox trace: null logger after file-open failure (2026-10-31)
+
+The supplied `uwp-boot.log (2).txt` is current: it identifies **1.0.4.1**,
+contains 42 lines instead of the earlier 12, and records both new stream captures
+as open/unbuffered. Descriptor acquisition/validation completes and the OoT runner
+begins. `uwp-stdout.log.txt` reports that opening
+`LocalState/soh/logs/Ship of Harkinian.log` failed with no such file or directory.
+The stderr capture contains the core's fresh per-run reset messages.
+
+Disassembly of the exact retained core
+(`42fbbf6b782f49d58742ae88ec32af3e4a714ef8b47f30fe78522c014df581c5`)
+maps the captured stack to:
+
+- Fault RVA `0x123CE77`: `spdlog::logger::set_formatter`, reading `[rcx+0x28]`.
+  The captured RCX is zero and the access target is `0x28`.
+- Return RVA `0x123D0FB`: `spdlog::logger::set_pattern`.
+- Return RVA `0xA76549`: `OTRGlobals::Initialize`, immediately after passing the
+  exact `[%H:%M:%S.%e] [%s:%#] [%l] %v` pattern to that null logger.
+- Returns `0xA78A09` and `0xB517E3`: `InitOTR` and `CoreRun`.
+
+`Context::InitLogging` catches the file-sink exception and returns false before
+assigning `mLogger`. `OTRGlobals::Initialize` ignores that result and unconditionally
+calls `GetLogger()->set_pattern`. The device exception is therefore a confirmed
+null-logger dereference following failed log-file initialization.
+
+The reason automatic directory creation failed is not yet established. The exact
+spdlog binary first checks the complete directory; if absent it walks ancestors
+from the drive root, returning false after the first failed stat/mkdir pair. Xbox
+sandbox restrictions on an ancestor are a hypothesis, not proven by these logs.
+The next physical test is to create `LocalState/soh/logs` through Device Portal,
+keep the game archives in place, and launch 1.0.4.1 again. An existing visible
+log directory bypasses that ancestor-creation branch. This test needs no new MSIX;
+successful startup/rendering and a permanent code correction remain open (#217).
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop
