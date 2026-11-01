@@ -282,6 +282,24 @@ the pinned Prism processor, generate 32 feature combinations; all 32 vertex/frag
 compile and link with Khronos glslang. This establishes template compatibility, not Xbox
 rendering or gameplay completion.
 
+Signed installer **1.0.6.1** passed all four jobs in [run 41364289072](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41364289072)
+from source `b87db4564e017b4d514bf4c024cec1879f579849`. The seven native diagnostic
+cases passed again. Signed/unsigned audits resolve 879 packaged/framework references;
+independent downloaded-artifact verification checks all 16 delivery hashes, 119 payload
+hashes and 121 block-map entries. Both original port inventories remain byte-identical
+apart from the two appended renderer/license members, and both core DLLs are unchanged.
+
+- Delivery artifact: `13106766657`; ZIP SHA-256
+  `3dd12ffb846784eb89400ed6aa4cbbcf6320a17468636cd42cf92c07d8631431`.
+- MSIX SHA-256: `fa0c466b872aefcb3a82961032d267e2f46c81b141cecd3fbcb7cffd456bf45c`.
+- Packaging evidence artifact: `13106637050`.
+- Native diagnostic evidence artifact: `13105674833`.
+
+The existing resource lookup prefers LocalState over installed assets. A manually copied
+old `LocalState/soh/soh.o2r` or `LocalState/2ship/2ship.o2r` can therefore shadow the
+repaired package archive; private `oot.o2r`, `oot-mq.o2r` and `mm.o2r` do not conflict.
+There is no evidence yet that the user has these overriding port copies.
+
 The photo also shows overlapping launcher typography and the old Zelda3D branding. Those
 layout issues remain open. A corrected shader package still requires a physical Xbox test;
 launcher rendering alone does not establish title-screen or gameplay success.
