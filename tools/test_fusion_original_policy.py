@@ -133,16 +133,17 @@ int main() {
             '\n'.join(function(path, name) for path, name in [
                 ('zelda3d/model/zelda3d_model.cpp', 'rom'),
                 ('zelda3d/hud/zelda3d_hud_tex.cpp', 'Zelda3D_HudTexEnabled'),
+                ('zelda3d/hud/zelda3d_hud.cpp', 'hudEnabled'),
                 ('zelda3d/texture_pack/texture_pack_runtime.cpp', 'Zelda3D_TexturePackInitialize'),
                 ('zelda3d/texture_pack/texture_pack_runtime.cpp', 'Zelda3D_TexturePackRequestEnabled'),
                 ('zelda3d/texture_pack/texture_pack_runtime.cpp', 'Zelda3D_TexturePackRequestRescan'),
             ]) + '''
 int main() {
-    assert(rom() == nullptr && Zelda3D_HudTexEnabled() == 0);
+    assert(rom() == nullptr && Zelda3D_HudTexEnabled() == 0 && !hudEnabled());
     Zelda3D_TexturePackInitialize();
     Zelda3D_TexturePackRequestEnabled(1);
     Zelda3D_TexturePackRequestRescan();
-    assert(rom() == nullptr && Zelda3D_HudTexEnabled() == 0);
+    assert(rom() == nullptr && Zelda3D_HudTexEnabled() == 0 && !hudEnabled());
 }
 ''')
         executable = work / 'assets'

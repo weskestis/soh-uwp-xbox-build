@@ -56,11 +56,15 @@ std::vector<HudQuad> sQuads;
 int sEnabled = -1;
 
 bool hudEnabled() {
+#ifdef ZELDA_FUSION
+    return false;
+#else
     if (sEnabled < 0) {
         const char* v = ShipGetEnvironmentVariable("ZELDA3D_HUD");
         sEnabled = (v != nullptr && v[0] == '0') ? 0 : 1;
     }
     return sEnabled != 0 && Zelda3D_Hud_Available() != 0;
+#endif
 }
 
 // Resolve an OTR path to its loaded pixel data; pass through anything that is already a raw buffer

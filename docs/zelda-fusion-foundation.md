@@ -341,6 +341,9 @@ normalizer and initialization reject stale settings, presets, runtime mode reque
 direct legacy enable-variable writes. The model source loader returns null without opening
 remake assets; replacement HUD textures and texture-pack initialization/requests are blocked.
 The ImGui remake chooser, asset controls and status text are removed from this profile.
+A final central-hook audit also found the replacement HUD owner active independently of
+texture replacement. Fusion now returns false from that owner, restoring the native
+display-list HUD path; its production entry is included in the isolation compile test.
 Fusion loads its own launcher/menu documents with the correct brand and viewport-sized
 text. The SoH menu now defaults to Small (0.75) when no scale was explicitly saved,
 with a unit initial style ratio and bounded saved indices; existing chosen scales remain intact. The launcher exposes game start and exit; game settings remain in each game's menu.
@@ -365,9 +368,10 @@ Fusion Rml documents and repeated/invalid menu-scale changes. Existing 20/20
 package/bootstrap contracts pass. The codemap check reports the same missing external
 reference paths as HEAD, with no new missing paths.
 
-Core source `6b7ed1519638885450f78b69f1e98f4e52974238` is building in
+Initial core source `6b7ed1519638885450f78b69f1e98f4e52974238` started
 [run 41368363946](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41368363946);
-its host-contract job passes. The installer pins both cores to this exact run and source.
+its host-contract job passes. It is superseded before delivery to include the HUD-owner gate.
+The installer will be pinned to the replacement run and source.
 `fusion_package_ui.py` stages and verifies the current Fusion UI separately from the
 unchanged historical port-archive source; a stale or missing UI now fails package audit.
 Seven package test groups pass, including rejection of each stale UI file.
