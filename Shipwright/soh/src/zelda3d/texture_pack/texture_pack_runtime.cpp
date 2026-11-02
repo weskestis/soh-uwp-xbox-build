@@ -194,6 +194,9 @@ void EnsureInitialized() {
 } // namespace
 
 extern "C" void Zelda3D_TexturePackInitialize(void) {
+#ifdef ZELDA_FUSION
+    return;
+#else
     sInstallDirectory = Ship::Context::GetPathRelativeToAppDirectory("texture-packs", "soh");
     const char* environment = ShipGetEnvironmentVariable("ZELDA3D_TEXPACK");
     sExternalOverride = environment != nullptr && *environment != '\0';
@@ -206,6 +209,7 @@ extern "C" void Zelda3D_TexturePackInitialize(void) {
     DiscoverAndConfigure();
     sInitialized = true;
     InvalidateDependentCaches();
+#endif
 }
 
 extern "C" void Zelda3D_TexturePackResetRunState(void) {
@@ -225,6 +229,10 @@ extern "C" void Zelda3D_TexturePackResetRunState(void) {
 }
 
 extern "C" void Zelda3D_TexturePackRequestEnabled(int enabled) {
+#ifdef ZELDA_FUSION
+    (void)enabled;
+    return;
+#else
     EnsureInitialized();
     if (sExternalOverride) {
         return;
@@ -237,15 +245,20 @@ extern "C" void Zelda3D_TexturePackRequestEnabled(int enabled) {
     if (gPlayState == nullptr || !Zelda3D_Enabled()) {
         ApplyNow();
     }
+#endif
 }
 
 extern "C" void Zelda3D_TexturePackRequestRescan(void) {
+#ifdef ZELDA_FUSION
+    return;
+#else
     EnsureInitialized();
     sApplyPending = true;
     sRescanPending = true;
     if (gPlayState == nullptr || !Zelda3D_Enabled()) {
         ApplyNow();
     }
+#endif
 }
 
 extern "C" void Zelda3D_TexturePackProcessRequest(PlayState* play) {

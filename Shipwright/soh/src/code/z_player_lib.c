@@ -1,10 +1,10 @@
 #include "global.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 #include "objects/gameplay_keep/gameplay_keep.h"
 #include "objects/gameplay_field_keep/gameplay_field_keep.h"
 #include "objects/object_link_boy/object_link_boy.h"
 #include "objects/object_link_child/object_link_child.h"
 #include "overlays/actors/ovl_Demo_Effect/z_demo_effect.h"
-
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Enhancements/randomizer/draw.h"
@@ -28,7 +28,7 @@ FlexSkeletonHeader* gPlayerSkelHeaders[] = { &gLinkAdultSkel, &gLinkChildSkel };
 s16 sBootData[PLAYER_BOOTS_MAX][17] = {
     // OoT3D sBootData @ VA 0x539fb0 is byte-identical to N64 EXCEPT row 0 element 7 (REG(38)):
     // 350 -> 434. REG(38) feeds the landing/roll pitch term, so this affects DEFAULT adult boots.
-    { 200, 1000, 300, 700, 550, 270, 600, 434, 800, 600, -100, 600, 590, 750, 125, 200, 130 },
+    { 200, 1000, 300, 700, 550, 270, 600, 350, 800, 600, -100, 600, 590, 750, 125, 200, 130 },
     { 200, 1000, 300, 700, 550, 270, 1000, 0, 800, 300, -160, 600, 590, 750, 125, 200, 130 },
     { 200, 1000, 300, 700, 550, 270, 600, 600, 800, 550, -100, 600, 540, 270, 25, 0, 130 },
     { 200, 1000, 300, 700, 380, 400, 0, 300, 800, 500, -100, 600, 590, 750, 125, 200, 130 },
@@ -472,7 +472,7 @@ void Player_SetBootData(PlayState* play, Player* this) {
             currentBoots = PLAYER_BOOTS_IRON_UNDERWATER;
             // OoT3D-added sub-case: Iron Boots underwater WITH the Zora tunic doubles the accel
             // step (80 -> 160 via speedBonus) and triples the yaw rate (500 -> 1500).
-            if (this->currentTunic == PLAYER_TUNIC_ZORA) {
+            if (Zelda3D_Enabled() && this->currentTunic == PLAYER_TUNIC_ZORA) {
                 speedBonus = 80;
                 REG(27) = 1500;
             } else {
@@ -492,7 +492,7 @@ void Player_SetBootData(PlayState* play, Player* this) {
     REG(35) = bootRegs[4];
     REG(36) = bootRegs[5];
     REG(37) = bootRegs[6];
-    REG(38) = bootRegs[7];
+    REG(38) = Zelda3D_Enabled() && currentBoots == PLAYER_BOOTS_KOKIRI ? 434 : bootRegs[7];
     REG(43) = bootRegs[8];
     REG(45) = bootRegs[9];
     REG(68) = bootRegs[10];
@@ -507,7 +507,7 @@ void Player_SetBootData(PlayState* play, Player* this) {
     // been remapped by this point, so Iron Boots UNDERWATER (index 4) still takes it, as do all
     // other boots.
     if ((play->roomCtx.curRoom.behaviorType1 == ROOM_BEHAVIOR_TYPE1_2) &&
-        (currentBoots != PLAYER_BOOTS_IRON)) {
+        (!Zelda3D_Enabled() || currentBoots != PLAYER_BOOTS_IRON)) {
         REG(45) = 500;
     }
 }

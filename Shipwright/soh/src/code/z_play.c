@@ -57,7 +57,7 @@ void Zelda3D_SkipInit(void) {
     // been touched, and the enhancements this exists to enable stayed off for every run after the
     // first.
     static Zelda3DOnce sForced;
-    if (!Zelda3D_Once(&sForced)) {
+    if (!Zelda3D_Enabled() || !Zelda3D_Once(&sForced)) {
         return;
     }
 

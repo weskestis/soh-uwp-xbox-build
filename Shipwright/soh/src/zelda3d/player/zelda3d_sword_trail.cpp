@@ -1,3 +1,4 @@
+#include "zelda3d/core/zelda3d_runtime.h"
 // zelda3d_sword_trail — see zelda3d_sword_trail.h.
 //
 // Ground truth: OoT3D EffectBlure_AddVertex caller at VA 0x002b9a88, factor table @ VA 0x004dc27c.
@@ -11,9 +12,12 @@
 // EffectBlure.trailType would be meaningless and would regress SoH's existing trail enhancement.
 // That half needs the 3DS trail materials wired up first.
 #include "zelda3d_sword_trail.h"
-
 extern "C" void Zelda3D_SwordTrail_TrimTip(Player* player, Vec3f* tip, Vec3f* base, Vec3f* out) {
     f32 factor;
+    if (!Zelda3D_Enabled()) {
+        *out = *tip;
+        return;
+    }
 
     if (player->itemAction == PLAYER_IA_SWORD_MASTER) {
         factor = 0.85f;

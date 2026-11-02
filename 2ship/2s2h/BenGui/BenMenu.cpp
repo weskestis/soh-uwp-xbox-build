@@ -78,13 +78,13 @@ static const std::vector<const char*> ammoBuybackOptions = {
 
 static const std::vector<const char*> gibdoTradeSequenceOptions = {
     "Vanilla",  // GIBDO_TRADE_SEQUENCE_VANILLA
-    "MM3D",     // GIBDO_TRADE_SEQUENCE_MM3D
+    "One of each", // GIBDO_TRADE_SEQUENCE_MM3D
     "No trade", // GIBDO_TRADE_SEQUENCE_NO_TRADE
 };
 
 static const std::vector<const char*> clockTypeOptions = {
     "Original",   // CLOCK_TYPE_ORIGINAL
-    "MM3D style", // CLOCK_TYPE_3DS
+    "Dial style", // CLOCK_TYPE_3DS
     "Text only",  // CLOCK_TYPE_TEXT_BASED
 };
 
@@ -1402,10 +1402,10 @@ void BenMenu::AddEnhancements() {
     AddWidget(path, "Fast Transformation", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Masks.FastTransformation")
         .Options(CheckboxOptions().Tooltip("Removes the delay when using transformation masks."));
-    AddWidget(path, "3DS Style Mask Equipping", WIDGET_CVAR_CHECKBOX)
+    AddWidget(path, "Equip Masks While Transforming", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Masks.3DSMaskEquip")
         .Options(CheckboxOptions().Tooltip("Allows equipping masks while in other forms, returning you to human form "
-                                           "with the mask immediately equipped, like in MM3D."));
+                                           "with the mask immediately equipped."));
     AddWidget(path, "Easy Mask Equip", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Masks.EasyMaskEquip")
         .Options(CheckboxOptions().Tooltip("In the pause menu, press A on any owned mask to put it on or take it off "
@@ -1441,7 +1441,7 @@ void BenMenu::AddEnhancements() {
         .CVar("gEnhancements.Songs.BetterSongOfDoubleTime")
         .Options(CheckboxOptions().Tooltip(
             "When playing the Song of Double Time, you can now choose the exact time you want to go "
-            "to, similar to the 3DS version.\n\n"
+            "to.\n\n"
             "Holding Z allows decreasing the time adjustment factor, while holding R will increase the factor."));
     AddWidget(path, "Enable Sun's Song", WIDGET_CVAR_CHECKBOX)
         .CVar("gEnhancements.Songs.EnableSunsSong")
@@ -1909,7 +1909,7 @@ void BenMenu::AddEnhancements() {
         .Options(
             ComboboxOptions()
                 .Tooltip("Choose when to show the Deku Palace Guards' search balls:\n"
-                         "- Never: Never show the search balls. This matches Majora's Mask 3D behaviour.\n"
+                         "- Never: Never show the search balls.\n"
                          "- Night Only: Only show the search balls at night. This matches original N64 behaviour.\n"
                          "- Always: Always show the search balls.")
                 .DefaultIndex(DekuGuardSearchBallsOptions::DEKU_GUARD_SEARCH_BALLS_NIGHT_ONLY)
@@ -1920,7 +1920,7 @@ void BenMenu::AddEnhancements() {
             ComboboxOptions()
                 .Tooltip("Changes the way the Gibdo Trade Sequence works:\n"
                          "- Vanilla: Works normally.\n"
-                         "- MM3D: Gibdos will only take one quantity of the item they request, as they do in MM3D. "
+                         "- One of each: Gibdos will only take one of the item they request. "
                          "  The Gibdo requesting a blue potion will also accept a red potion.\n"
                          "- No trade: Gibdos will vanish without taking items.")
                 .DefaultIndex(GibdoTradeSequenceOptions::GIBDO_TRADE_SEQUENCE_VANILLA)
@@ -1932,7 +1932,7 @@ void BenMenu::AddEnhancements() {
                 .Tooltip(
                     "Enable visual markers for hidden grottos:\n"
                     "- Off: No visual markers for hidden grottos. Vanilla behavior.\n"
-                    "- Wear Mask of Truth: Hidden grottos are visible when wearing the Mask of Truth. MM3D behavior.\n"
+                    "- Wear Mask of Truth: Hidden grottos are visible when wearing the Mask of Truth.\n"
                     "- Have Mask of Truth: Hidden grottos are visible once the Mask of Truth is obtained.\n"
                     "- Always: Hidden grottos always have a visual marker.\n")
                 .DefaultIndex(HiddenGrottosVisibilityOptions::HIDDEN_GROTTOS_VISIBLITY_OFF)

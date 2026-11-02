@@ -304,6 +304,71 @@ The photo also shows overlapping launcher typography and the old Zelda3D brandin
 layout issues remain open. A corrected shader package still requires a physical Xbox test;
 launcher rendering alone does not establish title-screen or gameplay success.
 
+### OoT gameplay confirmed and menu scaling (2026-11-01)
+
+After installing 1.0.6.1, the user reported "I'm in ocarina of time" and then
+"Game is playing". The five-second supplied video `1000336600.mp4` shows child Link
+rendering and changing pose/head direction in his house. This confirms the reported OoT
+startup/Start game failures are cleared on the physical Xbox. It does not establish
+save/reload, audible output, MM boot or combined-game behavior.
+
+The user's photo `1000336599.jpg` reports a new menu usability problem: the SoH settings
+font/controls are oversized and the header tabs overflow. The existing control is
+**Settings → General → EXPERIMENTAL → ImGui Menu Scaling → Small**.
+`SohMenuSettings.cpp` maps Small to `gSettings.ImGuiScale = 0`, and
+`OTRGlobals::ScaleImGui()` applies the corresponding 0.75 factor immediately to the
+ImGui font and style. The menu writes this CVar to the existing configuration; no new
+installer or replacement of the user's settings file is required to try it.
+
+The full menu uses a 24px header/sidebar font and a 20px standard font before scaling.
+The photo alone cannot establish the active saved scale or the logical/drawable viewport;
+these still need device evidence if Small remains too large. The Rml launcher uses a
+separate density/layout path, so this setting does not resolve its overlapping titles.
+The menu usability card remains open until the user confirms the result.
+
+### Original-game isolation and title restoration (2026-11-01)
+
+The user reports missing Link/Epona and the title movie on 1.0.6.1 and explicitly reiterates
+that the remake layer was scrapped. Original graphics as a default was insufficient:
+`Opening_SetupTitleScreen` still unconditionally routed to the custom `SCENE_TITLE`, while
+native `Horse_InitPlayerHorse` requires Hyrule Field and the replacement rider requires
+remake mode. Neither rider path ran. Original mode now retains the debug save's native
+`ENTR_HYRULE_FIELD_PAST_BRIDGE_SPAWN` (0x0CD), including its cutscene layer. Native logo
+initialization is restored, with the normal enhancement hook after initialization.
+
+The mandatory Fusion core profile now defines `ZELDA_FUSION`. Its graphics getter,
+normalizer and initialization reject stale settings, presets, runtime mode requests and
+direct legacy enable-variable writes. The model source loader returns null without opening
+remake assets; replacement HUD textures and texture-pack initialization/requests are blocked.
+The ImGui remake chooser, asset controls and status text are removed from this profile.
+Fusion loads its own launcher/menu documents with the correct brand and viewport-sized
+text. The SoH menu now defaults to Small (0.75) when no scale was explicitly saved,
+with a unit initial style ratio and bounded saved indices; existing chosen scales remain intact. The launcher exposes game start and exit; game settings remain in each game's menu.
+The old shared audio controls were not retained because their OoT bindings do not control MM.
+
+The identified unconditional native-game changes now respect the effective graphics mode:
+camera-table replacement, actor behavior dispatch, forced skip preferences, extra intro/Start
+skipping, Lens obtainability, sword-trail trimming, item/talk/water restrictions, first-person
+timing, boot data and buoyancy. Native fallback values were checked against
+HarbourMasters/Shipwright commit `d4bf6528a3bb242bc5d862e4f1ab2b6d385c157b`.
+Previously saved fast-chest/story/one-point preferences are preserved because the old code
+left no provenance marker distinguishing automatic writes from user choices.
+
+`test_oot_original_boot.py` first failed against 1.0.6.1's wrong entrance, then passed using
+the production boot/horse functions: all four native title cutscenes reach horse creation
+and player mounting; logo initialization and hooks remain valid; Original mode does not
+force skip settings. It also executes production boot-data and buoyancy functions against
+native expected values. `test_fusion_original_policy.py` compiles the actual graphics-mode
+implementation with the Fusion flag and verifies configuration/request/reload/global-write
+bypasses, compiles the disabled asset entry points without loader services, and checks the
+Fusion Rml documents and repeated/invalid menu-scale changes. Existing 20/20
+package/bootstrap contracts pass. The codemap check reports the same missing external
+reference paths as HEAD, with no new missing paths.
+
+These are host checks, not a rendered Xbox capture. Title/intro playback, launcher layout,
+menu scale and ordinary gameplay still require device confirmation after the updated build.
+No claim of full N64 behavioral equivalence or combined-game randomizer completion is made.
+
 ### WinRT startup audit follow-up (2026-10-31)
 
 The shared SDL2 backend no longer subclasses WinRT's CoreWindow as a desktop HWND. Desktop

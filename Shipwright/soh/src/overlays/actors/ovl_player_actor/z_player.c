@@ -3,9 +3,9 @@
  * Overlay: ovl_player_actor
  * Description: Link
  */
-
 #include <libultraship/libultra.h>
 #include "global.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 
 #include "overlays/actors/ovl_Bg_Heavy_Block/z_bg_heavy_block.h"
 #include "overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
@@ -1789,7 +1789,7 @@ void Player_PlayJumpingSfx(Player* this) {
         // and the whole check is nested inside the non-Iron-Boots branch, so Iron Boots play only
         // NA_SE_PL_JUMP_HEAVYBOOTS.
         u8 bItem = gSaveContext.equips.buttonItems[0];
-        if ((bItem == ITEM_SWORD_KOKIRI) || (bItem == ITEM_SWORD_MASTER) || (bItem == ITEM_SWORD_BGS)) {
+        if (Zelda3D_Enabled() && ((bItem == ITEM_SWORD_KOKIRI) || (bItem == ITEM_SWORD_MASTER) || (bItem == ITEM_SWORD_BGS))) {
             Player_PlaySfx(this, NA_SE_PL_JUMP_METAL);
         }
     }
@@ -2629,7 +2629,7 @@ void Player_UpdateItems(Player* this, PlayState* play) {
         // bit 0x1000000, which has no meaning on PC, and rebuilds the button scan for six 3DS item
         // slots against N64's four. Everything else in it is byte-equivalent to N64.
         ((this->heldItemAction == this->itemAction) || (this->stateFlags1 & PLAYER_STATE1_SHIELDING) ||
-         ((this->stateFlags1 & PLAYER_STATE1_IN_WATER) &&
+         (Zelda3D_Enabled() && (this->stateFlags1 & PLAYER_STATE1_IN_WATER) &&
           ((this->upperActionFunc == func_80834B5C) || (this->upperActionFunc == func_8083485C)))) &&
         (gSaveContext.health != 0) && (play->csCtx.state == CS_STATE_IDLE) && (this->csAction == 0) &&
         (play->shootingGalleryStatus == 0) && (play->activeCamera == MAIN_CAM) &&
@@ -3964,7 +3964,7 @@ s32 Player_CalcSpeedAndYawFromControlStick(PlayState* play, Player* this, f32* o
     // when BOTH category == ACTORCAT_PLAYER and health == 0, which C's && reproduces exactly.
     if ((this->unk_6AD != 0) || (play->transitionTrigger == TRANS_TRIGGER_START) ||
         (this->stateFlags1 & PLAYER_STATE1_LOADING) ||
-        ((this->actor.category == ACTORCAT_PLAYER) && (gSaveContext.health == 0))) {
+        (Zelda3D_Enabled() && (this->actor.category == ACTORCAT_PLAYER) && (gSaveContext.health == 0))) {
         *outSpeedTarget = 0.0f;
         *outYawTarget = this->actor.shape.rot.y;
     } else {
@@ -6130,11 +6130,11 @@ s32 Player_ActionHandler_13(Player* this, PlayState* play) {
                     // OoT3D (0x351920): when entering first person out of the Z-target side/back
                     // walk, reset to the idle animation first. Player_Action_8084B1D8 never sets an
                     // animation, so on N64 Link stays frozen in the side-walk pose.
-                    if (this->actionFunc == Player_Action_80840DE4) {
+                    if (Zelda3D_Enabled() && this->actionFunc == Player_Action_80840DE4) {
                         Player_AnimPlayOnce(play, this, Player_GetIdleAnim(this));
                     }
                     Player_SetupAction(play, this, Player_Action_8084B1D8, 1);
-                    this->av2.actionVar2 = 12; // OoT3D uses 0xC here; N64 used 13
+                    this->av2.actionVar2 = Zelda3D_Enabled() ? 12 : 13;
                     func_8083B010(this);
                 }
                 this->stateFlags1 |= PLAYER_STATE1_FIRST_PERSON;
@@ -6199,7 +6199,7 @@ s32 Player_ActionHandler_Talk(Player* this, PlayState* play) {
                 // submerged without Iron Boots — standing on the floor is not by itself enough to
                 // accept a talk offer or summon Navi underwater. 3DS proceeds on the grounded path
                 // only if !(stateFlags2 & UNDERWATER) || currentBoots == PLAYER_BOOTS_IRON.
-                if (((this->actor.bgCheckFlags & 1) && (!(this->stateFlags2 & PLAYER_STATE2_UNDERWATER) ||
+                if (((this->actor.bgCheckFlags & 1) && (!Zelda3D_Enabled() || !(this->stateFlags2 & PLAYER_STATE2_UNDERWATER) ||
                                                         (this->currentBoots == PLAYER_BOOTS_IRON))) ||
                     (this->stateFlags1 & PLAYER_STATE1_ON_HORSE) ||
                     (func_808332B8(this) && !(this->stateFlags2 & PLAYER_STATE2_UNDERWATER))) {
@@ -7409,7 +7409,7 @@ s32 Player_ActionHandler_2(Player* this, PlayState* play) {
                    // OoT3D (0x00354894) adds a fourth term: sunk in water wearing Iron Boots blocks
                    // every A interaction — no grabbing, lifting or chest-opening. 3DS evaluates it
                    // right after the CARRYING_ACTOR/UNDERWATER chain and before any chest/lift work.
-                   !((this->stateFlags1 & PLAYER_STATE1_IN_WATER) &&
+                   !(Zelda3D_Enabled() && (this->stateFlags1 & PLAYER_STATE1_IN_WATER) &&
                      (this->currentBoots == PLAYER_BOOTS_IRON))) {
             if (this->getItemId != GI_NONE) {
                 if (GameInteractor_Should(VB_OPEN_CHEST, true)) {
@@ -12273,7 +12273,7 @@ void Player_UpdateCommon(Player* this, PlayState* play, Input* input) {
         ((this->stateFlags1 & PLAYER_STATE1_IN_CUTSCENE) || (this->csAction != 0) ||
          (play->csCtx.state != CS_STATE_IDLE)) &&
         (gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN) && (play->transitionTrigger == TRANS_TRIGGER_OFF) &&
-        (gSaveContext.fileNum != 0xFEDC) && CHECK_BTN_ALL(input->press.button, BTN_START)) {
+        Zelda3D_Enabled() && (gSaveContext.fileNum != 0xFEDC) && CHECK_BTN_ALL(input->press.button, BTN_START)) {
         Audio_PlaySoundGeneral(NA_SE_SY_PIECE_OF_HEART, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
                                &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
         gSaveContext.cutsceneIndex = 0;
@@ -13317,7 +13317,7 @@ void func_8084B000(Player* this) {
     // anim-gates the Iron-Boots velocity floor. Everything else is byte-for-byte N64.
     phi_f16 = this->ageProperties->unk_28;
     if (this->actor.velocity.y < 0.0f) {
-        phi_f16 += 0.6666667f;
+        phi_f16 += Zelda3D_Enabled() ? 0.6666667f : 1.0f;
     }
 
     if (this->actor.yDistToWater < phi_f16) {
@@ -13332,7 +13332,7 @@ void func_8084B000(Player* this) {
         // playing, iron boots keep accelerating down to -6.0f instead of cutting off at -3.0f.
         // The animation-pointer compare is the same idiom already used elsewhere in this file.
         f32 ironBootsVelFloor =
-            (this->skelAnime.animation == &gPlayerAnim_link_swimer_swim_wait) ? -6.0f : -3.0f;
+            (Zelda3D_Enabled() && this->skelAnime.animation == &gPlayerAnim_link_swimer_swim_wait) ? -6.0f : -3.0f;
 
         if (!(this->stateFlags1 & PLAYER_STATE1_DEAD) && (this->currentBoots == PLAYER_BOOTS_IRON) &&
             (this->actor.velocity.y >= ironBootsVelFloor)) {
@@ -13342,9 +13342,9 @@ void func_8084B000(Player* this) {
             if (this->actor.velocity.y >= 0.0f) {
                 phi_f16 = 0.0f;
             } else {
-                phi_f16 = this->actor.velocity.y * -0.2f; // OoT3D: rise damping, N64 -0.3f
+                phi_f16 = this->actor.velocity.y * (Zelda3D_Enabled() ? -0.2f : -0.3f);
             }
-            phi_f18 = phi_f16 + 0.06666667f; // OoT3D: rise accel, N64 0.1f
+            phi_f18 = phi_f16 + (Zelda3D_Enabled() ? 0.06666667f : 0.1f);
         }
 
         yDistToWater = this->actor.yDistToWater;

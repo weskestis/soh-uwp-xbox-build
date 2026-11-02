@@ -1,4 +1,5 @@
 #include "SohRmlUi.h"
+#include "SohRmlUiAssets.h"
 #include "Zelda3DRmlUiRegistry.h"
 
 #include <ship/zelda3d_diagnostics_bridge.h>
@@ -137,7 +138,9 @@ struct CycleSpec {
     int count;
 };
 static const CycleSpec kCycles[] = {
+#ifndef ZELDA_FUSION
     { "linkmode", &gZelda3dMenuLinkMode, { "N64", "3DS \xC2\xB7 N64 anim", "3DS \xC2\xB7 3DS anim", nullptr }, 3 },
+#endif
     { "warptime", &gZelda3dMenuWarpTime, { "Default", "Day", "Night", nullptr }, 3 },
     { "warpage", &gZelda3dMenuWarpAge, { "Default", "Child \xC2\xB7 past", "Adult \xC2\xB7 future", nullptr }, 3 },
     { "stairsize", &gZelda3dMenuStairSize, { "Small", "Medium", "Large", nullptr }, 3 },
@@ -289,32 +292,27 @@ bool SohRmlUi::Init(void* sdlWindow, void* glContext, int width, int height, boo
         return false;
     }
 
-    const std::string docPath = Context::GetPathRelativeToAppBundle("assets/rml/zelda3d_test.rml");
+    const std::string docPath = Context::GetPathRelativeToAppBundle(kRmlMenuDocument);
     mDocument = mContext->LoadDocument(docPath);
     if (!mDocument) {
         SPDLOG_ERROR("[SohRmlUi] Failed to load document: {}", docPath);
         Shutdown();
         return false;
     }
-    // Start hidden; the menu is shown on demand via ToggleVisible() (Phase 2). The document stays
-    // loaded either way — we gate update/render + input on mVisible.
+    // The document is rendered only while mVisible.
     mDocument->Show();
-    // The OoT/MM launcher is a SECOND document in the same context. It is loaded here and left
-    // hidden; ShowLauncher() swaps which of the two is up. Failing to load it is NOT fatal -- the
-    // game must still boot without a launcher -- so this warns and continues.
-    const std::string launcherPath = Context::GetPathRelativeToAppBundle("assets/rml/zelda3d_launcher.rml");
+    // The launcher is a separate document; failure does not prevent game startup.
+    const std::string launcherPath = Context::GetPathRelativeToAppBundle(kRmlLauncherDocument);
     mLauncherDoc = mContext->LoadDocument(launcherPath);
     if (!mLauncherDoc) {
         SPDLOG_WARN("[SohRmlUi] Failed to load launcher document: {} (game still boots)", launcherPath);
     } else {
         AttachLauncherClickHandlers();
     }
-    // Scale the dp-authored sheet to this display's content scale (HiDPI).
     ApplyDensityRatio();
     // Mouse parity: clicking a <tab> switches to it (keyboard/D-pad Left/Right already do).
     AttachTabClickHandlers();
-    // The in-game HUD is native SoH Fast3D (Interface_Draw / HealthMeter_Draw); RmlUi is for the
-    // ESC menu only.
+    // The in-game HUD uses native Fast3D; RmlUi is for the menu.
 
 #ifdef ZELDA3D_USE_SDL2
     SPDLOG_INFO("[SohRmlUi] RmlUi initialised ({}x{}) — {} (SDL2/OpenGL)", mWidth, mHeight, docPath);
@@ -323,8 +321,7 @@ bool SohRmlUi::Init(void* sdlWindow, void* glContext, int width, int height, boo
 #endif
     mInitialised = true;
     Zelda3DRmlUiRegistry::Attach(this);
-    // Debug: open the menu at startup (deterministic verification via the screenshot harness, no
-    // input injection needed). Normal use opens it with ESC / the Start button.
+    // Optional developer harness startup override.
     if (const char* e = ShipGetEnvironmentVariable("ZELDA3D_RMLUI_OPEN"); e && e[0] == '1') {
         SetVisible(true);
     }
@@ -596,8 +593,7 @@ void SohRmlUi::ShowLauncher(bool show) {
         return;
     }
     mLauncherVisible = show;
-    // Same input block the ESC menu uses -- the game is running behind the launcher and must not
-    // see the keys that are driving it.
+    // Block game input while the launcher owns keyboard/controller navigation.
     if (auto ctx = Ship::Context::GetRawInstance(); ctx && ctx->GetControlDeck()) {
         if (show) {
             ctx->GetControlDeck()->BlockGameInput(ZELDA3D_RML_MENU_BLOCK_ID);
@@ -632,6 +628,10 @@ void SohRmlUi::SetVisible(bool visible) {
         return;
     }
     mVisible = visible;
+    if (mDocument) {
+        if (visible) mDocument->Show();
+        else mDocument->Hide();
+    }
     // Block/unblock game input so the game doesn't react to keys/buttons while the menu is up
     // (SoH reads the controller by polling, so consuming SDL events alone isn't enough).
     if (auto ctx = Ship::Context::GetRawInstance(); ctx && ctx->GetControlDeck()) {

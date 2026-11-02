@@ -9,6 +9,15 @@ on them: **soh3d** / **2ship3d**), where each part's code lives, and the human-f
 code-name aliases (`2ship`=vendored `2s2h`, `2ship3d`=`mm3d_*`; `zelda3d` is both the umbrella and the
 literal `Zelda3D_*`/`src/zelda3d/` prefix shared by both branches). Use those terms consistently.
 
+## Active Fusion UWP scope
+
+On `feature/zelda-fusion-isolation`, the user has scrapped the 3DS remake layer. Fusion
+uses the original OoT / OoT MQ and MM engines, with its own app identity and branding.
+Do not expose or activate remake graphics, asset loaders, or gameplay overrides in this
+profile. The 3DS parity sections below describe historical work in the shared source tree;
+they do not authorize restoring that feature to Fusion. Preserve the original-game policy
+and its title/player regression checks when editing shared hooks.
+
 ## Orient here FIRST — parity-map + codemap + RE frontier
 
 Start every task by checking these THREE maps: skip closed cases (parity-map), find the code

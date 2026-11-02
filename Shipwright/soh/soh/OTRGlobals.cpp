@@ -150,11 +150,6 @@ extern "C" {
 #include "port/zelda3d_port_api.h"
 }
 
-#ifdef __WIIU__
-const uint32_t defaultImGuiScale = 3;
-#else
-const uint32_t defaultImGuiScale = 1;
-#endif
 
 const float imguiScaleOptionToValue[4] = { 0.75f, 1.0f, 1.5f, 2.0f };
 
@@ -265,7 +260,7 @@ OTRGlobals::OTRGlobals() {
     }
 
     previousImGuiScaleIndex = -1;
-    previousImGuiScale = defaultImGuiScale;
+    previousImGuiScale = 1.0f;
     ZELDA3D_BOOT("ctor: ScaleImGui");
     ScaleImGui();
     ZELDA3D_BOOT("ctor: OTRGlobals constructor complete");
@@ -478,7 +473,7 @@ OTRGlobals::~OTRGlobals() {
 }
 
 void OTRGlobals::ScaleImGui() {
-    int32_t imGuiScaleIndex = CVarGetInteger(CVAR_SETTING("ImGuiScale"), defaultImGuiScale);
+    int32_t imGuiScaleIndex = std::clamp(CVarGetInteger(CVAR_SETTING("ImGuiScale"), defaultImGuiScale), 0, 3);
     if (imGuiScaleIndex == previousImGuiScaleIndex) {
         return;
     }

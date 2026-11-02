@@ -5,6 +5,11 @@ doc, commit message, and instruction file should use these terms consistently.
 
 ## The two-tier taxonomy
 
+Fusion is the original-game-only UWP profile. Its mandatory `ZELDA_FUSION` build policy
+locks graphics/asset entry points; `SohRmlUiAssets.h` selects the dedicated `fusion*.rml`/RCSS
+interface. Native title and player regression checks live in `tools/test_oot_original_boot.py`;
+activation and asset-isolation checks live in `tools/test_fusion_original_policy.py`.
+
 Fusion's wrapper boot log and early stdout/stderr capture live in
 `uwp/boot_diagnostics.cpp`; protected Windows fault-context/module/stack reporting
 lives in `uwp/boot_exception_report.cpp`. Selected-game writable log-directory preparation lives in

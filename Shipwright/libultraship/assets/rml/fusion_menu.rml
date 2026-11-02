@@ -1,0 +1,21 @@
+<rml>
+<head>
+    <title>Zelda Fusion</title>
+    <link type="text/rcss" href="fusion.rcss"/>
+</head>
+<body>
+    <window id="window">
+        <tab-bar id="tab-bar">
+            <tab class="selected">About</tab>
+        </tab-bar>
+        <content id="content">
+            <pane class="active">
+                <h2>Zelda Fusion</h2>
+                <p>Ocarina of Time and Majora's Mask</p>
+                <p>Built with Ship of Harkinian and 2Ship2Harkinian.</p>
+                <p class="hint">B to close</p>
+            </pane>
+        </content>
+    </window>
+</body>
+</rml>

@@ -587,7 +587,7 @@ void SohMenu::AddMenuEnhancements() {
         .RaceDisable(false)
         .PreFunc([](WidgetInfo& info) {
             const bool oot3dRequested =
-                CVarGetInteger(CVAR_SETTING("GraphicsMode"), ZELDA3D_GRAPHICS_ORIGINAL) == ZELDA3D_GRAPHICS_OOT3D;
+                Zelda3D_Enabled() != 0;
             if (CVarGetInteger(CVAR_ENHANCEMENT("3DSceneRender"), 0) == 0 && !oot3dRequested) {
                 CVarSetInteger(CVAR_ENHANCEMENT("DisableFixedCamera"), 0);
                 info.options->disabled = true;
@@ -595,7 +595,7 @@ void SohMenu::AddMenuEnhancements() {
                 info.options->disabled = false;
             }
             info.options->disabledTooltip =
-                "Requires either OoT3D Graphics Mode or \"Disable 2D Pre-Rendered Scenes\".";
+                "Requires \"Disable 2D Pre-Rendered Scenes\".";
         })
         .Options(CheckboxOptions().Tooltip(
             "Disables the fixed camera in maps that use 2D pre-rendered backgrounds. Enable this when using a mod "
@@ -607,15 +607,6 @@ void SohMenu::AddMenuEnhancements() {
         .Options(IntSliderOptions().Min(4).Max(6).DefaultValue(6).Tooltip(
             "Space between text characters (useful for HD font textures)."));
     AddWidget(path, "Models & Textures", WIDGET_SEPARATOR_TEXT);
-    AddWidget(path, "OoT3D model setting scope", WIDGET_TEXT)
-        .RaceDisable(false)
-        .PreFunc([](WidgetInfo& info) {
-            info.isHidden = CVarGetInteger(CVAR_SETTING("GraphicsMode"), ZELDA3D_GRAPHICS_ORIGINAL) !=
-                            ZELDA3D_GRAPHICS_OOT3D;
-            info.name = "OoT3D mode: N64 display-list model options below still apply to every original/fallback "
-                        "asset, while CMB replacements keep their authored model state.";
-        })
-        .HideInSearch(true);
     AddWidget(path, "Disable LOD", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("DisableLOD"))
         .RaceDisable(false)
@@ -650,7 +641,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Show Gauntlets in First-Person", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("FirstPersonGauntlets"))
         .RaceDisable(false)
-        .Options(CheckboxOptions().Tooltip("Renders Gauntlets when using the Bow and Hookshot like in OoT3D."));
+        .Options(CheckboxOptions().Tooltip("Renders Gauntlets when using the Bow and Hookshot."));
     AddWidget(path, "Show Chains on Both Sides of Locked Doors", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("ShowDoorLocksOnBothSides"))
         .RaceDisable(false);
@@ -909,7 +900,7 @@ void SohMenu::AddMenuEnhancements() {
     AddWidget(path, "Static Explosion Radius", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("StaticExplosionRadius"))
         .Options(CheckboxOptions().Tooltip(
-            "Explosions are now a static size, like in Majora's Mask and OoT3D. Makes Bombchu "
+            "Explosions are now a static size, like in Majora's Mask. Makes Bombchu "
             "hovering much easier."));
     AddWidget(path, "Prevent Bombchus Forcing First-Person", WIDGET_CVAR_CHECKBOX)
         .CVar(CVAR_ENHANCEMENT("DisableFirstPersonChus"))

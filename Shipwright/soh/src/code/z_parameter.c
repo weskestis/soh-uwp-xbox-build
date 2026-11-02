@@ -1,10 +1,10 @@
 #include "global.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 #include "vt.h"
 #include "textures/parameter_static/parameter_static.h"
 #include "textures/do_action_static/do_action_static.h"
 #include "textures/icon_item_static/icon_item_static.h"
 #include "soh_assets.h"
-
 #include "soh/Enhancements/gameplaystats.h"
 #include "soh/Enhancements/custom-message/CustomMessageInterfaceAddon.h"
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
@@ -2940,7 +2940,7 @@ u8 Item_CheckObtainability(u8 item) {
         }
     } else if ((item >= ITEM_WEIRD_EGG) && (item <= ITEM_CLAIM_CHECK)) {
         return ITEM_NONE;
-    } else if (item == ITEM_LENS) {
+    } else if (Zelda3D_Enabled() && item == ITEM_LENS) {
         // OoT3D adds an explicit ITEM_LENS -> ITEM_NONE branch that N64 lacks, so a Lens of Truth
         // pickup is always treated as not-yet-owned. Ground truth: OoT3D Item_CheckObtainability
         // @ 0x00377a50, test `cmp r0,#0x0f` at 0x00377ce4 falling into the ITEM_NONE epilogue at

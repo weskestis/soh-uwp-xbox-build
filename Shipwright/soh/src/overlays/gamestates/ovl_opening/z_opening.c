@@ -5,6 +5,7 @@
  */
 
 #include "global.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 
 void Sram_InitDebugSave(void);
 
@@ -17,10 +18,8 @@ void Opening_SetupTitleScreen(OpeningContext* this) {
     Sram_InitDebugSave();
     gSaveContext.cutsceneIndex = 0xFFF3;
     gSaveContext.sceneSetupIndex = 7;
-    // SoH3D: boot into SCENE_TITLE (spot99) — a first-class scene that aliases spot00's N64 data
-    // (byte-identical actor/object/collision per oot3d-decomp/docs/title_scene_spot99.md §3/§4)
-    // and maps to spot99 in the OoT3D render layer.
-    gSaveContext.entranceIndex = ENTR_TITLE_0;
+    // Original title horse/cutscene setup requires the debug save's Hyrule Field entrance.
+    if (Zelda3D_Enabled()) gSaveContext.entranceIndex = ENTR_TITLE_0;
     SET_NEXT_GAMESTATE(&this->state, Play_Init, PlayState);
 }
 

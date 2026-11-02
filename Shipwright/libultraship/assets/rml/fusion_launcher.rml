@@ -1,0 +1,25 @@
+<rml>
+<head>
+    <title>Zelda Fusion</title>
+    <link type="text/rcss" href="fusion.rcss"/>
+</head>
+<body>
+    <div id="window">
+        <h1>Zelda Fusion</h1>
+        <div class="games">
+            <div class="game">
+                <h2 id="title-oot">Ocarina of Time</h2>
+                <button action="start_oot" half="oot" tabindex="auto" autofocus="">Start game</button>
+            </div>
+            <div class="game">
+                <h2 id="title-mm">Majora's Mask</h2>
+                <button action="start_mm" half="mm" tabindex="auto">Start game</button>
+            </div>
+        </div>
+        <div class="utilities">
+            <button action="quit" tabindex="auto">Exit</button>
+        </div>
+        <p class="hint">Up / Down to move &#183; Enter or A to select</p>
+    </div>
+</body>
+</rml>

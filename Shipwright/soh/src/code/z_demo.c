@@ -1,6 +1,6 @@
 #include "global.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 #include "z64camera.h"
-
 #include <string.h>
 
 #include "scenes/indoors/tokinoma/tokinoma_scene.h"
@@ -542,20 +542,20 @@ void Cutscene_Command_Terminator(PlayState* play, CutsceneContext* csCtx, CsCmdB
         shouldSkipCommand = true;
     }
 
-    // Player-initiated skip: press START to skip a skippable in-game cutscene. Always on (the same
-    // jump-to-terminator path the developer skip has always used, so it lands in the proper
-    // post-cutscene state). The title-screen attract demo MUST be excluded so its own Start handler
+    // Original mode keeps the developer skip opt-in; remake mode also permits player START skipping.
+    // jump-to-terminator path. Exclude the title demo so its Start handler
     // (En_Mag -> GAMEMODE_FILE_SELECT) reaches File Select, instead of this skip jumping the demo
     // cutscene to its terminator and loading the NEXT demo flyby (the "Start goes somewhere weird
     // before File Select" bug, #14). The intended 0xFEDC fileNum sentinel for that demo is never set
     // in this build — the title runs with fileNum 0xFF (z_title.c/z_opening.c) — so gate on the
     // gameMode, which IS GAMEMODE_TITLE_SCREEN throughout the demo. (0xFEDC check kept for parity.)
-    bool csSkipButton = (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
+    bool csSkipButton = ((Zelda3D_Enabled() || CVarGetInteger(CVAR_DEVELOPER_TOOLS("DebugEnabled"), 0)) &&
+                         CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
                          (gSaveContext.fileNum != 0xFEDC) &&
-                         (gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN));
+                         (!Zelda3D_Enabled() || gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN));
 
     if ((gSaveContext.gameMode != GAMEMODE_NORMAL) && (gSaveContext.gameMode != GAMEMODE_END_CREDITS) &&
-        (gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN) &&
+        (!Zelda3D_Enabled() || gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN) &&
         (play->sceneNum != SCENE_HYRULE_FIELD) && (csCtx->frames > 20) &&
         (CHECK_BTN_ALL(play->state.input[0].press.button, BTN_A) ||
          CHECK_BTN_ALL(play->state.input[0].press.button, BTN_B) ||
@@ -1372,7 +1372,7 @@ void Cutscene_Command_Terminator(PlayState* play, CutsceneContext* csCtx, CsCmdB
         // (their terminators transition to the next scene) but stalls on this last in-place one.
         // When the skip was player-initiated and no transition got armed, jump straight to the
         // teardown state (CS_STATE_UNSKIPPABLE_INIT) so the cutscene ends immediately and cleanly.
-        if (csSkipButton && (play->transitionTrigger == TRANS_TRIGGER_OFF)) {
+        if (Zelda3D_Enabled() && csSkipButton && (play->transitionTrigger == TRANS_TRIGGER_OFF)) {
             csCtx->state = CS_STATE_UNSKIPPABLE_INIT;
         }
     }
@@ -2140,7 +2140,7 @@ void func_80068C3C(PlayState* play, CutsceneContext* csCtx) {
         // actions, cutsceneIndex=0, gameMode=NORMAL, restores camera). Gated like csSkipButton.
         // (NOTE: the new-game Navi intro is NOT a csCtx cutscene — csCtx.state stays IDLE there — so
         // it is handled separately by the Player-side skip in z_player.c Player_UpdateCommon.)
-        if ((csCtx->state == CS_STATE_SKIPPABLE_EXEC) &&
+        if (Zelda3D_Enabled() && (csCtx->state == CS_STATE_SKIPPABLE_EXEC) &&
             CHECK_BTN_ALL(play->state.input[0].press.button, BTN_START) &&
             (gSaveContext.gameMode != GAMEMODE_TITLE_SCREEN) && (gSaveContext.fileNum != 0xFEDC) &&
             (csCtx->frames > 20) && (play->transitionTrigger == TRANS_TRIGGER_OFF)) {

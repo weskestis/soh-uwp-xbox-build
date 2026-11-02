@@ -1,6 +1,7 @@
 // Zelda3D actor-behavior registry and dispatch. See actor_behavior.h.
 #include "actor_behavior.h"
 #include "actor_behavior_bridge.h"
+#include "../core/zelda3d_runtime.h"
 #include "actor/kokiri_kid.h"
 #include "actor/saria.h"
 #include "actor/mido.h"
@@ -159,7 +160,7 @@ extern "C" int Zelda3D_TryActorDeferredDraw(PlayState* play, Actor* actor) {
 }
 
 extern "C" void Zelda3D_ActorBehaviorPreUpdate(PlayState* play, Actor* actor) {
-    if (play == nullptr || actor == nullptr) {
+    if (!Zelda3D_Enabled() || play == nullptr || actor == nullptr) {
         return;
     }
     if (Zelda3D::ActorBehavior* b = Zelda3D::findActorBehavior(actor->id)) {
@@ -168,7 +169,7 @@ extern "C" void Zelda3D_ActorBehaviorPreUpdate(PlayState* play, Actor* actor) {
 }
 
 extern "C" void Zelda3D_ActorBehaviorPostUpdate(PlayState* play, Actor* actor) {
-    if (play == nullptr || actor == nullptr) {
+    if (!Zelda3D_Enabled() || play == nullptr || actor == nullptr) {
         return;
     }
     if (Zelda3D::ActorBehavior* b = Zelda3D::findActorBehavior(actor->id)) {

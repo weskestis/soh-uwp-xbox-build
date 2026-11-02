@@ -27,7 +27,6 @@
 #include "zelda3d_texture_pack_cache.h"
 #include "../core/zelda3d_log.h"
 #include "../scene/zelda3d_stairs.h" // procedural stair geometry (gZelda3dStairs, generateStairsGroup, ...)
-
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -171,6 +170,9 @@ static std::string resolveAssetSourcePath() {
 }
 
 Zelda3D::CtrRom* rom() {
+#ifdef ZELDA_FUSION
+    return nullptr;
+#else
     if (g_romAttempted) {
         return g_rom.get();
     }
@@ -195,9 +197,6 @@ Zelda3D::CtrRom* rom() {
         return nullptr;
     }
 
-    // Container structure alone accepts any extracted RomFS or decrypted 3DS CCI. These anchors
-    // identify the OoT3D families needed by scenes, Link, and the environment before the UI calls
-    // the source ready.
     static const char* const required[] = {
         "/kankyo/BlueSky.zar",
         "/actor/zelda_link_boy_new.zar",
@@ -212,6 +211,7 @@ Zelda3D::CtrRom* rom() {
         }
     }
     return g_rom.get();
+#endif
 }
 
 // Decode an already-parsed CMB (out->cmb) into the renderer's CPU views: bind-pose

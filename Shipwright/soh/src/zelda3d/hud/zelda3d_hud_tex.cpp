@@ -706,9 +706,13 @@ int gZelda3dHudTex = -1;
 }
 
 extern "C" int Zelda3D_HudTexEnabled(void) {
+#ifdef ZELDA_FUSION
+    return 0;
+#else
     if (gZelda3dHudTex < 0) {
         const char* v = ShipGetEnvironmentVariable("ZELDA3D_HUDTEX");
         gZelda3dHudTex = (v != NULL && v[0] == '0') ? 0 : 1;
     }
     return gZelda3dHudTex;
+#endif
 }

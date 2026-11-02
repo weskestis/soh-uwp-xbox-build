@@ -17,10 +17,18 @@ static int sModeReloadQueued = 0;
 extern PlayState* gPlayState;
 
 static int Zelda3D_NormalizeGraphicsMode(int mode) {
+#ifdef ZELDA_FUSION
+    (void)mode;
+    return ZELDA3D_GRAPHICS_ORIGINAL;
+#else
     return mode == ZELDA3D_GRAPHICS_OOT3D ? ZELDA3D_GRAPHICS_OOT3D : ZELDA3D_GRAPHICS_ORIGINAL;
+#endif
 }
 
 static int Zelda3D_DefaultGraphicsMode(void) {
+#ifdef ZELDA_FUSION
+    return ZELDA3D_GRAPHICS_ORIGINAL;
+#else
     // The developer harness has historically used SOH3D=1/0. Keep that useful as the default for
     // an unset config, but never make it a permanent override: the packaged build must stay
     // toggleable from its Settings menu.
@@ -29,6 +37,7 @@ static int Zelda3D_DefaultGraphicsMode(void) {
         return value[0] == '0' ? ZELDA3D_GRAPHICS_ORIGINAL : ZELDA3D_GRAPHICS_OOT3D;
     }
     return ZELDA3D_GRAPHICS_ORIGINAL;
+#endif
 }
 
 static int Zelda3D_ConfiguredGraphicsMode(void) {
@@ -37,14 +46,21 @@ static int Zelda3D_ConfiguredGraphicsMode(void) {
 }
 
 int Zelda3D_Enabled(void) {
+#ifdef ZELDA_FUSION
+    return 0;
+#else
     if (gZelda3dEnabled < 0) {
         gZelda3dEnabled = Zelda3D_DefaultGraphicsMode();
     }
     return gZelda3dEnabled;
+#endif
 }
 
 void Zelda3D_GraphicsModeInitialize(void) {
     const int configured = Zelda3D_ConfiguredGraphicsMode();
+#ifdef ZELDA_FUSION
+    CVarSetInteger(ZELDA3D_GRAPHICS_MODE_CVAR, configured);
+#endif
     gZelda3dEnabled = configured;
     sRequestedGraphicsMode = configured;
     sPendingGraphicsMode = -1;

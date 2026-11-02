@@ -22,6 +22,9 @@ on:
       - 'tools/uwp_logger_host/**'
       - 'tools/uwp_store_build.py'
       - 'tools/test_uwp_store_build.py'
+      - 'tools/test_oot_original_boot.py'
+      - 'tools/oot_original_boot_test.c'
+      - 'tools/test_fusion_original_policy.py'
 
 permissions:
   contents: read
@@ -47,6 +50,8 @@ jobs:
       - run: python3 tools/test_mm_uwp_contract.py
       - run: python3 tools/test_uwp_core_imports.py
       - run: python3 tools/test_uwp_store_build.py
+      - run: python3 tools/test_oot_original_boot.py
+      - run: python3 tools/test_fusion_original_policy.py
 
   game-core:
     strategy:

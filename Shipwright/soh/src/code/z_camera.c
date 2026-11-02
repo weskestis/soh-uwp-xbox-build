@@ -1,8 +1,8 @@
 #include <libultraship/libultra.h>
 #include "global.h"
 #include "vt.h"
+#include "zelda3d/core/zelda3d_runtime.h"
 #include <string.h>
-
 #include "overlays/actors/ovl_En_Horse/z_en_horse.h"
 
 #include "soh/frame_interpolation.h"
@@ -52,7 +52,7 @@ static void Zelda3D_ApplyOoT3DCameraValues(void) {
     s32 s, m, i;
     s32 changed = 0, skipped = 0;
 
-    if (sZ3dCamValuesApplied) {
+    if (!Zelda3D_Enabled() || sZ3dCamValuesApplied) {
         return;
     }
     sZ3dCamValuesApplied = 1;
@@ -7091,7 +7091,7 @@ void Camera_Init(Camera* camera, View* view, CollisionContext* colCtx, PlayState
     s16 curUID;
     s16 j;
 
-    Zelda3D_ApplyOoT3DCameraValues(); // SoH3D: one-time OoT3D camera-data overwrite (see above)
+    Zelda3D_ApplyOoT3DCameraValues();
     memset(camera, 0, sizeof(*camera));
     // Run-scoped, NOT process-scoped. The N64 original gates this on a plain `sInitRegs` static,
     // which is correct on a console that runs one game per boot -- but the registers it fills live

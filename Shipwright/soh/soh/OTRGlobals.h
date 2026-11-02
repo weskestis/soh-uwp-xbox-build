@@ -19,6 +19,14 @@ class Context;
 
 struct ImFont;
 
+#if defined(ZELDA_FUSION)
+inline constexpr uint32_t defaultImGuiScale = 0;
+#elif defined(__WIIU__)
+inline constexpr uint32_t defaultImGuiScale = 3;
+#else
+inline constexpr uint32_t defaultImGuiScale = 1;
+#endif
+
 class OTRGlobals {
   public:
     static OTRGlobals* Instance;

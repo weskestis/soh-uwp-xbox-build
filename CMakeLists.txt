@@ -85,6 +85,7 @@ if(ZELDA3D_UWP_CORE)
     # _UWP selects the WinRT-compatible branches in the established SDL2/libuwp
     # dependency stack.  ZELDA3D_UWP is the project-owned source/runtime gate.
     add_compile_definitions(ZELDA3D_UWP=1 _UWP=1 _CRT_SECURE_NO_WARNINGS NOMINMAX)
+    add_compile_definitions(ZELDA_FUSION=1)
 endif()
 
 if(ZELDA3D_BUILD_LAUNCHER AND NOT ZELDA3D_BUILD_MM)

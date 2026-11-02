@@ -53,10 +53,12 @@ static const std::map<int32_t, const char*> textureFilteringMap = {
     { Fast::FILTER_NONE, "None" },
 };
 
+#ifndef ZELDA_FUSION
 static const std::map<int32_t, const char*> graphicsModeMap = {
     { ZELDA3D_GRAPHICS_ORIGINAL, "Original SoH" },
     { ZELDA3D_GRAPHICS_OOT3D, "Ocarina of Time 3D" },
 };
+#endif
 
 static const std::map<int32_t, const char*> notificationPosition = {
     { 0, "Top Left" }, { 1, "Top Right" }, { 2, "Bottom Left" }, { 3, "Bottom Right" }, { 4, "Hidden" },
@@ -230,7 +232,7 @@ void SohMenu::AddMenuSettings() {
         .CVar(CVAR_SETTING("TitleScreenTranslation"))
         .RaceDisable(false)
         .Options(CheckboxOptions().Tooltip(
-            "Translates the original SoH title and any N64 fallback title. OoT3D title assets keep their authored text."));
+            "Translates the title screen text."));
     AddWidget(path, "Language", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_SETTING("Languages"))
         .RaceDisable(false)
@@ -273,7 +275,7 @@ void SohMenu::AddMenuSettings() {
         .Options(ComboboxOptions()
                      .ComboMap(imguiScaleOptions)
                      .Tooltip("Changes the scaling of the ImGui menu elements.")
-                     .DefaultIndex(1)
+                     .DefaultIndex(defaultImGuiScale)
                      .ComponentAlignment(ComponentAlignments::Right)
                      .LabelPosition(LabelPositions::Far))
         .Callback([](WidgetInfo& info) { OTRGlobals::Instance->ScaleImGui(); });
@@ -342,6 +344,7 @@ void SohMenu::AddMenuSettings() {
                           "FPS than your monitor's refresh rate will waste resources, and might give a worse result.";
     path.sidebarName = "Graphics";
     AddSidebarEntry("Settings", "Graphics", 3);
+#ifndef ZELDA_FUSION
     AddWidget(path, "Graphics Pack", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Graphics Mode", WIDGET_CVAR_COMBOBOX)
         .CVar(CVAR_SETTING("GraphicsMode"))
@@ -437,6 +440,7 @@ void SohMenu::AddMenuSettings() {
         })
         .Options(ButtonOptions().Tooltip(
             "Looks for a newly copied ZIP or extracted pack. Invalid packs remain off and report why above."));
+#endif
 
     AddWidget(path, "Graphics Options", WIDGET_SEPARATOR_TEXT);
     AddWidget(path, "Toggle Fullscreen", WIDGET_BUTTON)
@@ -550,8 +554,7 @@ void SohMenu::AddMenuSettings() {
         .CVar(CVAR_TEXTURE_FILTER)
         .RaceDisable(false)
         .Options(ComboboxOptions()
-                     .Tooltip("Sets filtering for original SoH textures and N64 fallback assets. OoT3D CMB textures "
-                              "use their authored material sampler state.")
+                     .Tooltip("Sets filtering for original game textures.")
                      .ComboMap(textureFilteringMap));
 
     path.column = SECTION_COLUMN_2;
