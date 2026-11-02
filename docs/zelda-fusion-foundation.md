@@ -370,15 +370,29 @@ reference paths as HEAD, with no new missing paths.
 
 Initial core source `6b7ed1519638885450f78b69f1e98f4e52974238` started
 [run 41368363946](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41368363946);
-its host-contract job passes. It is superseded before delivery to include the HUD-owner gate.
+its host-contract job passed. It was cancelled before delivery to include the HUD-owner gate.
 The installer pins both cores to replacement source
 `6794f1e6372cb13fa8b9035c62571c91fb4591db`, native
 [run 41369775377](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41369775377).
+Both full native Store core builds and their linkage audits pass, along with the host checks.
 `fusion_package_ui.py` stages and verifies the current Fusion UI separately from the
 unchanged historical port-archive source; a stale or missing UI now fails package audit.
 Seven package test groups pass, including rejection of each stale UI file.
 
-These are host checks, not a rendered Xbox capture. Title/intro playback, launcher layout,
+Signed diagnostic **1.0.8.1** passes
+[installer run 41369852324](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41369852324),
+package source `e594f752f2819282d9da15ebe28472ff5546cbdd`. Both unsigned and signed payload
+audits pass: 121 staged payload files plus the wrapper and 879 packaged symbol references.
+Independent download verification checks all 16 delivery files, 122 payload hashes and 124
+block-map files, both core DLLs against their separately downloaded native artifacts, the
+Fusion display name and three current UI files, both renderer resources, and preservation
+of every original port-archive member. MSIX SHA-256:
+`3f141f3188caf799a35fd6b2f57fbc33203e6e4c39ca7223be38be8dc31be3a6`.
+Delivery ZIP SHA-256:
+`75ec07e09bd9c45729309d3c4051f8dd6bbdec71661350704f207f217f69f3df`.
+The app identity and private-data locations remain the existing Fusion identity.
+
+These are build and package checks, not a rendered Xbox capture. Title/intro playback, launcher layout,
 menu scale and ordinary gameplay still require device confirmation after the updated build.
 No claim of full N64 behavioral equivalence or combined-game randomizer completion is made.
 

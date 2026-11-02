@@ -9,6 +9,8 @@ Fusion is the original-game-only UWP profile. Its mandatory `ZELDA_FUSION` build
 locks graphics/asset entry points; `SohRmlUiAssets.h` selects the dedicated `fusion*.rml`/RCSS
 interface. Native title and player regression checks live in `tools/test_oot_original_boot.py`;
 activation and asset-isolation checks live in `tools/test_fusion_original_policy.py`.
+The replacement HUD owner in `Shipwright/soh/src/zelda3d/hud/zelda3d_hud.cpp` also rejects
+activation under that profile, preserving the native display-list HUD path.
 
 Fusion's wrapper boot log and early stdout/stderr capture live in
 `uwp/boot_diagnostics.cpp`; protected Windows fault-context/module/stack reporting
