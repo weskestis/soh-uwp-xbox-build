@@ -23,8 +23,8 @@ REPO = "weskestis/soh-uwp-xbox-build"
 ASSET_SOURCE = "3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa"
 DEPOT_SOURCE = "f5dbd58ee06a4b439bf260d641585dbc8bef3b86"
 CORE_INPUTS = {
-    "soh": (41368363946, "6b7ed1519638885450f78b69f1e98f4e52974238"),
-    "mm": (41368363946, "6b7ed1519638885450f78b69f1e98f4e52974238"),
+    "soh": (41369775377, "6794f1e6372cb13fa8b9035c62571c91fb4591db"),
+    "mm": (41369775377, "6794f1e6372cb13fa8b9035c62571c91fb4591db"),
 }
 DEPOT_DLLS = ("SDL2.dll", "opengl32.dll", "libgallium_wgl.dll", "dxil.dll", "z-1.dll")
 ROOT = Path(__file__).resolve().parents[1]

@@ -371,7 +371,9 @@ reference paths as HEAD, with no new missing paths.
 Initial core source `6b7ed1519638885450f78b69f1e98f4e52974238` started
 [run 41368363946](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41368363946);
 its host-contract job passes. It is superseded before delivery to include the HUD-owner gate.
-The installer will be pinned to the replacement run and source.
+The installer pins both cores to replacement source
+`6794f1e6372cb13fa8b9035c62571c91fb4591db`, native
+[run 41369775377](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41369775377).
 `fusion_package_ui.py` stages and verifies the current Fusion UI separately from the
 unchanged historical port-archive source; a stale or missing UI now fails package audit.
 Seven package test groups pass, including rejection of each stale UI file.
