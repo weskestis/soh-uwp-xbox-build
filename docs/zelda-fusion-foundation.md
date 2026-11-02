@@ -365,6 +365,13 @@ Fusion Rml documents and repeated/invalid menu-scale changes. Existing 20/20
 package/bootstrap contracts pass. The codemap check reports the same missing external
 reference paths as HEAD, with no new missing paths.
 
+Core source `6b7ed1519638885450f78b69f1e98f4e52974238` is building in
+[run 41368363946](https://github.com/weskestis/soh-uwp-xbox-build/actions/runs/41368363946);
+its host-contract job passes. The installer pins both cores to this exact run and source.
+`fusion_package_ui.py` stages and verifies the current Fusion UI separately from the
+unchanged historical port-archive source; a stale or missing UI now fails package audit.
+Seven package test groups pass, including rejection of each stale UI file.
+
 These are host checks, not a rendered Xbox capture. Title/intro playback, launcher layout,
 menu scale and ordinary gameplay still require device confirmation after the updated build.
 No claim of full N64 behavioral equivalence or combined-game randomizer completion is made.

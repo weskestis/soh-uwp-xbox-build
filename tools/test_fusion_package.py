@@ -12,9 +12,26 @@ import zipfile
 import fusion_package_audit as audit
 import fusion_package_inputs as inputs
 import fusion_package_renderer as renderer
+import fusion_package_ui as ui
 
 
 class PackageTests(unittest.TestCase):
+    def test_current_fusion_ui_is_required_independently_of_legacy_assets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            runtime = Path(temp)
+            with self.assertRaisesRegex(RuntimeError, "Missing or outdated Fusion UI"):
+                ui.verify_ui(runtime)
+            hashes = ui.stage_ui(runtime)
+            self.assertEqual(len(hashes), 3)
+            for name in ui.FILES:
+                target = runtime / "assets/rml" / name
+                original = target.read_bytes()
+                target.write_bytes(b"stale launcher")
+                with self.assertRaisesRegex(RuntimeError, "Missing or outdated Fusion UI"):
+                    ui.verify_ui(runtime)
+                target.write_bytes(original)
+            self.assertEqual(ui.verify_ui(runtime), hashes)
+
     def setUp(self):
         self.scratch = inputs.ROOT / "scratch"
         self.scratch.mkdir(exist_ok=True)

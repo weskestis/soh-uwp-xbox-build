@@ -16,6 +16,9 @@ lives in `uwp/boot_exception_report.cpp`. Selected-game writable log-directory p
 `uwp/startup_storage.cpp`; it creates only the private directory child and rejects blocked paths before core entry. `tools/uwp_boot_diagnostics_host/` tests
 the real diagnostic code across two Store-CRT DLLs before installer packaging.
 
+`tools/fusion_package_ui.py` owns the current Fusion launcher/menu overlay and exact-file
+verification, independently of the pinned historical port-archive assets.
+
 `tools/fusion_package_renderer.py` owns the Fusion package's OpenGL resources from
 `uwp/renderer-assets/`. It preserves every member of the verified port archives while adding
 the raw combined shader required by the pinned cores. `fusion_package_audit.py` checks that

@@ -17,13 +17,14 @@ import zipfile
 
 from uwp_runtime_stage import reject_private_files
 from fusion_package_renderer import SOURCE as RENDERER_SOURCE, prepare_renderer_archive
+from fusion_package_ui import stage_ui
 
 REPO = "weskestis/soh-uwp-xbox-build"
 ASSET_SOURCE = "3c4559d3a934cbb3598a4ab2c03122c3be1a5ffa"
 DEPOT_SOURCE = "f5dbd58ee06a4b439bf260d641585dbc8bef3b86"
 CORE_INPUTS = {
-    "soh": (41260862534, "db701c752a7bcbe923416395c52f5cefe668810c"),
-    "mm": (41246667942, "4bec8b52bdeb14f0a226c6fbea409fb6521f8e25"),
+    "soh": (41368363946, "6b7ed1519638885450f78b69f1e98f4e52974238"),
+    "mm": (41368363946, "6b7ed1519638885450f78b69f1e98f4e52974238"),
 }
 DEPOT_DLLS = ("SDL2.dll", "opengl32.dll", "libgallium_wgl.dll", "dxil.dll", "z-1.dll")
 ROOT = Path(__file__).resolve().parents[1]
@@ -225,6 +226,7 @@ def main():
             "Unexpected Xbox dependency depot")
     record["depot_dlls"] = {name: sha256(depot / "x64/bin" / name) for name in DEPOT_DLLS}
     copy_assets(source, runtime)
+    record["ui"] = {"source": os.environ["GITHUB_SHA"], "members": stage_ui(runtime)}
     reject_private_files(runtime)
     (runtime / "assets/fusion-build.json").write_text(json.dumps(record, indent=2) + "\n")
     (work / "BUILD.json").write_text(json.dumps(record, indent=2) + "\n")
